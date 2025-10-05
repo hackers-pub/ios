@@ -189,7 +189,7 @@ struct TimelineView: View {
             if let errors = response.errors, !errors.isEmpty {
                 print("⚠️ TimelineView: GraphQL errors present:")
                 for error in errors {
-                    print("   - \(error.message)")
+                    print("   - \(error.message ?? "Unknown error")")
                     if let extensions = error["extensions"] as? [String: Any] {
                         print("   Extensions: \(extensions)")
                     }
@@ -215,9 +215,7 @@ struct TimelineView: View {
         } catch {
             print("❌ TimelineView: Error fetching posts: \(error)")
             print("❌ TimelineView: Error details: \(String(describing: error))")
-            if let apolloError = error as? any Error {
-                print("❌ TimelineView: Error type: \(type(of: apolloError))")
-            }
+            print("❌ TimelineView: Error type: \(type(of: error))")
         }
     }
 
@@ -357,7 +355,7 @@ struct PersonalTimelineView: View {
             if let errors = response.errors, !errors.isEmpty {
                 print("⚠️ PersonalTimelineView: GraphQL errors present:")
                 for error in errors {
-                    print("   - \(error.message)")
+                    print("   - \(error.message ?? "Unknown error")")
                     if let extensions = error["extensions"] as? [String: Any] {
                         print("   Extensions: \(extensions)")
                     }
@@ -381,9 +379,7 @@ struct PersonalTimelineView: View {
         } catch {
             print("❌ PersonalTimelineView: Error fetching posts: \(error)")
             print("❌ PersonalTimelineView: Error details: \(String(describing: error))")
-            if let apolloError = error as? any Error {
-                print("❌ PersonalTimelineView: Error type: \(type(of: apolloError))")
-            }
+            print("❌ PersonalTimelineView: Error type: \(type(of: error))")
         }
     }
 
@@ -523,7 +519,7 @@ struct LocalTimelineView: View {
             if let errors = response.errors, !errors.isEmpty {
                 print("⚠️ LocalTimelineView: GraphQL errors present:")
                 for error in errors {
-                    print("   - \(error.message)")
+                    print("   - \(error.message ?? "Unknown error")")
                     if let extensions = error["extensions"] as? [String: Any] {
                         print("   Extensions: \(extensions)")
                     }
@@ -547,9 +543,7 @@ struct LocalTimelineView: View {
         } catch {
             print("❌ LocalTimelineView: Error fetching posts: \(error)")
             print("❌ LocalTimelineView: Error details: \(String(describing: error))")
-            if let apolloError = error as? any Error {
-                print("❌ LocalTimelineView: Error type: \(type(of: apolloError))")
-            }
+            print("❌ LocalTimelineView: Error type: \(type(of: error))")
         }
     }
 

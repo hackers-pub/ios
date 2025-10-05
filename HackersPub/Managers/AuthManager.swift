@@ -42,10 +42,9 @@ class AuthManager {
         }
 
         do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ViewerQuery(),
-                cachePolicy: .fetchIgnoringCacheData
-            )
+            // Clear cache first to ensure fresh data
+            try await apolloClient.clearCache()
+            let response = try await apolloClient.fetch(query: HackersPub.ViewerQuery())
             currentAccount = response.data?.viewer
             isAuthenticated = currentAccount != nil
         } catch {

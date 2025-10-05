@@ -59,3 +59,70 @@ extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.Share
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost.Medium: MediaProtocol {}
 
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle: Identifiable {}
+
+// MARK: - Notifications Extensions
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post: PostProtocol {
+    typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post
+    var sharedPost: SharedPostType? { nil }
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post.Actor: ActorProtocol {}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post.Medium: MediaProtocol {}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post: PostProtocol {
+    typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post
+    var sharedPost: SharedPostType? { nil }
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post.Actor: ActorProtocol {}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post.Medium: MediaProtocol {}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post: PostProtocol {
+    typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post
+    var sharedPost: SharedPostType? { nil }
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.Actor: ActorProtocol {}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.Medium: MediaProtocol {}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post: PostProtocol {
+    typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post
+    var sharedPost: SharedPostType? { nil }
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post.Actor: ActorProtocol {}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post.Medium: MediaProtocol {}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post: PostProtocol {
+    typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post
+    var sharedPost: SharedPostType? { nil }
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post.Actor: ActorProtocol {}
+
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post.Medium: MediaProtocol {}

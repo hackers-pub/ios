@@ -332,3 +332,163 @@ mutation CreateNoteMutation($content: Markdown!, $language: Locale!, $visibility
     }
   }
 }
+
+query NotificationsQuery($after: String) {
+  viewer {
+    id
+    notifications(first: 20, after: $after) {
+      edges {
+        cursor
+        node {
+          __typename
+          id
+          uuid
+          created
+          actors(first: 5) {
+            edges {
+              node {
+                id
+                name
+                handle
+                avatarUrl
+              }
+            }
+          }
+          ... on FollowNotification {
+            id
+          }
+          ... on MentionNotification {
+            post {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              url
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+            }
+          }
+          ... on ReplyNotification {
+            post {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              url
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+            }
+          }
+          ... on QuoteNotification {
+            post {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              url
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+            }
+          }
+          ... on ReactNotification {
+            emoji
+            customEmoji {
+              id
+              name
+              imageUrl
+            }
+            post {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              url
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+            }
+          }
+          ... on ShareNotification {
+            post {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              url
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+            }
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}

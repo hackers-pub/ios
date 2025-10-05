@@ -54,13 +54,12 @@ struct ContentView: View {
                     PersonalTimelineView(showingComposeView: $showingComposeView)
                 }
 
-                Tab("Hackers' Pub", systemImage: "cat", value: "local") {
-                    LocalTimelineView(showingComposeView: $showingComposeView)
+                Tab("Notifications", systemImage: "bell", value: "notifications") {
+                    NotificationsView()
                 }
-                .customizationID("local")
 
-                Tab("Fediverse", systemImage: "globe", value: "global") {
-                    TimelineView(showingComposeView: $showingComposeView)
+                Tab("Explore", systemImage: "globe", value: "explore") {
+                    ExploreView(showingComposeView: $showingComposeView)
                 }
 
                 Tab(value: "search", role: .search) {
@@ -84,18 +83,18 @@ struct ContentView: View {
                         .textInputAutocapitalization(.never)
                 }
 
-                Tab("Timeline", systemImage: "rectangle.portrait.and.arrow.right", value: "timeline") {
+                Tab("Sign In", systemImage: "rectangle.portrait.and.arrow.right", value: "timeline") {
                     SignInView()
                 }
             }
         }
         .task {
             // Set default tab based on auth state
-            selectedTab = "timeline"
+            selectedTab = authManager.isAuthenticated ? "timeline" : "local"
         }
-        .onChange(of: authManager.isAuthenticated) { _, _ in
-            // Switch to timeline tab when auth state changes
-            selectedTab = "timeline"
+        .onChange(of: authManager.isAuthenticated) { _, isAuth in
+            // Switch to appropriate tab when auth state changes
+            selectedTab = isAuth ? "timeline" : "local"
         }
     }
 }
