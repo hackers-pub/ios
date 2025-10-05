@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "cat-light.png",
+      "filename" : "appicon.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,6 @@
           "value" : "dark"
         }
       ],
-      "filename" : "cat-dark.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
