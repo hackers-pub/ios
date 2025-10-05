@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C7177A662E9293AD00FF0221 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = C7177A652E9293AD00FF0221 /* Markdown */; };
+		C7A39C4D2E927CD100EF77C6 /* ApolloAPI in Frameworks */ = {isa = PBXBuildFile; productRef = C7A39C4C2E927CD100EF77C6 /* ApolloAPI */; };
+		C7FBAF3A2E92547900B9BE8B /* Apollo in Frameworks */ = {isa = PBXBuildFile; productRef = C7FBAF392E92547900B9BE8B /* Apollo */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		C758C1002E86A71700F672CE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +58,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C7177A662E9293AD00FF0221 /* Markdown in Frameworks */,
+				C7A39C4D2E927CD100EF77C6 /* ApolloAPI in Frameworks */,
+				C7FBAF3A2E92547900B9BE8B /* Apollo in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +121,9 @@
 			);
 			name = HackersPub;
 			packageProductDependencies = (
+				C7FBAF392E92547900B9BE8B /* Apollo */,
+				C7A39C4C2E927CD100EF77C6 /* ApolloAPI */,
+				C7177A652E9293AD00FF0221 /* Markdown */,
 			);
 			productName = HackersPub;
 			productReference = C758C0F22E86A71600F672CE /* HackersPub.app */;
@@ -195,6 +207,10 @@
 			);
 			mainGroup = C758C0E92E86A71600F672CE;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C7FBAF382E92547900B9BE8B /* XCRemoteSwiftPackageReference "apollo-ios" */,
+				C7177A642E9293AD00FF0221 /* XCRemoteSwiftPackageReference "swift-markdown" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C758C0F32E86A71600F672CE /* Products */;
 			projectDirPath = "";
@@ -390,10 +406,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HUX38ZM8ZH;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Hackers' Pub";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -416,7 +435,6 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -432,10 +450,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HUX38ZM8ZH;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Hackers' Pub";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -458,7 +479,6 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -605,6 +625,43 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C7177A642E9293AD00FF0221 /* XCRemoteSwiftPackageReference "swift-markdown" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swiftlang/swift-markdown";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.7.2;
+			};
+		};
+		C7FBAF382E92547900B9BE8B /* XCRemoteSwiftPackageReference "apollo-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apollographql/apollo-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C7177A652E9293AD00FF0221 /* Markdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C7177A642E9293AD00FF0221 /* XCRemoteSwiftPackageReference "swift-markdown" */;
+			productName = Markdown;
+		};
+		C7A39C4C2E927CD100EF77C6 /* ApolloAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C7FBAF382E92547900B9BE8B /* XCRemoteSwiftPackageReference "apollo-ios" */;
+			productName = ApolloAPI;
+		};
+		C7FBAF392E92547900B9BE8B /* Apollo */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C7FBAF382E92547900B9BE8B /* XCRemoteSwiftPackageReference "apollo-ios" */;
+			productName = Apollo;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C758C0EA2E86A71600F672CE /* Project object */;
 }

@@ -1,0 +1,30 @@
+{
+  "schemaNamespace" : "HackersPub",
+  "input" : {
+    "operationSearchPaths" : [
+      "**/*.graphql"
+    ],
+    "schemaSearchPaths" : [
+      "**/*.graphqls"
+    ]
+  },
+  "output" : {
+    "testMocks" : {
+      "none" : {
+      }
+    },
+    "schemaTypes" : {
+      "path" : "./HackersPub",
+      "moduleType" : {
+        "embeddedInTarget" : {
+          "name" : "HackersPub",
+          "accessModifier" : "public"
+        }
+      }
+    },
+    "operations" : {
+      "inSchemaModule" : {
+      }
+    }
+  }
+}

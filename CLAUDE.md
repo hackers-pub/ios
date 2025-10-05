@@ -1,0 +1,1 @@
+After editing `operation.graphql` or `schema.graphqls`, run `apollo-ios-cli generate`.
