@@ -20,10 +20,29 @@ struct AuthInterceptor: GraphQLInterceptor {
     }
 }
 
+// Logging interceptor that prints GraphQL request info
+struct LoggingInterceptor: GraphQLInterceptor {
+    func intercept<Request: GraphQLRequest>(
+        request: Request,
+        next: NextInterceptorFunction<Request>
+    ) async throws -> InterceptorResultStream<Request> {
+        let operationName = String(describing: Request.Operation.self)
+
+        // Only log for PostDetailQuery
+        if operationName.contains("PostDetailQuery") {
+            print("🟢 ===== GraphQL Request: \(operationName) =====")
+        }
+
+        return await next(request)
+    }
+}
+
 // Custom interceptor provider for Apollo iOS 2.0
 struct CustomInterceptorProvider: InterceptorProvider {
     func graphQLInterceptors<Operation: GraphQLOperation>(for operation: Operation) -> [any GraphQLInterceptor] {
-        return DefaultInterceptorProvider.shared.graphQLInterceptors(for: operation) + [
+        return [
+            LoggingInterceptor()
+        ] + DefaultInterceptorProvider.shared.graphQLInterceptors(for: operation) + [
             AuthInterceptor()
         ]
     }

@@ -36,50 +36,53 @@ protocol MediaProtocol {
 struct PostView<P: PostProtocol>: View {
     let post: P
     let showAuthor: Bool
+    let disableNavigation: Bool
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @State private var showingReplyView = false
 
-    init(post: P, showAuthor: Bool = true) {
+    init(post: P, showAuthor: Bool = true, disableNavigation: Bool = false) {
         self.post = post
         self.showAuthor = showAuthor
+        self.disableNavigation = disableNavigation
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if showAuthor {
-                HStack(spacing: 8) {
-                    Button {
-                        navigationCoordinator.navigateToProfile(handle: post.actor.handle)
-                    } label: {
-                        CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            Color.gray.opacity(0.2)
+        Group {
+            VStack(alignment: .leading, spacing: 8) {
+                if showAuthor {
+                    HStack(spacing: 8) {
+                        Button {
+                            navigationCoordinator.navigateToProfile(handle: post.actor.handle)
+                        } label: {
+                            CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                            } placeholder: {
+                                Color.gray.opacity(0.2)
+                            }
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
                         }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
+                        .buttonStyle(.plain)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        if let name = post.actor.name {
-                            HTMLTextView(html: name, font: .headline)
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let name = post.actor.name {
+                                HTMLTextView(html: name, font: .headline)
+                            }
+                            Text(post.actor.handle)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
-                        Text(post.actor.handle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
 
-                    Spacer()
+                        Spacer()
 
-                    if post.sharedPost != nil {
-                        Image(systemName: "arrow.2.squarepath")
-                            .foregroundStyle(.secondary)
+                        if post.sharedPost != nil {
+                            Image(systemName: "arrow.2.squarepath")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
-            }
 
             if let sharedPost = post.sharedPost {
                 // Display shared post
@@ -169,27 +172,40 @@ struct PostView<P: PostProtocol>: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            // Action buttons
-            HStack(spacing: 16) {
-                Button {
-                    showingReplyView = true
-                } label: {
-                    Label("Reply", systemImage: "arrowshape.turn.up.left")
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.borderless)
-
-                Spacer()
-
-                if let urlString = post.url, let url = URL(string: urlString) {
-                    ShareLink(item: url) {
-                        Label("Share", systemImage: "square.and.arrow.up")
+                // Action buttons
+                HStack(spacing: 16) {
+                    Button {
+                        showingReplyView = true
+                    } label: {
+                        Label("Reply", systemImage: "arrowshape.turn.up.left")
                             .labelStyle(.iconOnly)
                     }
                     .buttonStyle(.borderless)
+
+                    Spacer()
+
+                    if let urlString = post.url, let url = URL(string: urlString) {
+                        ShareLink(item: url) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                                .labelStyle(.iconOnly)
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
+                .foregroundStyle(.secondary)
             }
-            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
+            .background(
+                Group {
+                    if !disableNavigation && !post.isArticle {
+                        NavigationLink(destination: PostDetailView(postId: post.id)) {
+                            Color.clear
+                        }
+                        .opacity(0)
+                        .buttonStyle(.plain)
+                    }
+                }
+            )
         }
         .sheet(isPresented: $showingReplyView) {
             ComposeView(replyToPostId: post.id, replyToActor: post.actor.handle)

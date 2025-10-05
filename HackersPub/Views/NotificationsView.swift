@@ -156,6 +156,21 @@ struct NotificationRowView: View {
     let notification: NotificationItem
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
+    private var postId: String? {
+        if let mention = notification.asMentionNotification {
+            return mention.post?.id
+        } else if let reply = notification.asReplyNotification {
+            return reply.post?.id
+        } else if let quote = notification.asQuoteNotification {
+            return quote.post?.id
+        } else if let react = notification.asReactNotification {
+            return react.post?.id
+        } else if let share = notification.asShareNotification {
+            return share.post?.id
+        }
+        return nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
@@ -187,6 +202,17 @@ struct NotificationRowView: View {
             }
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .background(
+            Group {
+                if let postId = postId {
+                    NavigationLink(destination: PostDetailView(postId: postId)) {
+                        EmptyView()
+                    }
+                    .opacity(0)
+                }
+            }
+        )
     }
 
     @ViewBuilder

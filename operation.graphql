@@ -492,3 +492,155 @@ query NotificationsQuery($after: String) {
     }
   }
 }
+
+query PostDetailQuery($id: ID!, $repliesAfter: String) {
+  node(id: $id) {
+    ... on Post {
+      __typename
+      id
+      name
+      published
+      summary
+      content
+      url
+      visibility
+      actor {
+        id
+        name
+        handle
+        avatarUrl
+      }
+      media {
+        url
+        thumbnailUrl
+        alt
+        height
+        width
+      }
+      sharedPost {
+        __typename
+        id
+        name
+        published
+        summary
+        content
+        url
+        actor {
+          id
+          name
+          handle
+          avatarUrl
+        }
+        media {
+          url
+          thumbnailUrl
+          alt
+          height
+          width
+        }
+      }
+      engagementStats {
+        replies
+        reactions
+        shares
+        quotes
+      }
+      reactionGroups {
+        __typename
+        ... on EmojiReactionGroup {
+          emoji
+          reactors(first: 20) {
+            edges {
+              node {
+                id
+                name
+                handle
+                avatarUrl
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            totalCount
+          }
+        }
+        ... on CustomEmojiReactionGroup {
+          customEmoji {
+            id
+            name
+            imageUrl
+          }
+          reactors(first: 20) {
+            edges {
+              node {
+                id
+                name
+                handle
+                avatarUrl
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            totalCount
+          }
+        }
+      }
+      replies(first: 20, after: $repliesAfter) {
+        edges {
+          cursor
+          node {
+            __typename
+            id
+            name
+            published
+            summary
+            content
+            url
+            actor {
+              id
+              name
+              handle
+              avatarUrl
+            }
+            media {
+              url
+              thumbnailUrl
+              alt
+              height
+              width
+            }
+            sharedPost {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              url
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}

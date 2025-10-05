@@ -41,6 +41,8 @@ public extension HackersPub {
       case "ArticleContent": return HackersPub.Objects.ArticleContent
       case "CreateNotePayload": return HackersPub.Objects.CreateNotePayload
       case "CustomEmoji": return HackersPub.Objects.CustomEmoji
+      case "CustomEmojiReactionGroup": return HackersPub.Objects.CustomEmojiReactionGroup
+      case "EmojiReactionGroup": return HackersPub.Objects.EmojiReactionGroup
       case "FollowNotification": return HackersPub.Objects.FollowNotification
       case "Instance": return HackersPub.Objects.Instance
       case "InvalidInputError": return HackersPub.Objects.InvalidInputError
@@ -54,8 +56,11 @@ public extension HackersPub {
       case "PageInfo": return HackersPub.Objects.PageInfo
       case "Passkey": return HackersPub.Objects.Passkey
       case "Poll": return HackersPub.Objects.Poll
+      case "PostEngagementStats": return HackersPub.Objects.PostEngagementStats
       case "PostLink": return HackersPub.Objects.PostLink
       case "PostMedium": return HackersPub.Objects.PostMedium
+      case "PostRepliesConnection": return HackersPub.Objects.PostRepliesConnection
+      case "PostRepliesConnectionEdge": return HackersPub.Objects.PostRepliesConnectionEdge
       case "Query": return HackersPub.Objects.Query
       case "QueryPersonalTimelineConnection": return HackersPub.Objects.QueryPersonalTimelineConnection
       case "QueryPersonalTimelineConnectionEdge": return HackersPub.Objects.QueryPersonalTimelineConnectionEdge
@@ -66,6 +71,8 @@ public extension HackersPub {
       case "Question": return HackersPub.Objects.Question
       case "QuoteNotification": return HackersPub.Objects.QuoteNotification
       case "ReactNotification": return HackersPub.Objects.ReactNotification
+      case "ReactionGroupReactorsConnection": return HackersPub.Objects.ReactionGroupReactorsConnection
+      case "ReactionGroupReactorsConnectionEdge": return HackersPub.Objects.ReactionGroupReactorsConnectionEdge
       case "ReplyNotification": return HackersPub.Objects.ReplyNotification
       case "Session": return HackersPub.Objects.Session
       case "ShareNotification": return HackersPub.Objects.ShareNotification

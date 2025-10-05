@@ -126,3 +126,57 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSh
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post.Actor: ActorProtocol {}
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post.Medium: MediaProtocol {}
+
+// MARK: - PostDetail Extensions
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost: PostProtocol {
+    typealias SharedPostType = HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Actor: ActorProtocol {}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Medium: MediaProtocol {}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost: PostProtocol {
+    typealias SharedPostType = HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost
+    var sharedPost: SharedPostType? { nil }
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost.Actor: ActorProtocol {}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost.Medium: MediaProtocol {}
+
+// PostDetail Replies Extensions
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node: PostProtocol {
+    typealias SharedPostType = HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.Actor: ActorProtocol {}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.Medium: MediaProtocol {}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost: PostProtocol {
+    typealias SharedPostType = HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost
+    var sharedPost: SharedPostType? { nil }
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost.Actor: ActorProtocol {}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost.Medium: MediaProtocol {}
