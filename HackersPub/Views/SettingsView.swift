@@ -14,6 +14,22 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
+                    VStack(spacing: 16) {
+                        Image("Logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                        Text("Hackers' Pub")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
+
+                Section {
                     HStack {
                         Text("Version")
                         Spacer()
