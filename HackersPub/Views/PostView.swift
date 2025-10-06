@@ -186,7 +186,7 @@ struct PostView<P: PostProtocol>: View {
                             navigationCoordinator.navigateToPost(id: post.id)
                         } : nil
                     )
-                    Text(sharedPost.published)
+                    Text(DateFormatHelper.relativeTime(from: sharedPost.published))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -235,7 +235,7 @@ struct PostView<P: PostProtocol>: View {
                 )
             }
 
-            Text(post.published)
+            Text(DateFormatHelper.relativeTime(from: post.published))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

@@ -203,7 +203,7 @@ struct NotificationRowView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     notificationContent
 
-                    Text(notification.created)
+                    Text(DateFormatHelper.relativeTime(from: notification.created))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

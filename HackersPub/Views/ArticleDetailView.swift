@@ -51,7 +51,7 @@ struct ArticleDetailView<P: PostProtocol>: View {
                 }
 
                 // Published date
-                Text(post.published)
+                Text(DateFormatHelper.fullDateTime(from: post.published))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)

@@ -117,7 +117,7 @@ struct PostDetailView: View {
                                 media: sharedPost.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
                             )
 
-                            Text(sharedPost.published)
+                            Text(DateFormatHelper.fullDateTime(from: sharedPost.published))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -182,7 +182,7 @@ struct PostDetailView: View {
 
                         // Published date and visibility
                         HStack {
-                            Text(post.published)
+                            Text(DateFormatHelper.fullDateTime(from: post.published))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
