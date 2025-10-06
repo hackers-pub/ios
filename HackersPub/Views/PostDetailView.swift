@@ -266,37 +266,39 @@ struct PostDetailView: View {
                         }
                     }
 
-                    // Replies section
-                    Divider()
-                        .padding(.horizontal)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Replies")
-                            .font(.headline)
+                    // Replies section - only show if there are replies or more to load
+                    if !post.replies.edges.isEmpty || hasMoreReplies {
+                        Divider()
                             .padding(.horizontal)
 
-                        ForEach(post.replies.edges.map { $0.node }, id: \.id) { reply in
-                            PostView(post: reply, showAuthor: true, disableNavigation: false)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Replies")
+                                .font(.headline)
                                 .padding(.horizontal)
-                            Divider()
-                                .padding(.horizontal)
-                        }
 
-                        if hasMoreReplies {
-                            if isLoadingMoreReplies {
-                                HStack {
-                                    Spacer()
-                                    ProgressView()
-                                    Spacer()
-                                }
-                                .padding()
-                            } else {
-                                Button("Load more replies") {
-                                    Task {
-                                        await loadMoreReplies()
+                            ForEach(post.replies.edges.map { $0.node }, id: \.id) { reply in
+                                PostView(post: reply, showAuthor: true, disableNavigation: false)
+                                    .padding(.horizontal)
+                                Divider()
+                                    .padding(.horizontal)
+                            }
+
+                            if hasMoreReplies {
+                                if isLoadingMoreReplies {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                        Spacer()
                                     }
+                                    .padding()
+                                } else {
+                                    Button("Load more replies") {
+                                        Task {
+                                            await loadMoreReplies()
+                                        }
+                                    }
+                                    .padding(.horizontal)
                                 }
-                                .padding(.horizontal)
                             }
                         }
                     }
