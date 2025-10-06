@@ -393,6 +393,12 @@ mutation CreateNoteMutation($content: Markdown!, $language: Locale!, $visibility
   }
 }
 
+mutation RevokeSessionMutation($sessionId: UUID!) {
+  revokeSession(sessionId: $sessionId) {
+    id
+  }
+}
+
 query NotificationsQuery($after: String) {
   viewer {
     id

@@ -98,6 +98,19 @@ class AuthManager {
     }
 
     func signOut() async {
+        // Try to revoke the session on the server
+        if let token = sessionToken {
+            do {
+                _ = try await apolloClient.perform(
+                    mutation: HackersPub.RevokeSessionMutation(sessionId: token)
+                )
+            } catch {
+                // Even if revocation fails, we still clear local state
+                print("Error revoking session: \(error)")
+            }
+        }
+
+        // Clear local state
         sessionToken = nil
         currentAccount = nil
         isAuthenticated = false
