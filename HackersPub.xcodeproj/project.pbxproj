@@ -10,6 +10,7 @@
 		C7177A662E9293AD00FF0221 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = C7177A652E9293AD00FF0221 /* Markdown */; };
 		C7A39C4D2E927CD100EF77C6 /* ApolloAPI in Frameworks */ = {isa = PBXBuildFile; productRef = C7A39C4C2E927CD100EF77C6 /* ApolloAPI */; };
 		C7FBAF3A2E92547900B9BE8B /* Apollo in Frameworks */ = {isa = PBXBuildFile; productRef = C7FBAF392E92547900B9BE8B /* Apollo */; };
+		FF91B48D2E938A89009F5CBD /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = FF91B48C2E938A89009F5CBD /* Kingfisher */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +59,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FF91B48D2E938A89009F5CBD /* Kingfisher in Frameworks */,
 				C7177A662E9293AD00FF0221 /* Markdown in Frameworks */,
 				C7A39C4D2E927CD100EF77C6 /* ApolloAPI in Frameworks */,
 				C7FBAF3A2E92547900B9BE8B /* Apollo in Frameworks */,
@@ -124,6 +126,7 @@
 				C7FBAF392E92547900B9BE8B /* Apollo */,
 				C7A39C4C2E927CD100EF77C6 /* ApolloAPI */,
 				C7177A652E9293AD00FF0221 /* Markdown */,
+				FF91B48C2E938A89009F5CBD /* Kingfisher */,
 			);
 			productName = HackersPub;
 			productReference = C758C0F22E86A71600F672CE /* HackersPub.app */;
@@ -210,6 +213,7 @@
 			packageReferences = (
 				C7FBAF382E92547900B9BE8B /* XCRemoteSwiftPackageReference "apollo-ios" */,
 				C7177A642E9293AD00FF0221 /* XCRemoteSwiftPackageReference "swift-markdown" */,
+				FF91B48B2E938A89009F5CBD /* XCRemoteSwiftPackageReference "Kingfisher" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C758C0F32E86A71600F672CE /* Products */;
@@ -643,6 +647,14 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		FF91B48B2E938A89009F5CBD /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.6.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -660,6 +672,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C7FBAF382E92547900B9BE8B /* XCRemoteSwiftPackageReference "apollo-ios" */;
 			productName = Apollo;
+		};
+		FF91B48C2E938A89009F5CBD /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FF91B48B2E938A89009F5CBD /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -6,11 +6,16 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 @main
 struct HackersPubApp: App {
     @State private var authManager = AuthManager.shared
     @State private var navigationCoordinator = NavigationCoordinator()
+
+    init() {
+        setupImageCache()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -32,6 +37,11 @@ struct HackersPubApp: App {
             let handle = String(urlPath.dropFirst(2)) // Remove /@
             navigationCoordinator.navigateToProfile(handle: handle)
         }
+    }
+
+    private func setupImageCache() {
+        let cache = Kingfisher.ImageCache.default
+        cache.memoryStorage.config.countLimit = 50
     }
 }
 

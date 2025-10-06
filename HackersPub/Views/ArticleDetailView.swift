@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct ArticleDetailView<P: PostProtocol>: View {
     let post: P
@@ -12,15 +13,14 @@ struct ArticleDetailView<P: PostProtocol>: View {
                     Button {
                         navigationCoordinator.navigateToProfile(handle: post.actor.handle)
                     } label: {
-                        CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            Color.gray.opacity(0.2)
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
+                        KFImage(URL(string: post.actor.avatarUrl))
+                            .placeholder {
+                                Color.gray.opacity(0.2)
+                            }
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
 
