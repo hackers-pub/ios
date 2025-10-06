@@ -29,64 +29,154 @@ struct PostDetailView: View {
                 .padding()
             } else if let post = post {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Author info
-                    HStack(spacing: 8) {
-                        Button {
-                            navigationCoordinator.navigateToProfile(handle: post.actor.handle)
-                        } label: {
-                            CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                Color.gray.opacity(0.2)
+                    // If this is a repost, show reposter info and shared post in a card
+                    if let sharedPost = post.sharedPost {
+                        // Reposter info
+                        HStack(spacing: 8) {
+                            Button {
+                                navigationCoordinator.navigateToProfile(handle: post.actor.handle)
+                            } label: {
+                                CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                } placeholder: {
+                                    Color.gray.opacity(0.2)
+                                }
+                                .frame(width: 48, height: 48)
+                                .clipShape(Circle())
                             }
-                            .frame(width: 48, height: 48)
-                            .clipShape(Circle())
+                            .buttonStyle(.plain)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                if let name = post.actor.name {
+                                    HTMLTextView(html: name, font: .headline)
+                                }
+                                Text(post.actor.handle)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+
+                        Text("reposted")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+
+                        // Original post in a tappable card
+                        Button {
+                            navigationCoordinator.navigateToPost(id: sharedPost.id)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 12) {
+                                // Original author
+                                HStack(spacing: 8) {
+                                    CachedAsyncImage(url: URL(string: sharedPost.actor.avatarUrl)) { image in
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                    } placeholder: {
+                                        Color.gray.opacity(0.2)
+                                    }
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(Circle())
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        if let name = sharedPost.actor.name {
+                                            HTMLTextView(html: name, font: .subheadline)
+                                                .fontWeight(.semibold)
+                                        }
+                                        Text(sharedPost.actor.handle)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    Spacer()
+                                }
+
+                                if let name = sharedPost.name {
+                                    Text(name)
+                                        .font(.headline)
+                                }
+
+                                HTMLContentView(
+                                    html: sharedPost.content,
+                                    media: sharedPost.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
+                                )
+
+                                Text(sharedPost.published)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .buttonStyle(.plain)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let name = post.actor.name {
-                                HTMLTextView(html: name, font: .headline)
+                        .padding(.horizontal)
+                    } else {
+                        // Regular post (not a repost)
+                        // Author info
+                        HStack(spacing: 8) {
+                            Button {
+                                navigationCoordinator.navigateToProfile(handle: post.actor.handle)
+                            } label: {
+                                CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                } placeholder: {
+                                    Color.gray.opacity(0.2)
+                                }
+                                .frame(width: 48, height: 48)
+                                .clipShape(Circle())
                             }
-                            Text(post.actor.handle)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                            .buttonStyle(.plain)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                if let name = post.actor.name {
+                                    HTMLTextView(html: name, font: .headline)
+                                }
+                                Text(post.actor.handle)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+
+                        // Post title if present
+                        if let name = post.name {
+                            Text(name)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.horizontal)
                         }
 
-                        Spacer()
+                        // Post content
+                        HTMLContentView(
+                            html: post.content,
+                            media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
+                        )
+                        .padding(.horizontal)
+
+                        // Published date and visibility
+                        HStack {
+                            Text(post.published)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Text("•")
+                                .foregroundStyle(.secondary)
+                            Image(systemName: visibilityIcon(post.visibility))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
-
-                    // Post title if present
-                    if let name = post.name {
-                        Text(name)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.horizontal)
-                    }
-
-                    // Post content
-                    HTMLContentView(
-                        html: post.content,
-                        media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
-                    )
-                    .padding(.horizontal)
-
-                    // Published date and visibility
-                    HStack {
-                        Text(post.published)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Text("•")
-                            .foregroundStyle(.secondary)
-                        Image(systemName: visibilityIcon(post.visibility))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal)
 
                     Divider()
                         .padding(.horizontal)
