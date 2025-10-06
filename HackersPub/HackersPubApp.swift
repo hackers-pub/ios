@@ -27,25 +27,32 @@ struct HackersPubApp: App {
         // Handle hackers.pub URLs like https://hackers.pub/@username
         guard url.host == "hackers.pub" else { return }
 
-        let path = url.path
-        if path.hasPrefix("/@") {
-            let handle = String(path.dropFirst(2)) // Remove /@
+        let urlPath = url.path
+        if urlPath.hasPrefix("/@") {
+            let handle = String(urlPath.dropFirst(2)) // Remove /@
             navigationCoordinator.navigateToProfile(handle: handle)
         }
     }
 }
 
+enum NavigationDestination: Hashable {
+    case profile(handle: String)
+    case post(id: String)
+}
+
 @Observable
 class NavigationCoordinator {
-    var profileHandle: String?
-    var shouldNavigateToProfile = false
+    var path: [NavigationDestination] = []
 
     func navigateToProfile(handle: String) {
-        profileHandle = handle
-        shouldNavigateToProfile = true
+        path.append(.profile(handle: handle))
     }
 
-    func resetNavigation() {
-        shouldNavigateToProfile = false
+    func navigateToPost(id: String) {
+        path.append(.post(id: id))
+    }
+
+    func popToRoot() {
+        path.removeAll()
     }
 }

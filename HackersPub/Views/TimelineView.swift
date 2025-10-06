@@ -101,13 +101,14 @@ struct TimelineView: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
         self._showingComposeView = showingComposeView
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: Bindable(navigationCoordinator).path) {
             Group {
                 if isLoading && posts.isEmpty {
                     ProgressView()
@@ -178,6 +179,14 @@ struct TimelineView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .navigationDestination(for: NavigationDestination.self) { destination in
+                switch destination {
+                case .profile(let handle):
+                    ActorProfileViewWrapper(handle: handle)
+                case .post(let id):
+                    PostDetailView(postId: id)
+                }
+            }
         }
     }
 
@@ -238,13 +247,14 @@ struct PersonalTimelineView: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
         self._showingComposeView = showingComposeView
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: Bindable(navigationCoordinator).path) {
             Group {
                 if isLoading && posts.isEmpty {
                     ProgressView()
@@ -313,6 +323,14 @@ struct PersonalTimelineView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .navigationDestination(for: NavigationDestination.self) { destination in
+                switch destination {
+                case .profile(let handle):
+                    ActorProfileViewWrapper(handle: handle)
+                case .post(let id):
+                    PostDetailView(postId: id)
+                }
+            }
         }
     }
 
@@ -373,13 +391,14 @@ struct LocalTimelineView: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
         self._showingComposeView = showingComposeView
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: Bindable(navigationCoordinator).path) {
             Group {
                 if isLoading && posts.isEmpty {
                     ProgressView()
@@ -448,6 +467,14 @@ struct LocalTimelineView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .navigationDestination(for: NavigationDestination.self) { destination in
+                switch destination {
+                case .profile(let handle):
+                    ActorProfileViewWrapper(handle: handle)
+                case .post(let id):
+                    PostDetailView(postId: id)
+                }
+            }
         }
     }
 
@@ -496,6 +523,48 @@ struct LocalTimelineView: View {
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {
             print("Error refreshing posts: \(error)")
+        }
+    }
+}
+
+struct ActorProfileViewWrapper: View {
+    let handle: String
+    @State private var actor: HackersPub.ActorByHandleQuery.Data.ActorByHandle?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+            } else if let error = errorMessage {
+                ContentUnavailableView(
+                    "Error",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(error)
+                )
+            } else if let actor = actor {
+                ActorProfileView(actor: actor)
+            }
+        }
+        .task {
+            await fetchProfile()
+        }
+    }
+
+    private func fetchProfile() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.ActorByHandleQuery(handle: handle, after: nil))
+            if let actorData = response.data?.actorByHandle {
+                actor = actorData
+            } else {
+                errorMessage = "Profile not found"
+            }
+        } catch {
+            errorMessage = "Failed to load profile: \(error.localizedDescription)"
         }
     }
 }

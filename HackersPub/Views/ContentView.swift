@@ -7,7 +7,6 @@ struct ContentView: View {
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @State private var selectedTab: String = "timeline"
     @State private var showingComposeView = false
-    @State private var profileToShow: HackersPub.ActorByHandleQuery.Data.ActorByHandle?
 
     var body: some View {
         Group {
@@ -19,30 +18,6 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingComposeView) {
             ComposeView()
-        }
-        .sheet(item: $profileToShow) { actor in
-            NavigationStack {
-                ActorProfileView(actor: actor)
-            }
-        }
-        .onChange(of: navigationCoordinator.shouldNavigateToProfile) { _, shouldNavigate in
-            if shouldNavigate, let handle = navigationCoordinator.profileHandle {
-                Task {
-                    await fetchAndShowProfile(handle: handle)
-                    navigationCoordinator.resetNavigation()
-                }
-            }
-        }
-    }
-
-    private func fetchAndShowProfile(handle: String) async {
-        do {
-            let response = try await apolloClient.fetch(query: HackersPub.ActorByHandleQuery(handle: handle, after: nil))
-            if let actor = response.data?.actorByHandle {
-                profileToShow = actor
-            }
-        } catch {
-            print("Error fetching profile: \(error)")
         }
     }
 
