@@ -114,29 +114,32 @@ struct SettingsView: View {
     }
 
     private func getCacheDirectorySize() async -> Int64 {
-        await Task.detached {
-            let fileManager = FileManager.default
-            guard let cacheDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else {
-                return 0
-            }
+        await withCheckedContinuation { continuation in
+            Task.detached {
+                let fileManager = FileManager.default
+                guard let cacheDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+                    continuation.resume(returning: 0)
+                    return
+                }
 
-            var totalSize: Int64 = 0
+                var totalSize: Int64 = 0
 
-            if let enumerator = fileManager.enumerator(at: cacheDirectory, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) {
-                for case let fileURL as URL in enumerator {
-                    do {
-                        let resourceValues = try fileURL.resourceValues(forKeys: [.fileSizeKey])
-                        if let fileSize = resourceValues.fileSize {
-                            totalSize += Int64(fileSize)
+                if let enumerator = fileManager.enumerator(at: cacheDirectory, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) {
+                    while let fileURL = enumerator.nextObject() as? URL {
+                        do {
+                            let resourceValues = try fileURL.resourceValues(forKeys: [.fileSizeKey])
+                            if let fileSize = resourceValues.fileSize {
+                                totalSize += Int64(fileSize)
+                            }
+                        } catch {
+                            // Skip files that can't be read
                         }
-                    } catch {
-                        // Skip files that can't be read
                     }
                 }
-            }
 
-            return totalSize
-        }.value
+                continuation.resume(returning: totalSize)
+            }
+        }
     }
 
     private func formatBytes(_ bytes: Int64) -> String {
