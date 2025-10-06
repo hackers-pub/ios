@@ -6,7 +6,7 @@ struct SettingsView: View {
     @Environment(AuthManager.self) private var authManager
     @State private var showingClearCacheAlert = false
     @State private var cacheCleared = false
-    @State private var cacheSize: String = "Calculating..."
+    @State private var cacheSize: String = NSLocalizedString("settings.calculating", comment: "Cache size calculating")
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
@@ -25,7 +25,7 @@ struct SettingsView: View {
                             .frame(width: 80, height: 80)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
 
-                        Text("Hackers' Pub")
+                        Text(NSLocalizedString("signIn.title", comment: "App title"))
                             .font(.title2)
                             .fontWeight(.semibold)
                     }
@@ -35,7 +35,7 @@ struct SettingsView: View {
 
                 Section {
                     HStack {
-                        Text("Version")
+                        Text(NSLocalizedString("settings.version", comment: "Version label"))
                         Spacer()
                         Text(appVersion)
                             .foregroundStyle(.secondary)
@@ -44,7 +44,7 @@ struct SettingsView: View {
 
                 Section {
                     HStack {
-                        Text("Cache Size")
+                        Text(NSLocalizedString("settings.cacheSize", comment: "Cache size label"))
                         Spacer()
                         Text(cacheSize)
                             .foregroundStyle(.secondary)
@@ -54,7 +54,7 @@ struct SettingsView: View {
                         showingClearCacheAlert = true
                     } label: {
                         HStack {
-                            Text("Clear Cache")
+                            Text(NSLocalizedString("settings.clearCache", comment: "Clear cache button"))
                             Spacer()
                             if cacheCleared {
                                 Image(systemName: "checkmark")
@@ -63,7 +63,7 @@ struct SettingsView: View {
                         }
                     }
                 } header: {
-                    Text("Cache")
+                    Text(NSLocalizedString("settings.cache", comment: "Cache section header"))
                 }
 
                 if authManager.isAuthenticated {
@@ -76,31 +76,31 @@ struct SettingsView: View {
                         } label: {
                             HStack {
                                 Spacer()
-                                Text("Sign Out")
+                                Text(NSLocalizedString("settings.signOut", comment: "Sign out button"))
                                 Spacer()
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle(NSLocalizedString("nav.settings", comment: "Settings navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
+                    Button(NSLocalizedString("settings.done", comment: "Done button")) {
                         dismiss()
                     }
                 }
             }
-            .alert("Clear Cache", isPresented: $showingClearCacheAlert) {
-                Button("Cancel", role: .cancel) { }
-                Button("Clear", role: .destructive) {
+            .alert(NSLocalizedString("settings.clearCacheAlert.title", comment: "Clear cache alert title"), isPresented: $showingClearCacheAlert) {
+                Button(NSLocalizedString("settings.clearCacheAlert.cancel", comment: "Cancel button"), role: .cancel) { }
+                Button(NSLocalizedString("settings.clearCacheAlert.clear", comment: "Clear button"), role: .destructive) {
                     Task {
                         await clearCache()
                     }
                 }
             } message: {
-                Text("This will clear all cached data. Your timelines will be refreshed.")
+                Text(NSLocalizedString("settings.clearCacheAlert.message", comment: "Clear cache alert message"))
             }
             .task {
                 await calculateCacheSize()

@@ -23,13 +23,13 @@ struct SignInView: View {
                     .scaledToFit()
                     .frame(width: 120, height: 120)
 
-                Text("Hackers' Pub")
+                Text(NSLocalizedString("signIn.title", comment: "App title on sign in screen"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
                 if loginState == .enterUsername {
                     VStack(spacing: 16) {
-                        TextField("Username", text: $username)
+                        TextField(NSLocalizedString("signIn.username", comment: "Username field placeholder"), text: $username)
                             .textFieldStyle(.roundedBorder)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -44,7 +44,7 @@ struct SignInView: View {
                                 ProgressView()
                                     .frame(maxWidth: .infinity)
                             } else {
-                                Text("Send Sign-In Link")
+                                Text(NSLocalizedString("signIn.sendLink", comment: "Send sign-in link button"))
                                     .frame(maxWidth: .infinity)
                             }
                         }
@@ -53,11 +53,11 @@ struct SignInView: View {
                     }
                 } else {
                     VStack(spacing: 16) {
-                        Text("Check your email for a sign-in code")
+                        Text(NSLocalizedString("signIn.checkEmail", comment: "Check email instruction"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        TextField("Verification Code", text: $verificationCode)
+                        TextField(NSLocalizedString("signIn.verificationCode", comment: "Verification code field"), text: $verificationCode)
                             .textFieldStyle(.roundedBorder)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -72,14 +72,14 @@ struct SignInView: View {
                                 ProgressView()
                                     .frame(maxWidth: .infinity)
                             } else {
-                                Text("Verify")
+                                Text(NSLocalizedString("signIn.verify", comment: "Verify button"))
                                     .frame(maxWidth: .infinity)
                             }
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(verificationCode.isEmpty || isLoading)
 
-                        Button("Use Different Username") {
+                        Button(NSLocalizedString("signIn.useDifferentUsername", comment: "Use different username button")) {
                             loginState = .enterUsername
                             verificationCode = ""
                             loginToken = nil
@@ -96,7 +96,7 @@ struct SignInView: View {
                 }
             }
             .padding()
-            .navigationTitle("Sign In")
+            .navigationTitle(NSLocalizedString("nav.signIn", comment: "Sign in navigation title"))
         }
     }
 
@@ -112,8 +112,7 @@ struct SignInView: View {
 
             let token = try await authManager.loginByUsername(
                 username: username,
-                verifyUrl: verifyUrl,
-                locale: "en"
+                verifyUrl: verifyUrl
             )
 
             loginToken = token
@@ -121,7 +120,7 @@ struct SignInView: View {
         } catch let error as AuthError {
             errorMessage = error.localizedDescription
         } catch {
-            errorMessage = "An unexpected error occurred. Please try again."
+            errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
         }
     }
 
@@ -138,7 +137,7 @@ struct SignInView: View {
         } catch let error as AuthError {
             errorMessage = error.localizedDescription
         } catch {
-            errorMessage = "An unexpected error occurred. Please try again."
+            errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
         }
     }
 }

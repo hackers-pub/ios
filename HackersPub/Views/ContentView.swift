@@ -11,7 +11,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if authManager.isLoading {
-                ProgressView("Loading...")
+                ProgressView(NSLocalizedString("timeline.loading", comment: "Loading indicator"))
             } else {
                 mainContent
             }
@@ -25,15 +25,15 @@ struct ContentView: View {
     private var mainContent: some View {
         TabView(selection: $selectedTab) {
             if authManager.isAuthenticated {
-                Tab("Timeline", systemImage: "house", value: "timeline") {
+                Tab(NSLocalizedString("tab.timeline", comment: "Timeline tab"), systemImage: "house", value: "timeline") {
                     PersonalTimelineView(showingComposeView: $showingComposeView)
                 }
 
-                Tab("Notifications", systemImage: "bell", value: "notifications") {
+                Tab(NSLocalizedString("tab.notifications", comment: "Notifications tab"), systemImage: "bell", value: "notifications") {
                     NotificationsView()
                 }
 
-                Tab("Explore", systemImage: "globe", value: "explore") {
+                Tab(NSLocalizedString("tab.explore", comment: "Explore tab"), systemImage: "globe", value: "explore") {
                     ExploreView(showingComposeView: $showingComposeView)
                 }
 
@@ -43,12 +43,12 @@ struct ContentView: View {
                         .textInputAutocapitalization(.never)
                 }
             } else {
-                Tab("Hackers' Pub", systemImage: "cat", value: "local") {
+                Tab(NSLocalizedString("tab.local", comment: "Local tab"), systemImage: "cat", value: "local") {
                     LocalTimelineView()
                 }
                 .customizationID("local")
 
-                Tab("Fediverse", systemImage: "globe", value: "global") {
+                Tab(NSLocalizedString("tab.fediverse", comment: "Fediverse tab"), systemImage: "globe", value: "global") {
                     TimelineView()
                 }
 
@@ -58,7 +58,7 @@ struct ContentView: View {
                         .textInputAutocapitalization(.never)
                 }
 
-                Tab("Sign In", systemImage: "rectangle.portrait.and.arrow.right", value: "timeline") {
+                Tab(NSLocalizedString("tab.signIn", comment: "Sign in tab"), systemImage: "rectangle.portrait.and.arrow.right", value: "timeline") {
                     SignInView()
                 }
             }

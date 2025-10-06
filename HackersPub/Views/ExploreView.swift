@@ -1,9 +1,18 @@
 import SwiftUI
 @preconcurrency import Apollo
 
-enum ExploreScope: String, CaseIterable {
-    case local = "Hackers' Pub"
-    case global = "Fediverse"
+enum ExploreScope: CaseIterable {
+    case local
+    case global
+
+    var displayName: String {
+        switch self {
+        case .local:
+            return NSLocalizedString("explore.scope.local", comment: "Local scope")
+        case .global:
+            return NSLocalizedString("explore.scope.global", comment: "Global scope")
+        }
+    }
 }
 
 struct ExploreView: View {
@@ -25,12 +34,12 @@ struct ExploreView: View {
                     GlobalTimelineContent(showingComposeView: $showingComposeView)
                 }
             }
-            .navigationTitle("Explore")
+            .navigationTitle(NSLocalizedString("nav.explore", comment: "Explore navigation title"))
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker("Scope", selection: $selectedScope) {
+                    Picker(NSLocalizedString("explore.scope", comment: "Scope picker"), selection: $selectedScope) {
                         ForEach(ExploreScope.allCases, id: \.self) { scope in
-                            Text(scope.rawValue).tag(scope)
+                            Text(scope.displayName).tag(scope)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -111,7 +120,7 @@ struct LocalTimelineContent: View {
                 Button {
                     showingSettings = true
                 } label: {
-                    Label("Settings", systemImage: "gear")
+                    Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
                 }
             }
 
@@ -119,7 +128,7 @@ struct LocalTimelineContent: View {
                 Button {
                     showingComposeView = true
                 } label: {
-                    Label("New Post", systemImage: "square.and.pencil")
+                    Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
                 }
             }
         }
@@ -267,7 +276,7 @@ struct GlobalTimelineContent: View {
                 Button {
                     showingSettings = true
                 } label: {
-                    Label("Settings", systemImage: "gear")
+                    Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
                 }
             }
 
@@ -276,7 +285,7 @@ struct GlobalTimelineContent: View {
                     Button {
                         showingComposeView = true
                     } label: {
-                        Label("New Post", systemImage: "square.and.pencil")
+                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
                     }
                 }
             }

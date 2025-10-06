@@ -40,13 +40,13 @@ struct SearchView: View {
                     ProgressView()
                 } else if actors.isEmpty && posts.isEmpty && !searchText.isEmpty {
                     ContentUnavailableView(
-                        "No results",
+                        NSLocalizedString("search.noResults.title", comment: "No search results title"),
                         systemImage: "magnifyingglass",
-                        description: Text("Try a different search term")
+                        description: Text(NSLocalizedString("search.noResults.description", comment: "No search results description"))
                     )
                 } else if searchText.isEmpty && !recentSearches.isEmpty {
                     List {
-                        Section("Recent Searches") {
+                        Section(NSLocalizedString("search.recentSearches", comment: "Recent searches section")) {
                             ForEach(recentSearches, id: \.self) { query in
                                 Button {
                                     searchText = query
@@ -70,7 +70,7 @@ struct SearchView: View {
                 } else {
                     List {
                         if !actors.isEmpty {
-                            Section("Accounts") {
+                            Section(NSLocalizedString("search.accounts", comment: "Accounts section")) {
                                 ForEach(actors, id: \.id) { result in
                                     NavigationLink(value: result) {
                                         SearchResultRow(result: result)
@@ -80,7 +80,7 @@ struct SearchView: View {
                         }
 
                         if !posts.isEmpty {
-                            Section("Posts") {
+                            Section(NSLocalizedString("search.posts", comment: "Posts section")) {
                                 ForEach(posts, id: \.id) { result in
                                     NavigationLink(value: result) {
                                         SearchResultRow(result: result)
@@ -91,7 +91,7 @@ struct SearchView: View {
                     }
                 }
             }
-            .navigationTitle("Search")
+            .navigationTitle(NSLocalizedString("nav.search", comment: "Search navigation title"))
             .navigationDestination(for: SearchResultType.self) { result in
                 SearchDetailView(result: result)
             }
@@ -108,7 +108,7 @@ struct SearchView: View {
                     Button {
                         showingComposeView = true
                     } label: {
-                        Label("New Post", systemImage: "square.and.pencil")
+                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
                     }
                 }
             }

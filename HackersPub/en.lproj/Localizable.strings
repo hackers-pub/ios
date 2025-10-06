@@ -1,0 +1,114 @@
+/* Tab labels */
+"tab.timeline" = "Timeline";
+"tab.notifications" = "Notifications";
+"tab.explore" = "Explore";
+"tab.search" = "Search";
+"tab.local" = "Hackers' Pub";
+"tab.fediverse" = "Fediverse";
+"tab.signIn" = "Sign In";
+
+/* Navigation titles */
+"nav.signIn" = "Sign In";
+"nav.settings" = "Settings";
+"nav.explore" = "Explore";
+"nav.search" = "Search";
+"nav.timeline" = "Timeline";
+"nav.notifications" = "Notifications";
+"nav.newPost" = "New Post";
+"nav.reply" = "Reply";
+
+/* Sign In */
+"signIn.title" = "Hackers' Pub";
+"signIn.username" = "Username";
+"signIn.sendLink" = "Send Sign-In Link";
+"signIn.checkEmail" = "Check your email for a sign-in code";
+"signIn.verificationCode" = "Verification Code";
+"signIn.verify" = "Verify";
+"signIn.useDifferentUsername" = "Use Different Username";
+"signIn.unexpectedError" = "An unexpected error occurred. Please try again.";
+
+/* Settings */
+"settings.version" = "Version";
+"settings.cache" = "Cache";
+"settings.cacheSize" = "Cache Size";
+"settings.clearCache" = "Clear Cache";
+"settings.calculating" = "Calculating...";
+"settings.signOut" = "Sign Out";
+"settings.clearCacheAlert.title" = "Clear Cache";
+"settings.clearCacheAlert.message" = "This will clear all cached data. Your timelines will be refreshed.";
+"settings.clearCacheAlert.cancel" = "Cancel";
+"settings.clearCacheAlert.clear" = "Clear";
+"settings.done" = "Done";
+
+/* Compose */
+"compose.placeholder" = "What are you thinking?";
+"compose.visibility" = "Visibility";
+"compose.visibility.public" = "Public";
+"compose.visibility.unlisted" = "Unlisted";
+"compose.visibility.followers" = "Followers";
+"compose.language" = "Language";
+"compose.replyingTo" = "Replying to @%@";
+"compose.mode.edit" = "Edit";
+"compose.mode.preview" = "Preview";
+"compose.post" = "Post";
+"compose.cancel" = "Cancel";
+"compose.error.title" = "Error";
+"compose.error.invalidInput" = "Invalid input: %@";
+"compose.error.notAuthenticated" = "You must be signed in to post";
+"compose.error.failed" = "Failed to create post";
+"compose.error.failedWithDetails" = "Failed to create post: %@";
+"compose.error.ok" = "OK";
+
+/* Timeline */
+"timeline.fediverse" = "Fediverse";
+"timeline.hackersPub" = "Hackers' Pub";
+"timeline.loading" = "Loading...";
+
+/* Notifications */
+"notifications.empty.title" = "No Notifications";
+"notifications.empty.description" = "When you receive notifications, they'll appear here";
+"notifications.followedYou" = " followed you";
+"notifications.mentionedYou" = " mentioned you";
+"notifications.repliedToPost" = " replied to your post";
+"notifications.quotedPost" = " quoted your post";
+"notifications.reactedToPost" = " reacted to your post";
+"notifications.sharedPost" = " shared your post";
+"notifications.postUnavailable" = "(Post unavailable)";
+"notifications.unknownType" = "Unknown notification type";
+"notifications.and" = " and ";
+"notifications.andOthers" = " and %d others";
+
+/* Explore */
+"explore.title" = "Explore";
+"explore.scope.local" = "Hackers' Pub";
+"explore.scope.global" = "Fediverse";
+"explore.scope" = "Scope";
+
+/* Search */
+"search.title" = "Search";
+"search.noResults.title" = "No results";
+"search.noResults.description" = "Try a different search term";
+"search.recentSearches" = "Recent Searches";
+"search.accounts" = "Accounts";
+"search.posts" = "Posts";
+
+/* Common */
+"common.settings" = "Settings";
+"common.newPost" = "New Post";
+"common.error" = "Error";
+"common.cancel" = "Cancel";
+
+/* Date formatting */
+"date.lessThanMinute" = "less than a minute ago";
+"date.minuteAgo" = "1 minute ago";
+"date.minutesAgo" = "%d minutes ago";
+"date.hourAgo" = "1 hour ago";
+"date.hoursAgo" = "%d hours ago";
+"date.dayAgo" = "1 day ago";
+"date.daysAgo" = "%d days ago";
+"date.weekAgo" = "1 week ago";
+"date.weeksAgo" = "%d weeks ago";
+"date.monthAgo" = "1 month ago";
+"date.monthsAgo" = "%d months ago";
+"date.yearAgo" = "1 year ago";
+"date.yearsAgo" = "%d years ago";

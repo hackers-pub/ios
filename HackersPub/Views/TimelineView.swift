@@ -135,7 +135,7 @@ struct TimelineView: View {
                     }
                 }
             }
-            .navigationTitle("Fediverse")
+            .navigationTitle(NSLocalizedString("timeline.fediverse", comment: "Fediverse navigation title"))
             .refreshable {
                 await refreshPosts()
             }
@@ -162,7 +162,7 @@ struct TimelineView: View {
                     Button {
                         showingSettings = true
                     } label: {
-                        Label("Settings", systemImage: "gear")
+                        Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
                     }
                 }
 
@@ -171,7 +171,7 @@ struct TimelineView: View {
                         Button {
                             showingComposeView = true
                         } label: {
-                            Label("New Post", systemImage: "square.and.pencil")
+                            Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
                         }
                     }
                 }
@@ -281,7 +281,7 @@ struct PersonalTimelineView: View {
                     }
                 }
             }
-            .navigationTitle("Timeline")
+            .navigationTitle(NSLocalizedString("nav.timeline", comment: "Timeline navigation title"))
             .refreshable {
                 await refreshPosts()
             }
@@ -308,7 +308,7 @@ struct PersonalTimelineView: View {
                     Button {
                         showingSettings = true
                     } label: {
-                        Label("Settings", systemImage: "gear")
+                        Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
                     }
                 }
 
@@ -316,7 +316,7 @@ struct PersonalTimelineView: View {
                     Button {
                         showingComposeView = true
                     } label: {
-                        Label("New Post", systemImage: "square.and.pencil")
+                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
                     }
                 }
             }
@@ -425,7 +425,7 @@ struct LocalTimelineView: View {
                     }
                 }
             }
-            .navigationTitle("Hackers' Pub")
+            .navigationTitle(NSLocalizedString("timeline.hackersPub", comment: "Hackers' Pub navigation title"))
             .refreshable {
                 await refreshPosts()
             }
@@ -452,7 +452,7 @@ struct LocalTimelineView: View {
                     Button {
                         showingSettings = true
                     } label: {
-                        Label("Settings", systemImage: "gear")
+                        Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
                     }
                 }
 
@@ -460,7 +460,7 @@ struct LocalTimelineView: View {
                     Button {
                         showingComposeView = true
                     } label: {
-                        Label("New Post", systemImage: "square.and.pencil")
+                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
                     }
                 }
             }
@@ -539,7 +539,7 @@ struct ActorProfileViewWrapper: View {
                 ProgressView()
             } else if let error = errorMessage {
                 ContentUnavailableView(
-                    "Error",
+                    NSLocalizedString("common.error", comment: "Error title"),
                     systemImage: "exclamationmark.triangle",
                     description: Text(error)
                 )

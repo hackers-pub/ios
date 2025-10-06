@@ -9,7 +9,9 @@ struct ComposeView: View {
     @State private var isPosting = false
     @State private var errorMessage: String?
     @State private var showPreview = false
-    @AppStorage("lastSelectedLocale") private var lastSelectedLocale: String = "en"
+    @AppStorage("lastSelectedLocale") private var lastSelectedLocale: String = {
+        Locale.current.language.languageCode?.identifier ?? "en"
+    }()
 
     private var htmlContent: String {
         let document = Document(parsing: content)
@@ -56,7 +58,7 @@ struct ComposeView: View {
                 // Reply indicator
                 if let replyToActor {
                     HStack {
-                        Text("Replying to @\(replyToActor)")
+                        Text(String(format: NSLocalizedString("compose.replyingTo", comment: "Replying to label"), replyToActor))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
@@ -66,9 +68,9 @@ struct ComposeView: View {
                 }
 
                 // Editor/Preview toggle
-                Picker("Mode", selection: $showPreview) {
-                    Text("Edit").tag(false)
-                    Text("Preview").tag(true)
+                Picker(NSLocalizedString("compose.mode.edit", comment: "Mode picker"), selection: $showPreview) {
+                    Text(NSLocalizedString("compose.mode.edit", comment: "Edit mode")).tag(false)
+                    Text(NSLocalizedString("compose.mode.preview", comment: "Preview mode")).tag(true)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
@@ -81,7 +83,7 @@ struct ComposeView: View {
                 } else {
                     ZStack(alignment: .topLeading) {
                         if content.isEmpty {
-                            Text("What are you thinking?")
+                            Text(NSLocalizedString("compose.placeholder", comment: "Compose text placeholder"))
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 8)
@@ -99,15 +101,15 @@ struct ComposeView: View {
                 // Settings
                 VStack(spacing: 12) {
                     // Visibility picker
-                    Picker("Visibility", selection: $visibility) {
-                        Text("Public").tag(GraphQLEnum<HackersPub.PostVisibility>.case(.public))
-                        Text("Unlisted").tag(GraphQLEnum<HackersPub.PostVisibility>.case(.unlisted))
-                        Text("Followers").tag(GraphQLEnum<HackersPub.PostVisibility>.case(.followers))
+                    Picker(NSLocalizedString("compose.visibility", comment: "Visibility picker"), selection: $visibility) {
+                        Text(NSLocalizedString("compose.visibility.public", comment: "Public visibility")).tag(GraphQLEnum<HackersPub.PostVisibility>.case(.public))
+                        Text(NSLocalizedString("compose.visibility.unlisted", comment: "Unlisted visibility")).tag(GraphQLEnum<HackersPub.PostVisibility>.case(.unlisted))
+                        Text(NSLocalizedString("compose.visibility.followers", comment: "Followers visibility")).tag(GraphQLEnum<HackersPub.PostVisibility>.case(.followers))
                     }
                     .pickerStyle(.segmented)
 
                     // Language picker
-                    Picker("Language", selection: $lastSelectedLocale) {
+                    Picker(NSLocalizedString("compose.language", comment: "Language picker"), selection: $lastSelectedLocale) {
                         ForEach(availableLocales, id: \.self) { locale in
                             Text(localeDisplayName(for: locale)).tag(locale)
                         }
@@ -116,18 +118,18 @@ struct ComposeView: View {
                 }
                 .padding()
             }
-            .navigationTitle(replyToPostId != nil ? "Reply" : "New Post")
+            .navigationTitle(replyToPostId != nil ? NSLocalizedString("nav.reply", comment: "Reply navigation title") : NSLocalizedString("nav.newPost", comment: "New post navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("compose.cancel", comment: "Cancel button")) {
                         dismiss()
                     }
                     .disabled(isPosting)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Post") {
+                    Button(NSLocalizedString("compose.post", comment: "Post button")) {
                         Task {
                             await post()
                         }
@@ -135,8 +137,8 @@ struct ComposeView: View {
                     .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPosting)
                 }
             }
-            .alert("Error", isPresented: .constant(errorMessage != nil)) {
-                Button("OK") {
+            .alert(NSLocalizedString("compose.error.title", comment: "Error alert title"), isPresented: .constant(errorMessage != nil)) {
+                Button(NSLocalizedString("compose.error.ok", comment: "OK button")) {
                     errorMessage = nil
                 }
             } message: {
@@ -183,15 +185,15 @@ struct ComposeView: View {
                 NotificationCenter.default.post(name: Notification.Name("RefreshTimeline"), object: nil)
                 dismiss()
             } else if let invalidInput = response.data?.createNote.asInvalidInputError {
-                errorMessage = "Invalid input: \(invalidInput.inputPath)"
+                errorMessage = String(format: NSLocalizedString("compose.error.invalidInput", comment: "Invalid input error"), invalidInput.inputPath)
             } else if response.data?.createNote.asNotAuthenticatedError != nil {
-                errorMessage = "You must be signed in to post"
+                errorMessage = NSLocalizedString("compose.error.notAuthenticated", comment: "Not authenticated error")
             } else {
-                errorMessage = "Failed to create post"
+                errorMessage = NSLocalizedString("compose.error.failed", comment: "Failed to create post error")
             }
         } catch {
             print("Error creating note: \(error)")
-            errorMessage = "Failed to create post: \(error.localizedDescription)"
+            errorMessage = String(format: NSLocalizedString("compose.error.failedWithDetails", comment: "Failed to create post error with details"), error.localizedDescription)
         }
     }
 }

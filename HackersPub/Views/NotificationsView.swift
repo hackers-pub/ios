@@ -29,9 +29,9 @@ struct NotificationsView: View {
                     ProgressView()
                 } else if notifications.isEmpty {
                     ContentUnavailableView(
-                        "No Notifications",
+                        NSLocalizedString("notifications.empty.title", comment: "No notifications title"),
                         systemImage: "bell.slash",
-                        description: Text("When you receive notifications, they'll appear here")
+                        description: Text(NSLocalizedString("notifications.empty.description", comment: "No notifications description"))
                     )
                 } else {
                     List {
@@ -56,7 +56,7 @@ struct NotificationsView: View {
                     }
                 }
             }
-            .navigationTitle("Notifications")
+            .navigationTitle(NSLocalizedString("nav.notifications", comment: "Notifications navigation title"))
             .refreshable {
                 await refreshNotifications()
             }
@@ -80,7 +80,7 @@ struct NotificationsView: View {
                     Button {
                         showingSettings = true
                     } label: {
-                        Label("Settings", systemImage: "gear")
+                        Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
                     }
                 }
             }
@@ -240,7 +240,7 @@ struct NotificationRowView: View {
                     Image(systemName: "person.badge.plus")
                         .foregroundStyle(.blue)
                         .frame(width: 20, height: 20)
-                    notificationText(actorNamesHTML, suffix: " followed you")
+                    notificationText(actorNamesHTML, suffix: NSLocalizedString("notifications.followedYou", comment: "Followed you notification"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -250,13 +250,13 @@ struct NotificationRowView: View {
                     Image(systemName: "at")
                         .foregroundStyle(.purple)
                         .frame(width: 20, height: 20)
-                    notificationText(actorNamesHTML, suffix: " mentioned you")
+                    notificationText(actorNamesHTML, suffix: NSLocalizedString("notifications.mentionedYou", comment: "Mentioned you notification"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if let post = mentionNotification.post {
                     postPreview(post)
                 } else {
-                    Text("(Post unavailable)")
+                    Text(NSLocalizedString("notifications.postUnavailable", comment: "Post unavailable"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .italic()
@@ -269,13 +269,13 @@ struct NotificationRowView: View {
                     Image(systemName: "arrowshape.turn.up.left")
                         .foregroundStyle(.green)
                         .frame(width: 20, height: 20)
-                    notificationText(actorNamesHTML, suffix: " replied to your post")
+                    notificationText(actorNamesHTML, suffix: NSLocalizedString("notifications.repliedToPost", comment: "Replied to post notification"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if let post = replyNotification.post {
                     postPreview(post)
                 } else {
-                    Text("(Post unavailable)")
+                    Text(NSLocalizedString("notifications.postUnavailable", comment: "Post unavailable"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .italic()
@@ -288,13 +288,13 @@ struct NotificationRowView: View {
                     Image(systemName: "quote.bubble")
                         .foregroundStyle(.orange)
                         .frame(width: 20, height: 20)
-                    notificationText(actorNamesHTML, suffix: " quoted your post")
+                    notificationText(actorNamesHTML, suffix: NSLocalizedString("notifications.quotedPost", comment: "Quoted post notification"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if let post = quoteNotification.post {
                     postPreview(post)
                 } else {
-                    Text("(Post unavailable)")
+                    Text(NSLocalizedString("notifications.postUnavailable", comment: "Post unavailable"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .italic()
@@ -324,13 +324,13 @@ struct NotificationRowView: View {
                     }
                     .frame(width: 20, height: 20)
 
-                    notificationText(actorNamesHTML, suffix: " reacted to your post")
+                    notificationText(actorNamesHTML, suffix: NSLocalizedString("notifications.reactedToPost", comment: "Reacted to post notification"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if let post = reactNotification.post {
                     postPreview(post)
                 } else {
-                    Text("(Post unavailable)")
+                    Text(NSLocalizedString("notifications.postUnavailable", comment: "Post unavailable"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .italic()
@@ -343,13 +343,13 @@ struct NotificationRowView: View {
                     Image(systemName: "arrow.2.squarepath")
                         .foregroundStyle(.blue)
                         .frame(width: 20, height: 20)
-                    notificationText(actorNamesHTML, suffix: " shared your post")
+                    notificationText(actorNamesHTML, suffix: NSLocalizedString("notifications.sharedPost", comment: "Shared post notification"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if let post = shareNotification.post {
                     postPreview(post)
                 } else {
-                    Text("(Post unavailable)")
+                    Text(NSLocalizedString("notifications.postUnavailable", comment: "Post unavailable"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .italic()
@@ -357,7 +357,7 @@ struct NotificationRowView: View {
                 }
             }
         } else {
-            Text("Unknown notification type")
+            Text(NSLocalizedString("notifications.unknownType", comment: "Unknown notification type"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -368,9 +368,9 @@ struct NotificationRowView: View {
         if actorNamesHTML.count == 1 {
             htmlText = actorNamesHTML[0] + suffix
         } else if actorNamesHTML.count == 2 {
-            htmlText = actorNamesHTML[0] + " and " + actorNamesHTML[1] + suffix
+            htmlText = actorNamesHTML[0] + NSLocalizedString("notifications.and", comment: "and") + actorNamesHTML[1] + suffix
         } else if actorNamesHTML.count > 2 {
-            htmlText = actorNamesHTML[0] + " and \(actorNamesHTML.count - 1) others" + suffix
+            htmlText = actorNamesHTML[0] + String(format: NSLocalizedString("notifications.andOthers", comment: "and N others"), actorNamesHTML.count - 1) + suffix
         } else {
             htmlText = suffix
         }

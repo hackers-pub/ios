@@ -54,11 +54,12 @@ class AuthManager {
         }
     }
 
-    func loginByUsername(username: String, verifyUrl: String, locale: String = "en") async throws -> String {
+    func loginByUsername(username: String, verifyUrl: String, locale: String? = nil) async throws -> String {
+        let effectiveLocale = locale ?? Locale.current.language.languageCode?.identifier ?? "en"
         let response = try await apolloClient.perform(
             mutation: HackersPub.LoginByUsernameMutation(
                 username: username,
-                locale: locale,
+                locale: effectiveLocale,
                 verifyUrl: verifyUrl
             )
         )
