@@ -223,14 +223,19 @@ struct SearchResultRow: View {
                 }
                 .buttonStyle(.plain)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    if let name = actor.name {
-                        HTMLTextView(html: name, font: .headline)
+                Button {
+                    navigationCoordinator.navigateToProfile(handle: actor.handle)
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let name = actor.name {
+                            HTMLTextView(html: name, font: .headline)
+                        }
+                        Text(actor.handle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
-                    Text(actor.handle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 }
+                .buttonStyle(.plain)
             }
         }
     }

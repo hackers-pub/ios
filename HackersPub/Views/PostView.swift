@@ -66,12 +66,18 @@ struct RepostIndicator<Actor: ActorProtocol>: View {
             }
             .buttonStyle(.plain)
 
-            if let name = actor.name {
-                HTMLTextView(html: name, font: .caption)
-            } else {
-                Text(actor.handle)
-                    .font(.caption)
+            Button {
+                navigationCoordinator.navigateToProfile(handle: actor.handle)
+            } label: {
+                if let name = actor.name {
+                    HTMLTextView(html: name, font: .caption)
+                } else {
+                    Text(actor.handle)
+                        .font(.caption)
+                }
             }
+            .buttonStyle(.plain)
+
             Text("reposted")
                 .font(.caption)
         }
@@ -116,14 +122,19 @@ struct PostView<P: PostProtocol>: View {
                         }
                         .buttonStyle(.plain)
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let name = post.actor.name {
-                                HTMLTextView(html: name, font: .headline)
+                        Button {
+                            navigationCoordinator.navigateToProfile(handle: post.actor.handle)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                if let name = post.actor.name {
+                                    HTMLTextView(html: name, font: .headline)
+                                }
+                                Text(post.actor.handle)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
-                            Text(post.actor.handle)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
                         }
+                        .buttonStyle(.plain)
 
                         Spacer()
                     }
@@ -147,14 +158,19 @@ struct PostView<P: PostProtocol>: View {
                         }
                         .buttonStyle(.plain)
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let name = sharedPost.actor.name {
-                                HTMLTextView(html: name, font: .headline)
+                        Button {
+                            navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                if let name = sharedPost.actor.name {
+                                    HTMLTextView(html: name, font: .headline)
+                                }
+                                Text(sharedPost.actor.handle)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
-                            Text(sharedPost.actor.handle)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
                         }
+                        .buttonStyle(.plain)
 
                         Spacer()
                     }

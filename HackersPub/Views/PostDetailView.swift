@@ -48,14 +48,19 @@ struct PostDetailView: View {
                             }
                             .buttonStyle(.plain)
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                if let name = post.actor.name {
-                                    HTMLTextView(html: name, font: .headline)
+                            Button {
+                                navigationCoordinator.navigateToProfile(handle: post.actor.handle)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    if let name = post.actor.name {
+                                        HTMLTextView(html: name, font: .headline)
+                                    }
+                                    Text(post.actor.handle)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
                                 }
-                                Text(post.actor.handle)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
                             }
+                            .buttonStyle(.plain)
 
                             Spacer()
                         }
@@ -84,15 +89,20 @@ struct PostDetailView: View {
                                 }
                                 .buttonStyle(.plain)
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    if let name = sharedPost.actor.name {
-                                        HTMLTextView(html: name, font: .subheadline)
-                                            .fontWeight(.semibold)
+                                Button {
+                                    navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        if let name = sharedPost.actor.name {
+                                            HTMLTextView(html: name, font: .subheadline)
+                                                .fontWeight(.semibold)
+                                        }
+                                        Text(sharedPost.actor.handle)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
                                     }
-                                    Text(sharedPost.actor.handle)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
                                 }
+                                .buttonStyle(.plain)
 
                                 Spacer()
                             }
@@ -137,14 +147,19 @@ struct PostDetailView: View {
                             }
                             .buttonStyle(.plain)
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                if let name = post.actor.name {
-                                    HTMLTextView(html: name, font: .headline)
+                            Button {
+                                navigationCoordinator.navigateToProfile(handle: post.actor.handle)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    if let name = post.actor.name {
+                                        HTMLTextView(html: name, font: .headline)
+                                    }
+                                    Text(post.actor.handle)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
                                 }
-                                Text(post.actor.handle)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
                             }
+                            .buttonStyle(.plain)
 
                             Spacer()
                         }
