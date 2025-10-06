@@ -203,12 +203,12 @@ struct PostDetailView: View {
             await fetchPost()
         }
         .refreshable {
-            await fetchPost()
+            await refreshPost()
         }
         .sheet(isPresented: $showingReplyView, onDismiss: {
             // Refetch post after dismissing reply sheet
             Task {
-                await fetchPost()
+                await refreshPost()
             }
         }) {
             if let post = post {
@@ -265,6 +265,30 @@ struct PostDetailView: View {
             }
         } catch {
             print("Error loading more replies: \(error)")
+        }
+    }
+
+    private func refreshPost() async {
+        errorMessage = nil
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.PostDetailQuery(id: postId, repliesAfter: nil))
+
+            if let errors = response.errors, !errors.isEmpty {
+                errorMessage = errors.first?.message ?? "Unknown error"
+                return
+            }
+
+            guard let fetchedPost = response.data?.node?.asPost else {
+                errorMessage = "Post not found"
+                return
+            }
+
+            post = fetchedPost
+            hasMoreReplies = fetchedPost.replies.pageInfo.hasNextPage
+            repliesCursor = fetchedPost.replies.pageInfo.endCursor
+        } catch {
+            errorMessage = "Failed to load post: \(error.localizedDescription)"
         }
     }
 
