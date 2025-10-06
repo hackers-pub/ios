@@ -87,12 +87,10 @@ struct PostView<P: PostProtocol>: View {
     }
 
     var body: some View {
-        let _ = print("🔵 PostView: Post \(post.id), showAuthor: \(showAuthor), sharedPost: \(post.sharedPost != nil ? "YES" : "NO"), actor: \(post.actor.handle)")
         Group {
             VStack(alignment: .leading, spacing: 8) {
                 // Show repost indicator
                 if showAuthor && post.sharedPost != nil {
-                    let _ = print("🔵 PostView: Showing repost indicator for post \(post.id), reposter: \(post.actor.handle)")
                     RepostIndicator(actor: post.actor)
                 }
 

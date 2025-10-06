@@ -182,46 +182,17 @@ struct TimelineView: View {
     }
 
     private func fetchPosts() async {
-        print("🔵 TimelineView: Starting to fetch posts...")
         isLoading = true
         defer { isLoading = false }
 
         do {
-            print("🔵 TimelineView: Calling apolloClient.fetch...")
             let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil))
-            print("🔵 TimelineView: Got response, data exists: \(response.data != nil)")
-
-            // Check for GraphQL errors
-            if let errors = response.errors, !errors.isEmpty {
-                print("⚠️ TimelineView: GraphQL errors present:")
-                for error in errors {
-                    print("   - \(error.message ?? "Unknown error")")
-                    if let extensions = error["extensions"] as? [String: Any] {
-                        print("   Extensions: \(extensions)")
-                    }
-                }
-            }
-
-            print("🔵 TimelineView: Edges count: \(response.data?.publicTimeline.edges.count ?? 0)")
-
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-            print("🔵 TimelineView: Mapped posts count: \(fetchedPosts.count)")
-
-            if let firstPost = fetchedPosts.first {
-                print("🔵 TimelineView: First post ID: \(firstPost.id)")
-                print("🔵 TimelineView: First post name: \(firstPost.name ?? "nil")")
-                print("🔵 TimelineView: First post summary: \(firstPost.summary ?? "nil")")
-                print("🔵 TimelineView: First post content length: \(firstPost.content.count)")
-            }
-
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            print("🔵 TimelineView: Set posts array, count: \(posts.count)")
         } catch {
-            print("❌ TimelineView: Error fetching posts: \(error)")
-            print("❌ TimelineView: Error details: \(String(describing: error))")
-            print("❌ TimelineView: Error type: \(type(of: error))")
+            print("Error fetching posts: \(error)")
         }
     }
 
@@ -243,12 +214,10 @@ struct TimelineView: View {
     }
 
     private func refreshPosts() async {
-        print("🔵 TimelineView: Refreshing posts...")
         isLoading = true
         defer { isLoading = false }
 
         do {
-            // Clear cache and fetch fresh data
             try await apolloClient.clearCache()
             let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil))
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
@@ -256,7 +225,7 @@ struct TimelineView: View {
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {
-            print("❌ TimelineView: Error refreshing posts: \(error)")
+            print("Error refreshing posts: \(error)")
         }
     }
 }
@@ -348,44 +317,17 @@ struct PersonalTimelineView: View {
     }
 
     private func fetchPosts() async {
-        print("🟢 PersonalTimelineView: Starting to fetch posts...")
         isLoading = true
         defer { isLoading = false }
 
         do {
-            print("🟢 PersonalTimelineView: Calling apolloClient.fetch...")
             let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil))
-            print("🟢 PersonalTimelineView: Got response, data exists: \(response.data != nil)")
-
-            // Check for GraphQL errors
-            if let errors = response.errors, !errors.isEmpty {
-                print("⚠️ PersonalTimelineView: GraphQL errors present:")
-                for error in errors {
-                    print("   - \(error.message ?? "Unknown error")")
-                    if let extensions = error["extensions"] as? [String: Any] {
-                        print("   Extensions: \(extensions)")
-                    }
-                }
-            }
-
-            print("🟢 PersonalTimelineView: Edges count: \(response.data?.personalTimeline.edges.count ?? 0)")
-
             let fetchedPosts = response.data?.personalTimeline.edges.map { $0.node } ?? []
-            print("🟢 PersonalTimelineView: Mapped posts count: \(fetchedPosts.count)")
-
-            if let firstPost = fetchedPosts.first {
-                print("🟢 PersonalTimelineView: First post ID: \(firstPost.id)")
-                print("🟢 PersonalTimelineView: First post content length: \(firstPost.content.count)")
-            }
-
             posts = fetchedPosts
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
-            print("🟢 PersonalTimelineView: Set posts array, count: \(posts.count)")
         } catch {
-            print("❌ PersonalTimelineView: Error fetching posts: \(error)")
-            print("❌ PersonalTimelineView: Error details: \(String(describing: error))")
-            print("❌ PersonalTimelineView: Error type: \(type(of: error))")
+            print("Error fetching posts: \(error)")
         }
     }
 
@@ -407,12 +349,10 @@ struct PersonalTimelineView: View {
     }
 
     private func refreshPosts() async {
-        print("🟢 PersonalTimelineView: Refreshing posts...")
         isLoading = true
         defer { isLoading = false }
 
         do {
-            // Clear cache and fetch fresh data
             try await apolloClient.clearCache()
             let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil))
             let fetchedPosts = response.data?.personalTimeline.edges.map { $0.node } ?? []
@@ -420,7 +360,7 @@ struct PersonalTimelineView: View {
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
         } catch {
-            print("❌ PersonalTimelineView: Error refreshing posts: \(error)")
+            print("Error refreshing posts: \(error)")
         }
     }
 }
@@ -512,44 +452,17 @@ struct LocalTimelineView: View {
     }
 
     private func fetchPosts() async {
-        print("🟠 LocalTimelineView: Starting to fetch posts...")
         isLoading = true
         defer { isLoading = false }
 
         do {
-            print("🟠 LocalTimelineView: Calling apolloClient.fetch...")
             let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil))
-            print("🟠 LocalTimelineView: Got response, data exists: \(response.data != nil)")
-
-            // Check for GraphQL errors
-            if let errors = response.errors, !errors.isEmpty {
-                print("⚠️ LocalTimelineView: GraphQL errors present:")
-                for error in errors {
-                    print("   - \(error.message ?? "Unknown error")")
-                    if let extensions = error["extensions"] as? [String: Any] {
-                        print("   Extensions: \(extensions)")
-                    }
-                }
-            }
-
-            print("🟠 LocalTimelineView: Edges count: \(response.data?.publicTimeline.edges.count ?? 0)")
-
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-            print("🟠 LocalTimelineView: Mapped posts count: \(fetchedPosts.count)")
-
-            if let firstPost = fetchedPosts.first {
-                print("🟠 LocalTimelineView: First post ID: \(firstPost.id)")
-                print("🟠 LocalTimelineView: First post content length: \(firstPost.content.count)")
-            }
-
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            print("🟠 LocalTimelineView: Set posts array, count: \(posts.count)")
         } catch {
-            print("❌ LocalTimelineView: Error fetching posts: \(error)")
-            print("❌ LocalTimelineView: Error details: \(String(describing: error))")
-            print("❌ LocalTimelineView: Error type: \(type(of: error))")
+            print("Error fetching posts: \(error)")
         }
     }
 
@@ -571,12 +484,10 @@ struct LocalTimelineView: View {
     }
 
     private func refreshPosts() async {
-        print("🟠 LocalTimelineView: Refreshing posts...")
         isLoading = true
         defer { isLoading = false }
 
         do {
-            // Clear cache and fetch fresh data
             try await apolloClient.clearCache()
             let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil))
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
@@ -584,7 +495,7 @@ struct LocalTimelineView: View {
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {
-            print("❌ LocalTimelineView: Error refreshing posts: \(error)")
+            print("Error refreshing posts: \(error)")
         }
     }
 }
