@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct ViewerProfileButton: View {
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
@@ -9,15 +10,14 @@ struct ViewerProfileButton: View {
             Button {
                 navigationCoordinator.navigateToProfile(handle: viewer.handle)
             } label: {
-                CachedAsyncImage(url: URL(string: viewer.avatarUrl)) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    Color.gray.opacity(0.2)
-                }
-                .frame(width: 32, height: 32)
-                .clipShape(Circle())
+                KFImage(URL(string: viewer.avatarUrl))
+                    .placeholder {
+                        Color.gray.opacity(0.2)
+                    }
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
         }

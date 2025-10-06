@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 @preconcurrency import Apollo
 
 struct PostDetailView: View {
@@ -36,15 +37,14 @@ struct PostDetailView: View {
                             Button {
                                 navigationCoordinator.navigateToProfile(handle: post.actor.handle)
                             } label: {
-                                CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                } placeholder: {
-                                    Color.gray.opacity(0.2)
-                                }
-                                .frame(width: 48, height: 48)
-                                .clipShape(Circle())
+                                KFImage(URL(string: post.actor.avatarUrl))
+                                    .placeholder {
+                                        Color.gray.opacity(0.2)
+                                    }
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 48, height: 48)
+                                    .clipShape(Circle())
                             }
                             .buttonStyle(.plain)
 
@@ -73,15 +73,14 @@ struct PostDetailView: View {
                                 Button {
                                     navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
                                 } label: {
-                                    CachedAsyncImage(url: URL(string: sharedPost.actor.avatarUrl)) { image in
-                                        image
-                                            .resizable()
-                                            .scaledToFill()
-                                    } placeholder: {
-                                        Color.gray.opacity(0.2)
-                                    }
-                                    .frame(width: 40, height: 40)
-                                    .clipShape(Circle())
+                                    KFImage(URL(string: sharedPost.actor.avatarUrl))
+                                        .placeholder {
+                                            Color.gray.opacity(0.2)
+                                        }
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
                                 }
                                 .buttonStyle(.plain)
 
@@ -127,15 +126,14 @@ struct PostDetailView: View {
                             Button {
                                 navigationCoordinator.navigateToProfile(handle: post.actor.handle)
                             } label: {
-                                CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                } placeholder: {
-                                    Color.gray.opacity(0.2)
-                                }
-                                .frame(width: 48, height: 48)
-                                .clipShape(Circle())
+                                KFImage(URL(string: post.actor.avatarUrl))
+                                    .placeholder {
+                                        Color.gray.opacity(0.2)
+                                    }
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 48, height: 48)
+                                    .clipShape(Circle())
                             }
                             .buttonStyle(.plain)
 
@@ -468,15 +466,14 @@ struct ReactionGroupView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else if let customGroup = group.asCustomEmojiReactionGroup {
-                CachedAsyncImage(url: URL(string: customGroup.customEmoji.imageUrl)) { image in
-                    image
-                        .resizable()
-                        .scaledToFit()
-                } placeholder: {
-                    Text(customGroup.customEmoji.name)
-                        .font(.caption)
-                }
-                .frame(width: 24, height: 24)
+                KFImage(URL(string: customGroup.customEmoji.imageUrl))
+                    .placeholder {
+                        Text(customGroup.customEmoji.name)
+                            .font(.caption)
+                    }
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
                 Text("\(customGroup.reactors.totalCount)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -525,15 +522,14 @@ struct ReactorsListView: View {
                         navigationCoordinator.navigateToProfile(handle: reactor.handle)
                     } label: {
                         HStack(spacing: 12) {
-                            CachedAsyncImage(url: URL(string: reactor.avatarUrl)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                Color.gray.opacity(0.2)
-                            }
-                            .frame(width: 40, height: 40)
-                            .clipShape(Circle())
+                            KFImage(URL(string: reactor.avatarUrl))
+                                .placeholder {
+                                    Color.gray.opacity(0.2)
+                                }
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 40, height: 40)
+                                .clipShape(Circle())
 
                             VStack(alignment: .leading, spacing: 2) {
                                 if let name = reactor.name {

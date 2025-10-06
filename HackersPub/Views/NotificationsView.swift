@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 @preconcurrency import Apollo
 
 typealias NotificationItem = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node
@@ -179,15 +180,14 @@ struct NotificationRowView: View {
                     Button {
                         navigationCoordinator.navigateToProfile(handle: firstActor.handle)
                     } label: {
-                        CachedAsyncImage(url: URL(string: firstActor.avatarUrl)) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            Color.gray.opacity(0.2)
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
+                        KFImage(URL(string: firstActor.avatarUrl))
+                            .placeholder {
+                                Color.gray.opacity(0.2)
+                            }
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -301,15 +301,14 @@ struct NotificationRowView: View {
                             Text(emoji)
                                 .font(.body)
                         } else if let customEmoji = reactNotification.customEmoji {
-                            CachedAsyncImage(url: URL(string: customEmoji.imageUrl)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFit()
-                            } placeholder: {
-                                Text(customEmoji.name)
-                                    .font(.caption)
-                            }
-                            .frame(width: 20, height: 20)
+                            KFImage(URL(string: customEmoji.imageUrl))
+                                .placeholder {
+                                    Text(customEmoji.name)
+                                        .font(.caption)
+                                }
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
                         } else {
                             Image(systemName: "heart")
                                 .foregroundStyle(.red)

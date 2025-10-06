@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 protocol EngagementStatsProtocol {
     var replies: Int { get }
@@ -54,15 +55,14 @@ struct RepostIndicator<Actor: ActorProtocol>: View {
             Button {
                 navigationCoordinator.navigateToProfile(handle: actor.handle)
             } label: {
-                CachedAsyncImage(url: URL(string: actor.avatarUrl)) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    Color.gray.opacity(0.2)
-                }
-                .frame(width: 16, height: 16)
-                .clipShape(Circle())
+                KFImage(URL(string: actor.avatarUrl))
+                    .placeholder {
+                        Color.gray.opacity(0.2)
+                    }
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 16, height: 16)
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
 
@@ -105,15 +105,14 @@ struct PostView<P: PostProtocol>: View {
                         Button {
                             navigationCoordinator.navigateToProfile(handle: post.actor.handle)
                         } label: {
-                            CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                Color.gray.opacity(0.2)
-                            }
-                            .frame(width: 40, height: 40)
-                            .clipShape(Circle())
+                            KFImage(URL(string: post.actor.avatarUrl))
+                                .placeholder {
+                                    Color.gray.opacity(0.2)
+                                }
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 40, height: 40)
+                                .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
 
@@ -137,15 +136,14 @@ struct PostView<P: PostProtocol>: View {
                         Button {
                             navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
                         } label: {
-                            CachedAsyncImage(url: URL(string: sharedPost.actor.avatarUrl)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                Color.gray.opacity(0.2)
-                            }
-                            .frame(width: 40, height: 40)
-                            .clipShape(Circle())
+                            KFImage(URL(string: sharedPost.actor.avatarUrl))
+                                .placeholder {
+                                    Color.gray.opacity(0.2)
+                                }
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 40, height: 40)
+                                .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
 

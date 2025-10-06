@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 actor HTMLCache {
     static let shared = HTMLCache()
@@ -48,22 +49,20 @@ struct HTMLContentView: View {
                 TabView {
                     ForEach(media) { item in
                         if let thumbnailURL = item.thumbnailUrl.flatMap({ URL(string: $0) }) ?? URL(string: item.url) {
-                            CachedAsyncImage(url: thumbnailURL) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            } placeholder: {
-                                ZStack {
-                                    Color.gray.opacity(0.1)
-                                    ProgressView()
+                            KFImage(thumbnailURL)
+                                .placeholder {
+                                    ZStack {
+                                        Color.gray.opacity(0.1)
+                                        ProgressView()
+                                    }
                                 }
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedMedia = item
-                            }
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedMedia = item
+                                }
                         }
                     }
                 }
@@ -108,13 +107,12 @@ struct FullScreenImageView: View {
                 ForEach(Array(allMedia.enumerated()), id: \.element.id) { index, item in
                     VStack {
                         if let url = URL(string: item.url) {
-                            CachedAsyncImage(url: url) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFit()
-                            } placeholder: {
-                                ProgressView()
-                            }
+                            KFImage(url)
+                                .placeholder {
+                                    ProgressView()
+                                }
+                                .resizable()
+                                .scaledToFit()
                         }
 
                         if let alt = item.alt, !alt.isEmpty {

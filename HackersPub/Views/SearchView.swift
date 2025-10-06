@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 @preconcurrency import Apollo
 
 enum SearchResultType: Identifiable, Hashable {
@@ -202,15 +203,14 @@ struct SearchResultRow: View {
                 Button {
                     navigationCoordinator.navigateToProfile(handle: actor.handle)
                 } label: {
-                    CachedAsyncImage(url: URL(string: actor.avatarUrl)) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Color.gray.opacity(0.2)
-                    }
-                    .frame(width: 50, height: 50)
-                    .clipShape(Circle())
+                    KFImage(URL(string: actor.avatarUrl))
+                        .placeholder {
+                            Color.gray.opacity(0.2)
+                        }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
 
@@ -255,15 +255,14 @@ struct ActorProfileView: View {
         ScrollView {
             VStack(spacing: 0) {
                 VStack(spacing: 16) {
-                    CachedAsyncImage(url: URL(string: actor.avatarUrl)) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Color.gray.opacity(0.2)
-                    }
-                    .frame(width: 100, height: 100)
-                    .clipShape(Circle())
+                    KFImage(URL(string: actor.avatarUrl))
+                        .placeholder {
+                            Color.gray.opacity(0.2)
+                        }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 100, height: 100)
+                        .clipShape(Circle())
 
                     VStack(spacing: 8) {
                         if let name = actor.name {
