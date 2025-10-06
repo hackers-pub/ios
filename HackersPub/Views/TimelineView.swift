@@ -114,7 +114,7 @@ struct TimelineView: View {
                 } else {
                     List {
                         ForEach(posts, id: \.id) { post in
-                            PostView(post: post)
+                            PostView(post: post, showAuthor: true)
                                 .onAppear {
                                     if post.id == posts.last?.id && hasNextPage && !isLoading {
                                         Task {
@@ -282,7 +282,7 @@ struct PersonalTimelineView: View {
                 } else {
                     List {
                         ForEach(posts, id: \.id) { post in
-                            PostView(post: post)
+                            PostView(post: post, showAuthor: true)
                                 .onAppear {
                                     if post.id == posts.last?.id && hasNextPage && !isLoading {
                                         Task {
@@ -446,7 +446,7 @@ struct LocalTimelineView: View {
                 } else {
                     List {
                         ForEach(posts, id: \.id) { post in
-                            PostView(post: post)
+                            PostView(post: post, showAuthor: true)
                                 .onAppear {
                                     if post.id == posts.last?.id && hasNextPage && !isLoading {
                                         Task {
