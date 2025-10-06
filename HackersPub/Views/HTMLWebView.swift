@@ -48,23 +48,42 @@ struct HTMLWebView: NSViewRepresentable {
 struct HTMLWebView: UIViewRepresentable {
     let html: String
     @Binding var height: CGFloat
+    var onTap: (() -> Void)?
 
     func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(context.coordinator, name: "tapHandler")
+
+        let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.navigationDelegate = context.coordinator
         webView.scrollView.isScrollEnabled = false
 
-        // Disable pinch to zoom
+        // Disable pinch to zoom and add tap detection
         let source = """
         var meta = document.createElement('meta');
         meta.name = 'viewport';
         meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
         document.getElementsByTagName('head')[0].appendChild(meta);
+
+        // Detect taps on non-link elements
+        document.addEventListener('click', function(e) {
+            // Check if the click is on a link or inside a link
+            let target = e.target;
+            while (target) {
+                if (target.tagName === 'A') {
+                    return; // Don't send tap message if clicking on a link
+                }
+                target = target.parentElement;
+            }
+            // Only send tap message if not clicking on a link
+            window.webkit.messageHandlers.tapHandler.postMessage('tap');
+            e.preventDefault();
+        }, true);
         """
         let script = WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
-        webView.configuration.userContentController.addUserScript(script)
+        configuration.userContentController.addUserScript(script)
 
         return webView
     }
@@ -78,7 +97,7 @@ struct HTMLWebView: UIViewRepresentable {
         Coordinator(self)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: HTMLWebView
 
         init(_ parent: HTMLWebView) {
@@ -103,6 +122,12 @@ struct HTMLWebView: UIViewRepresentable {
                 decisionHandler(.cancel)
             } else {
                 decisionHandler(.allow)
+            }
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "tapHandler" {
+                parent.onTap?()
             }
         }
     }

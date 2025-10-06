@@ -181,7 +181,10 @@ struct PostView<P: PostProtocol>: View {
                     }
                     HTMLContentView(
                         html: sharedPost.content,
-                        media: sharedPost.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
+                        media: sharedPost.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) },
+                        onTap: !disableNavigation ? {
+                            navigationCoordinator.navigateToPost(id: post.id)
+                        } : nil
                     )
                     Text(sharedPost.published)
                         .font(.caption)
@@ -225,7 +228,10 @@ struct PostView<P: PostProtocol>: View {
                 }
                 HTMLContentView(
                     html: post.content,
-                    media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
+                    media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) },
+                    onTap: !disableNavigation && !post.isArticle ? {
+                        navigationCoordinator.navigateToPost(id: post.id)
+                    } : nil
                 )
             }
 

@@ -26,6 +26,7 @@ struct MediaItem: Identifiable {
 struct HTMLContentView: View {
     let html: String
     let media: [MediaItem]
+    var onTap: (() -> Void)?
     @State private var selectedMedia: MediaItem?
     @State private var webViewHeight: CGFloat = 0
 
@@ -72,7 +73,7 @@ struct HTMLContentView: View {
             }
 
             // Display text content
-            HTMLWebView(html: html, height: $webViewHeight)
+            HTMLWebView(html: html, height: $webViewHeight, onTap: onTap)
                 .frame(height: webViewHeight > 0 ? webViewHeight : nil)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
