@@ -42,6 +42,37 @@ protocol MediaProtocol {
     var height: Int? { get }
 }
 
+struct RepostIndicator<Actor: ActorProtocol>: View {
+    let actor: Actor
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.2.squarepath")
+                .font(.caption)
+
+            CachedAsyncImage(url: URL(string: actor.avatarUrl)) { image in
+                image
+                    .resizable()
+                    .scaledToFill()
+            } placeholder: {
+                Color.gray.opacity(0.2)
+            }
+            .frame(width: 16, height: 16)
+            .clipShape(Circle())
+
+            if let name = actor.name {
+                HTMLTextView(html: name, font: .caption)
+            } else {
+                Text(actor.handle)
+                    .font(.caption)
+            }
+            Text("reposted")
+                .font(.caption)
+        }
+        .foregroundStyle(.secondary)
+    }
+}
+
 struct PostView<P: PostProtocol>: View {
     let post: P
     let showAuthor: Bool
@@ -56,9 +87,16 @@ struct PostView<P: PostProtocol>: View {
     }
 
     var body: some View {
+        let _ = print("🔵 PostView: Post \(post.id), showAuthor: \(showAuthor), sharedPost: \(post.sharedPost != nil ? "YES" : "NO"), actor: \(post.actor.handle)")
         Group {
             VStack(alignment: .leading, spacing: 8) {
-                if showAuthor {
+                // Show repost indicator
+                if showAuthor && post.sharedPost != nil {
+                    let _ = print("🔵 PostView: Showing repost indicator for post \(post.id), reposter: \(post.actor.handle)")
+                    RepostIndicator(actor: post.actor)
+                }
+
+                if showAuthor && post.sharedPost == nil {
                     HStack(spacing: 8) {
                         Button {
                             navigationCoordinator.navigateToProfile(handle: post.actor.handle)
@@ -85,11 +123,6 @@ struct PostView<P: PostProtocol>: View {
                         }
 
                         Spacer()
-
-                        if post.sharedPost != nil {
-                            Image(systemName: "arrow.2.squarepath")
-                                .foregroundStyle(.secondary)
-                        }
                     }
                 }
 
@@ -107,20 +140,21 @@ struct PostView<P: PostProtocol>: View {
                             } placeholder: {
                                 Color.gray.opacity(0.2)
                             }
-                            .frame(width: 32, height: 32)
+                            .frame(width: 40, height: 40)
                             .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
 
                         VStack(alignment: .leading, spacing: 2) {
                             if let name = sharedPost.actor.name {
-                                HTMLTextView(html: name, font: .subheadline)
-                                    .fontWeight(.semibold)
+                                HTMLTextView(html: name, font: .headline)
                             }
                             Text(sharedPost.actor.handle)
-                                .font(.caption)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+
+                        Spacer()
                     }
 
                     if let name = sharedPost.name {
