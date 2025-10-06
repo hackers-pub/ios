@@ -6,6 +6,7 @@ typealias LocalPost = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Nod
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.EngagementStats
 
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
@@ -19,6 +20,7 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.Medium: M
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.EngagementStats
     var sharedPost: HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
@@ -33,6 +35,7 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPos
 
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.EngagementStats
 
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
@@ -46,6 +49,7 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.Medium: Me
 
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.EngagementStats
     var sharedPost: HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
@@ -62,6 +66,7 @@ typealias PersonalPost = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.EngagementStats
 
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
@@ -75,6 +80,7 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Mediu
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.EngagementStats
     var sharedPost: HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {

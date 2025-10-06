@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "NotificationsQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query NotificationsQuery($after: String) { viewer { __typename id notifications(first: 20, after: $after) { __typename edges { __typename cursor node { __typename id uuid created actors(first: 5) { __typename edges { __typename node { __typename id name handle avatarUrl } } } ... on FollowNotification { id } ... on MentionNotification { post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } } } ... on ReplyNotification { post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } } } ... on QuoteNotification { post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } } } ... on ReactNotification { emoji customEmoji { __typename id name imageUrl } post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } } } ... on ShareNotification { post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } } } } } pageInfo { __typename hasNextPage endCursor } } } }"#
+        #"query NotificationsQuery($after: String) { viewer { __typename id notifications(first: 20, after: $after) { __typename edges { __typename cursor node { __typename id uuid created actors(first: 5) { __typename edges { __typename node { __typename id name handle avatarUrl } } } ... on FollowNotification { id } ... on MentionNotification { post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } } } ... on ReplyNotification { post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } } } ... on QuoteNotification { post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } } } ... on ReactNotification { emoji customEmoji { __typename id name imageUrl } post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } } } ... on ShareNotification { post { __typename id name published summary content url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } } } } } pageInfo { __typename hasNextPage endCursor } } } }"#
       ))
 
     public var after: GraphQLNullable<String>
@@ -261,6 +261,7 @@ public extension HackersPub {
                     .field("url", HackersPub.URL?.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
+                    .field("engagementStats", EngagementStats.self),
                   ] }
                   @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                     NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post.self
@@ -274,6 +275,7 @@ public extension HackersPub {
                   public var url: HackersPub.URL? { __data["url"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
+                  public var engagementStats: EngagementStats { __data["engagementStats"] }
 
                   /// Viewer.Notifications.Edge.Node.AsMentionNotification.Post.Medium
                   ///
@@ -326,6 +328,31 @@ public extension HackersPub {
                     public var handle: String { __data["handle"] }
                     public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
                   }
+
+                  /// Viewer.Notifications.Edge.Node.AsMentionNotification.Post.EngagementStats
+                  ///
+                  /// Parent Type: `PostEngagementStats`
+                  public struct EngagementStats: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("replies", Int.self),
+                      .field("reactions", Int.self),
+                      .field("shares", Int.self),
+                      .field("quotes", Int.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post.EngagementStats.self
+                    ] }
+
+                    public var replies: Int { __data["replies"] }
+                    public var reactions: Int { __data["reactions"] }
+                    public var shares: Int { __data["shares"] }
+                    public var quotes: Int { __data["quotes"] }
+                  }
                 }
               }
 
@@ -370,6 +397,7 @@ public extension HackersPub {
                     .field("url", HackersPub.URL?.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
+                    .field("engagementStats", EngagementStats.self),
                   ] }
                   @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                     NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post.self
@@ -383,6 +411,7 @@ public extension HackersPub {
                   public var url: HackersPub.URL? { __data["url"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
+                  public var engagementStats: EngagementStats { __data["engagementStats"] }
 
                   /// Viewer.Notifications.Edge.Node.AsReplyNotification.Post.Medium
                   ///
@@ -435,6 +464,31 @@ public extension HackersPub {
                     public var handle: String { __data["handle"] }
                     public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
                   }
+
+                  /// Viewer.Notifications.Edge.Node.AsReplyNotification.Post.EngagementStats
+                  ///
+                  /// Parent Type: `PostEngagementStats`
+                  public struct EngagementStats: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("replies", Int.self),
+                      .field("reactions", Int.self),
+                      .field("shares", Int.self),
+                      .field("quotes", Int.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post.EngagementStats.self
+                    ] }
+
+                    public var replies: Int { __data["replies"] }
+                    public var reactions: Int { __data["reactions"] }
+                    public var shares: Int { __data["shares"] }
+                    public var quotes: Int { __data["quotes"] }
+                  }
                 }
               }
 
@@ -479,6 +533,7 @@ public extension HackersPub {
                     .field("url", HackersPub.URL?.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
+                    .field("engagementStats", EngagementStats.self),
                   ] }
                   @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                     NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.self
@@ -492,6 +547,7 @@ public extension HackersPub {
                   public var url: HackersPub.URL? { __data["url"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
+                  public var engagementStats: EngagementStats { __data["engagementStats"] }
 
                   /// Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.Medium
                   ///
@@ -543,6 +599,31 @@ public extension HackersPub {
                     public var name: HackersPub.HTML? { __data["name"] }
                     public var handle: String { __data["handle"] }
                     public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.EngagementStats
+                  ///
+                  /// Parent Type: `PostEngagementStats`
+                  public struct EngagementStats: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("replies", Int.self),
+                      .field("reactions", Int.self),
+                      .field("shares", Int.self),
+                      .field("quotes", Int.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.EngagementStats.self
+                    ] }
+
+                    public var replies: Int { __data["replies"] }
+                    public var reactions: Int { __data["reactions"] }
+                    public var shares: Int { __data["shares"] }
+                    public var quotes: Int { __data["quotes"] }
                   }
                 }
               }
@@ -615,6 +696,7 @@ public extension HackersPub {
                     .field("url", HackersPub.URL?.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
+                    .field("engagementStats", EngagementStats.self),
                   ] }
                   @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                     NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post.self
@@ -628,6 +710,7 @@ public extension HackersPub {
                   public var url: HackersPub.URL? { __data["url"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
+                  public var engagementStats: EngagementStats { __data["engagementStats"] }
 
                   /// Viewer.Notifications.Edge.Node.AsReactNotification.Post.Medium
                   ///
@@ -680,6 +763,31 @@ public extension HackersPub {
                     public var handle: String { __data["handle"] }
                     public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
                   }
+
+                  /// Viewer.Notifications.Edge.Node.AsReactNotification.Post.EngagementStats
+                  ///
+                  /// Parent Type: `PostEngagementStats`
+                  public struct EngagementStats: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("replies", Int.self),
+                      .field("reactions", Int.self),
+                      .field("shares", Int.self),
+                      .field("quotes", Int.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post.EngagementStats.self
+                    ] }
+
+                    public var replies: Int { __data["replies"] }
+                    public var reactions: Int { __data["reactions"] }
+                    public var shares: Int { __data["shares"] }
+                    public var quotes: Int { __data["quotes"] }
+                  }
                 }
               }
 
@@ -724,6 +832,7 @@ public extension HackersPub {
                     .field("url", HackersPub.URL?.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
+                    .field("engagementStats", EngagementStats.self),
                   ] }
                   @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                     NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post.self
@@ -737,6 +846,7 @@ public extension HackersPub {
                   public var url: HackersPub.URL? { __data["url"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
+                  public var engagementStats: EngagementStats { __data["engagementStats"] }
 
                   /// Viewer.Notifications.Edge.Node.AsShareNotification.Post.Medium
                   ///
@@ -788,6 +898,31 @@ public extension HackersPub {
                     public var name: HackersPub.HTML? { __data["name"] }
                     public var handle: String { __data["handle"] }
                     public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsShareNotification.Post.EngagementStats
+                  ///
+                  /// Parent Type: `PostEngagementStats`
+                  public struct EngagementStats: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("replies", Int.self),
+                      .field("reactions", Int.self),
+                      .field("shares", Int.self),
+                      .field("quotes", Int.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post.EngagementStats.self
+                    ] }
+
+                    public var replies: Int { __data["replies"] }
+                    public var reactions: Int { __data["reactions"] }
+                    public var shares: Int { __data["shares"] }
+                    public var quotes: Int { __data["quotes"] }
                   }
                 }
               }

@@ -44,6 +44,18 @@ query PublicTimelineQuery($after: String) {
             height
             width
           }
+          engagementStats {
+            replies
+            reactions
+            shares
+            quotes
+          }
+        }
+        engagementStats {
+          replies
+          reactions
+          shares
+          quotes
         }
       }
     }
@@ -100,6 +112,18 @@ query LocalTimelineQuery($after: String) {
             height
             width
           }
+          engagementStats {
+            replies
+            reactions
+            shares
+            quotes
+          }
+        }
+        engagementStats {
+          replies
+          reactions
+          shares
+          quotes
         }
       }
     }
@@ -156,6 +180,18 @@ query PersonalTimelineQuery($after: String) {
             height
             width
           }
+          engagementStats {
+            replies
+            reactions
+            shares
+            quotes
+          }
+        }
+        engagementStats {
+          replies
+          reactions
+          shares
+          quotes
         }
       }
     }
@@ -211,6 +247,18 @@ query SearchPostQuery($query: String!) {
             height
             width
           }
+          engagementStats {
+            replies
+            reactions
+            shares
+            quotes
+          }
+        }
+        engagementStats {
+          replies
+          reactions
+          shares
+          quotes
         }
       }
     }
@@ -269,6 +317,18 @@ query ActorByHandleQuery($handle: String!, $after: String) {
               height
               width
             }
+            engagementStats {
+              replies
+              reactions
+              shares
+              quotes
+            }
+          }
+          engagementStats {
+            replies
+            reactions
+            shares
+            quotes
           }
         }
       }
@@ -379,6 +439,12 @@ query NotificationsQuery($after: String) {
                 handle
                 avatarUrl
               }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
+              }
             }
           }
           ... on ReplyNotification {
@@ -403,6 +469,12 @@ query NotificationsQuery($after: String) {
                 handle
                 avatarUrl
               }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
+              }
             }
           }
           ... on QuoteNotification {
@@ -426,6 +498,12 @@ query NotificationsQuery($after: String) {
                 name
                 handle
                 avatarUrl
+              }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
               }
             }
           }
@@ -457,6 +535,12 @@ query NotificationsQuery($after: String) {
                 handle
                 avatarUrl
               }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
+              }
             }
           }
           ... on ShareNotification {
@@ -480,6 +564,12 @@ query NotificationsQuery($after: String) {
                 name
                 handle
                 avatarUrl
+              }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
               }
             }
           }
@@ -537,6 +627,12 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
           alt
           height
           width
+        }
+        engagementStats {
+          replies
+          reactions
+          shares
+          quotes
         }
       }
       engagementStats {
@@ -633,6 +729,18 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
                 height
                 width
               }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
+              }
+            }
+            engagementStats {
+              replies
+              reactions
+              shares
+              quotes
             }
           }
         }

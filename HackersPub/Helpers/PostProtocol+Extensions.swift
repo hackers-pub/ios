@@ -1,9 +1,32 @@
 import Foundation
 
+// MARK: - EngagementStats Protocol Conformance
+
+extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
+
 // MARK: - SearchPost Extensions
 
 extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.EngagementStats
 
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
@@ -17,6 +40,7 @@ extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.Medium: MediaProt
 
 extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost.EngagementStats
     var sharedPost: HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
@@ -33,6 +57,7 @@ extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost.Medium
 
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.EngagementStats
 
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
@@ -46,6 +71,7 @@ extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.Mediu
 
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost.EngagementStats
     var sharedPost: HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
@@ -64,6 +90,7 @@ extension HackersPub.ActorByHandleQuery.Data.ActorByHandle: Identifiable {}
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post: PostProtocol {
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post
+    typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
 
     var isArticle: Bool {
@@ -77,6 +104,7 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMe
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post: PostProtocol {
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post
+    typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
 
     var isArticle: Bool {
@@ -90,6 +118,7 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsRe
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post: PostProtocol {
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post
+    typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
 
     var isArticle: Bool {
@@ -103,6 +132,7 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQu
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post: PostProtocol {
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post
+    typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
 
     var isArticle: Bool {
@@ -116,6 +146,7 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsRe
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post: PostProtocol {
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post
+    typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
 
     var isArticle: Bool {
@@ -131,6 +162,7 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSh
 
 extension HackersPub.PostDetailQuery.Data.Node.AsPost: PostProtocol {
     typealias SharedPostType = HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost
+    typealias EngagementStatsType = HackersPub.PostDetailQuery.Data.Node.AsPost.EngagementStats
 
     var isArticle: Bool {
         return __typename == "Article"
@@ -143,6 +175,7 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost.Medium: MediaProtocol {}
 
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost
+    typealias EngagementStatsType = HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost.EngagementStats
     var sharedPost: SharedPostType? { nil }
 
     var isArticle: Bool {
@@ -158,6 +191,7 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost.Medium: MediaPr
 
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.EngagementStats
 
     var isArticle: Bool {
         return __typename == "Article"
@@ -170,6 +204,7 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.Medium: 
 
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost.EngagementStats
     var sharedPost: SharedPostType? { nil }
 
     var isArticle: Bool {

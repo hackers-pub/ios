@@ -1,9 +1,17 @@
 import SwiftUI
 
+protocol EngagementStatsProtocol {
+    var replies: Int { get }
+    var reactions: Int { get }
+    var shares: Int { get }
+    var quotes: Int { get }
+}
+
 protocol PostProtocol {
     associatedtype ActorType: ActorProtocol
     associatedtype MediaType: MediaProtocol
     associatedtype SharedPostType: PostProtocol
+    associatedtype EngagementStatsType: EngagementStatsProtocol
 
     var id: String { get }
     var name: String? { get }
@@ -14,6 +22,7 @@ protocol PostProtocol {
     var actor: ActorType { get }
     var media: [MediaType] { get }
     var sharedPost: SharedPostType? { get }
+    var engagementStats: EngagementStatsType { get }
 
     var isArticle: Bool { get }
 }
@@ -172,15 +181,44 @@ struct PostView<P: PostProtocol>: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-                // Action buttons
+                // Action buttons with engagement stats
                 HStack(spacing: 16) {
                     Button {
                         showingReplyView = true
                     } label: {
-                        Label("Reply", systemImage: "arrowshape.turn.up.left")
-                            .labelStyle(.iconOnly)
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrowshape.turn.up.left")
+                            if post.engagementStats.replies > 0 {
+                                Text("\(post.engagementStats.replies)")
+                                    .font(.caption)
+                            }
+                        }
                     }
                     .buttonStyle(.borderless)
+
+                    if post.engagementStats.reactions > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "heart")
+                            Text("\(post.engagementStats.reactions)")
+                                .font(.caption)
+                        }
+                    }
+
+                    if post.engagementStats.shares > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.2.squarepath")
+                            Text("\(post.engagementStats.shares)")
+                                .font(.caption)
+                        }
+                    }
+
+                    if post.engagementStats.quotes > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "quote.bubble")
+                            Text("\(post.engagementStats.quotes)")
+                                .font(.caption)
+                        }
+                    }
 
                     Spacer()
 
