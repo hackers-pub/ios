@@ -2,21 +2,27 @@ import SwiftUI
 
 struct ArticleDetailView<P: PostProtocol>: View {
     let post: P
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 // Author info
                 HStack(spacing: 8) {
-                    CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Color.gray.opacity(0.2)
+                    Button {
+                        navigationCoordinator.navigateToProfile(handle: post.actor.handle)
+                    } label: {
+                        CachedAsyncImage(url: URL(string: post.actor.avatarUrl)) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } placeholder: {
+                            Color.gray.opacity(0.2)
+                        }
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
                     }
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
+                    .buttonStyle(.plain)
 
                     VStack(alignment: .leading, spacing: 2) {
                         if let name = post.actor.name {

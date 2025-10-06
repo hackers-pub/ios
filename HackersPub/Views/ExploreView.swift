@@ -9,13 +9,14 @@ enum ExploreScope: String, CaseIterable {
 struct ExploreView: View {
     @Binding var showingComposeView: Bool
     @State private var selectedScope: ExploreScope = .local
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
         self._showingComposeView = showingComposeView
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: Bindable(navigationCoordinator).path) {
             Group {
                 switch selectedScope {
                 case .local:
@@ -33,6 +34,14 @@ struct ExploreView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+            }
+            .navigationDestination(for: NavigationDestination.self) { destination in
+                switch destination {
+                case .profile(let handle):
+                    ActorProfileViewWrapper(handle: handle)
+                case .post(let id):
+                    PostDetailView(postId: id)
                 }
             }
         }

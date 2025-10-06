@@ -66,13 +66,13 @@ struct PostDetailView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
 
-                        // Original post in a tappable card
-                        Button {
-                            navigationCoordinator.navigateToPost(id: sharedPost.id)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 12) {
-                                // Original author
-                                HStack(spacing: 8) {
+                        // Original post in a card
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Original author
+                            HStack(spacing: 8) {
+                                Button {
+                                    navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
+                                } label: {
                                     CachedAsyncImage(url: URL(string: sharedPost.actor.avatarUrl)) { image in
                                         image
                                             .resizable()
@@ -82,39 +82,43 @@ struct PostDetailView: View {
                                     }
                                     .frame(width: 40, height: 40)
                                     .clipShape(Circle())
+                                }
+                                .buttonStyle(.plain)
 
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        if let name = sharedPost.actor.name {
-                                            HTMLTextView(html: name, font: .subheadline)
-                                                .fontWeight(.semibold)
-                                        }
-                                        Text(sharedPost.actor.handle)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    if let name = sharedPost.actor.name {
+                                        HTMLTextView(html: name, font: .subheadline)
+                                            .fontWeight(.semibold)
                                     }
-
-                                    Spacer()
+                                    Text(sharedPost.actor.handle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
 
-                                if let name = sharedPost.name {
-                                    Text(name)
-                                        .font(.headline)
-                                }
-
-                                HTMLContentView(
-                                    html: sharedPost.content,
-                                    media: sharedPost.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
-                                )
-
-                                Text(sharedPost.published)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                Spacer()
                             }
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                            if let name = sharedPost.name {
+                                Text(name)
+                                    .font(.headline)
+                            }
+
+                            HTMLContentView(
+                                html: sharedPost.content,
+                                media: sharedPost.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
+                            )
+
+                            Text(sharedPost.published)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .contentShape(RoundedRectangle(cornerRadius: 12))
+                        .onTapGesture {
+                            navigationCoordinator.navigateToPost(id: sharedPost.id)
+                        }
                         .padding(.horizontal)
                     } else {
                         // Regular post (not a repost)

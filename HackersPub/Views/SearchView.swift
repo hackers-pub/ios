@@ -190,6 +190,7 @@ struct SearchView: View {
 
 struct SearchResultRow: View {
     let result: SearchResultType
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
         switch result {
@@ -198,15 +199,20 @@ struct SearchResultRow: View {
 
         case .actor(let actor):
             HStack(spacing: 12) {
-                CachedAsyncImage(url: URL(string: actor.avatarUrl)) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    Color.gray.opacity(0.2)
+                Button {
+                    navigationCoordinator.navigateToProfile(handle: actor.handle)
+                } label: {
+                    CachedAsyncImage(url: URL(string: actor.avatarUrl)) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } placeholder: {
+                        Color.gray.opacity(0.2)
+                    }
+                    .frame(width: 50, height: 50)
+                    .clipShape(Circle())
                 }
-                .frame(width: 50, height: 50)
-                .clipShape(Circle())
+                .buttonStyle(.plain)
 
                 VStack(alignment: .leading, spacing: 4) {
                     if let name = actor.name {

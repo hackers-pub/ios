@@ -44,21 +44,27 @@ protocol MediaProtocol {
 
 struct RepostIndicator<Actor: ActorProtocol>: View {
     let actor: Actor
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "arrow.2.squarepath")
                 .font(.caption)
 
-            CachedAsyncImage(url: URL(string: actor.avatarUrl)) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                Color.gray.opacity(0.2)
+            Button {
+                navigationCoordinator.navigateToProfile(handle: actor.handle)
+            } label: {
+                CachedAsyncImage(url: URL(string: actor.avatarUrl)) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    Color.gray.opacity(0.2)
+                }
+                .frame(width: 16, height: 16)
+                .clipShape(Circle())
             }
-            .frame(width: 16, height: 16)
-            .clipShape(Circle())
+            .buttonStyle(.plain)
 
             if let name = actor.name {
                 HTMLTextView(html: name, font: .caption)
