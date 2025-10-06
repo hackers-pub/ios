@@ -66,11 +66,20 @@ struct ContentView: View {
         .task {
             // Set default tab based on auth state
             selectedTab = authManager.isAuthenticated ? "timeline" : "local"
+            updateCurrentTab()
         }
         .onChange(of: authManager.isAuthenticated) { _, isAuth in
             // Switch to appropriate tab when auth state changes
             selectedTab = isAuth ? "timeline" : "local"
+            updateCurrentTab()
         }
+        .onChange(of: selectedTab) { _, _ in
+            updateCurrentTab()
+        }
+    }
+
+    private func updateCurrentTab() {
+        navigationCoordinator.setCurrentTab(AppTab(rawValue: selectedTab) ?? .timeline)
     }
 }
 

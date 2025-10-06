@@ -50,9 +50,25 @@ enum NavigationDestination: Hashable {
     case post(id: String)
 }
 
+enum AppTab: String {
+    case timeline
+    case notifications
+    case explore
+    case search
+    case local
+    case global
+    case signIn
+}
+
 @Observable
 class NavigationCoordinator {
-    var path: [NavigationDestination] = []
+    var paths: [AppTab: [NavigationDestination]] = [:]
+    var currentTab: AppTab = .timeline
+
+    var path: [NavigationDestination] {
+        get { paths[currentTab] ?? [] }
+        set { paths[currentTab] = newValue }
+    }
 
     func navigateToProfile(handle: String) {
         path.append(.profile(handle: handle))
@@ -64,5 +80,9 @@ class NavigationCoordinator {
 
     func popToRoot() {
         path.removeAll()
+    }
+
+    func setCurrentTab(_ tab: AppTab) {
+        currentTab = tab
     }
 }

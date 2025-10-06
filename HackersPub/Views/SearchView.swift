@@ -22,6 +22,7 @@ struct SearchView: View {
     @State private var isLoading = false
     @State private var searchTask: Task<Void, Never>?
     @AppStorage("recentSearches") private var recentSearchesData: Data = Data()
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(searchText: Binding<String>, showingComposeView: Binding<Bool> = .constant(false)) {
         self._searchText = searchText
@@ -33,7 +34,7 @@ struct SearchView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: Bindable(navigationCoordinator).path) {
             Group {
                 if isLoading {
                     ProgressView()
@@ -93,6 +94,14 @@ struct SearchView: View {
             .navigationTitle("Search")
             .navigationDestination(for: SearchResultType.self) { result in
                 SearchDetailView(result: result)
+            }
+            .navigationDestination(for: NavigationDestination.self) { destination in
+                switch destination {
+                case .profile(let handle):
+                    ActorProfileViewWrapper(handle: handle)
+                case .post(let id):
+                    PostDetailView(postId: id)
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {

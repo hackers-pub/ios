@@ -23,7 +23,7 @@ struct NotificationsView: View {
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: Bindable(navigationCoordinator).path) {
             Group {
                 if isLoading && notifications.isEmpty {
                     ProgressView()
@@ -86,6 +86,14 @@ struct NotificationsView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .navigationDestination(for: NavigationDestination.self) { destination in
+                switch destination {
+                case .profile(let handle):
+                    ActorProfileViewWrapper(handle: handle)
+                case .post(let id):
+                    PostDetailView(postId: id)
+                }
             }
         }
     }
