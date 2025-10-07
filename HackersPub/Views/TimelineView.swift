@@ -101,6 +101,8 @@ struct TimelineView: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @State private var scrollPosition: String?
+    @State private var hasGap = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
@@ -113,25 +115,45 @@ struct TimelineView: View {
                 if isLoading && posts.isEmpty {
                     ProgressView()
                 } else {
-                    List {
-                        ForEach(posts, id: \.id) { post in
-                            PostView(post: post, showAuthor: true)
-                                .onAppear {
-                                    if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                        Task {
-                                            await loadMore()
-                                        }
+                    ScrollViewReader { proxy in
+                        List {
+                            if hasGap {
+                                Button {
+                                    Task {
+                                        await loadGap()
+                                    }
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        Label("Load newer posts", systemImage: "arrow.up.circle")
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
                                     }
                                 }
-                        }
+                                .buttonStyle(.plain)
+                            }
 
-                        if isLoading && !posts.isEmpty {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                Spacer()
+                            ForEach(posts, id: \.id) { post in
+                                PostView(post: post, showAuthor: true)
+                                    .id(post.id)
+                                    .onAppear {
+                                        if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                            Task {
+                                                await loadMore()
+                                            }
+                                        }
+                                    }
+                            }
+
+                            if isLoading && !posts.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
+                                }
                             }
                         }
+                        .scrollPosition(id: $scrollPosition)
                     }
                 }
             }
@@ -227,6 +249,38 @@ struct TimelineView: View {
         defer { isLoading = false }
 
         do {
+            let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil))
+            let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
+
+            // Find new posts that aren't in the current list
+            let existingIds = Set(posts.map { $0.id })
+            let newPosts = fetchedPosts.filter { !existingIds.contains($0.id) }
+
+            if !newPosts.isEmpty {
+                // Check if there's a gap (fetched posts don't include our first post)
+                if let firstCurrentPost = posts.first,
+                   !fetchedPosts.contains(where: { $0.id == firstCurrentPost.id }) {
+                    hasGap = true
+                } else {
+                    hasGap = false
+                }
+
+                // Prepend new posts
+                posts = newPosts + posts
+            } else {
+                hasGap = false
+            }
+        } catch {
+            print("Error refreshing posts: \(error)")
+        }
+    }
+
+    private func loadGap() async {
+        hasGap = false
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
             try await apolloClient.clearCache()
             let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil))
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
@@ -234,7 +288,7 @@ struct TimelineView: View {
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {
-            print("Error refreshing posts: \(error)")
+            print("Error loading gap: \(error)")
         }
     }
 }
@@ -247,6 +301,8 @@ struct PersonalTimelineView: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @State private var scrollPosition: String?
+    @State private var hasGap = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
@@ -259,25 +315,45 @@ struct PersonalTimelineView: View {
                 if isLoading && posts.isEmpty {
                     ProgressView()
                 } else {
-                    List {
-                        ForEach(posts, id: \.id) { post in
-                            PostView(post: post, showAuthor: true)
-                                .onAppear {
-                                    if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                        Task {
-                                            await loadMore()
-                                        }
+                    ScrollViewReader { proxy in
+                        List {
+                            if hasGap {
+                                Button {
+                                    Task {
+                                        await loadGap()
+                                    }
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        Label("Load newer posts", systemImage: "arrow.up.circle")
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
                                     }
                                 }
-                        }
+                                .buttonStyle(.plain)
+                            }
 
-                        if isLoading && !posts.isEmpty {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                Spacer()
+                            ForEach(posts, id: \.id) { post in
+                                PostView(post: post, showAuthor: true)
+                                    .id(post.id)
+                                    .onAppear {
+                                        if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                            Task {
+                                                await loadMore()
+                                            }
+                                        }
+                                    }
+                            }
+
+                            if isLoading && !posts.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
+                                }
                             }
                         }
+                        .scrollPosition(id: $scrollPosition)
                     }
                 }
             }
@@ -371,6 +447,38 @@ struct PersonalTimelineView: View {
         defer { isLoading = false }
 
         do {
+            let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil))
+            let fetchedPosts = response.data?.personalTimeline.edges.map { $0.node } ?? []
+
+            // Find new posts that aren't in the current list
+            let existingIds = Set(posts.map { $0.id })
+            let newPosts = fetchedPosts.filter { !existingIds.contains($0.id) }
+
+            if !newPosts.isEmpty {
+                // Check if there's a gap (fetched posts don't include our first post)
+                if let firstCurrentPost = posts.first,
+                   !fetchedPosts.contains(where: { $0.id == firstCurrentPost.id }) {
+                    hasGap = true
+                } else {
+                    hasGap = false
+                }
+
+                // Prepend new posts
+                posts = newPosts + posts
+            } else {
+                hasGap = false
+            }
+        } catch {
+            print("Error refreshing posts: \(error)")
+        }
+    }
+
+    private func loadGap() async {
+        hasGap = false
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
             try await apolloClient.clearCache()
             let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil))
             let fetchedPosts = response.data?.personalTimeline.edges.map { $0.node } ?? []
@@ -378,7 +486,7 @@ struct PersonalTimelineView: View {
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
         } catch {
-            print("Error refreshing posts: \(error)")
+            print("Error loading gap: \(error)")
         }
     }
 }
@@ -391,6 +499,8 @@ struct LocalTimelineView: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @State private var scrollPosition: String?
+    @State private var hasGap = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
@@ -403,25 +513,45 @@ struct LocalTimelineView: View {
                 if isLoading && posts.isEmpty {
                     ProgressView()
                 } else {
-                    List {
-                        ForEach(posts, id: \.id) { post in
-                            PostView(post: post, showAuthor: true)
-                                .onAppear {
-                                    if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                        Task {
-                                            await loadMore()
-                                        }
+                    ScrollViewReader { proxy in
+                        List {
+                            if hasGap {
+                                Button {
+                                    Task {
+                                        await loadGap()
+                                    }
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        Label("Load newer posts", systemImage: "arrow.up.circle")
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
                                     }
                                 }
-                        }
+                                .buttonStyle(.plain)
+                            }
 
-                        if isLoading && !posts.isEmpty {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                Spacer()
+                            ForEach(posts, id: \.id) { post in
+                                PostView(post: post, showAuthor: true)
+                                    .id(post.id)
+                                    .onAppear {
+                                        if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                            Task {
+                                                await loadMore()
+                                            }
+                                        }
+                                    }
+                            }
+
+                            if isLoading && !posts.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
+                                }
                             }
                         }
+                        .scrollPosition(id: $scrollPosition)
                     }
                 }
             }
@@ -515,6 +645,38 @@ struct LocalTimelineView: View {
         defer { isLoading = false }
 
         do {
+            let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil))
+            let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
+
+            // Find new posts that aren't in the current list
+            let existingIds = Set(posts.map { $0.id })
+            let newPosts = fetchedPosts.filter { !existingIds.contains($0.id) }
+
+            if !newPosts.isEmpty {
+                // Check if there's a gap (fetched posts don't include our first post)
+                if let firstCurrentPost = posts.first,
+                   !fetchedPosts.contains(where: { $0.id == firstCurrentPost.id }) {
+                    hasGap = true
+                } else {
+                    hasGap = false
+                }
+
+                // Prepend new posts
+                posts = newPosts + posts
+            } else {
+                hasGap = false
+            }
+        } catch {
+            print("Error refreshing posts: \(error)")
+        }
+    }
+
+    private func loadGap() async {
+        hasGap = false
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
             try await apolloClient.clearCache()
             let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil))
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
@@ -522,7 +684,7 @@ struct LocalTimelineView: View {
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {
-            print("Error refreshing posts: \(error)")
+            print("Error loading gap: \(error)")
         }
     }
 }
