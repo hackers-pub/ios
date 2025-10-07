@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import Apollo
+import ApolloAPI
 
 @Observable
 @MainActor
@@ -26,7 +27,12 @@ class AuthManager {
             if let token = try await KeychainHelper.shared.get(key: "sessionToken") {
                 sessionToken = token
 
-                // Verify the session by fetching viewer
+                // Immediately mark as authenticated since we have a valid token
+                // This allows offline access to cached data
+                isAuthenticated = true
+
+                // Try to verify the session by fetching viewer
+                // If this fails due to network, we'll stay authenticated
                 await fetchViewer()
             }
         } catch {
@@ -42,15 +48,49 @@ class AuthManager {
         }
 
         do {
-            // Clear cache first to ensure fresh data
-            try await apolloClient.clearCache()
+            // Fetch viewer data (will use cache if available, then network)
             let response = try await apolloClient.fetch(query: HackersPub.ViewerQuery())
             currentAccount = response.data?.viewer
             isAuthenticated = currentAccount != nil
         } catch {
             print("Error fetching viewer: \(error)")
-            // Session is invalid, clear it
-            await signOut()
+
+            // Check if this is an authentication error
+            var isAuthError = false
+
+            // Check for HTTP status codes in the error
+            if let nsError = error as NSError? {
+                // Check for 401 or 403 in error code or userInfo
+                if nsError.code == 401 || nsError.code == 403 {
+                    isAuthError = true
+                }
+            }
+
+            // Also check error description for auth-related strings
+            if !isAuthError {
+                let errorString = error.localizedDescription.lowercased()
+                isAuthError = errorString.contains("401") ||
+                             errorString.contains("403") ||
+                             errorString.contains("unauthorized") ||
+                             errorString.contains("forbidden") ||
+                             errorString.contains("not authenticated")
+            }
+
+            if isAuthError {
+                print("Authentication error detected, signing out")
+                await signOut()
+            } else {
+                print("Network or server error, keeping user signed in")
+                // Keep user authenticated if we have a session token
+                // They will be able to use cached data offline
+                isAuthenticated = sessionToken != nil
+                // Try to load cached viewer data if available
+                if currentAccount == nil {
+                    // We'll stay authenticated but without account details
+                    // The UI should handle this gracefully
+                    print("No cached viewer data available, but keeping session active")
+                }
+            }
         }
     }
 
