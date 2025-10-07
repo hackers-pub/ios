@@ -20,6 +20,8 @@ struct NotificationsView: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @State private var scrollPosition: String?
+    @State private var hasGap = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
@@ -34,25 +36,45 @@ struct NotificationsView: View {
                         description: Text(NSLocalizedString("notifications.empty.description", comment: "No notifications description"))
                     )
                 } else {
-                    List {
-                        ForEach(notifications, id: \.id) { notification in
-                            NotificationRowView(notification: notification)
-                                .onAppear {
-                                    if notification.id == notifications.last?.id && hasNextPage && !isLoading {
-                                        Task {
-                                            await loadMore()
-                                        }
+                    ScrollViewReader { proxy in
+                        List {
+                            if hasGap {
+                                Button {
+                                    Task {
+                                        await loadGap()
+                                    }
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        Label("Load newer notifications", systemImage: "arrow.up.circle")
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
                                     }
                                 }
-                        }
+                                .buttonStyle(.plain)
+                            }
 
-                        if isLoading && !notifications.isEmpty {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                Spacer()
+                            ForEach(notifications, id: \.id) { notification in
+                                NotificationRowView(notification: notification)
+                                    .id(notification.id)
+                                    .onAppear {
+                                        if notification.id == notifications.last?.id && hasNextPage && !isLoading {
+                                            Task {
+                                                await loadMore()
+                                            }
+                                        }
+                                    }
+                            }
+
+                            if isLoading && !notifications.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
+                                }
                             }
                         }
+                        .scrollPosition(id: $scrollPosition)
                     }
                 }
             }
@@ -100,11 +122,15 @@ struct NotificationsView: View {
 
     private func fetchNotifications() async {
         print("🔔 NotificationsView: Starting to fetch notifications...")
-        isLoading = true
+        // Don't show loading initially if we have cached data
+        if notifications.isEmpty {
+            isLoading = true
+        }
         defer { isLoading = false }
 
         do {
             print("🔔 NotificationsView: Calling apolloClient.fetch...")
+            // Fetch will use cache first, then network - Apollo's default behavior
             let response = try await apolloClient.fetch(query: HackersPub.NotificationsQuery(after: nil))
             print("🔔 NotificationsView: Got response, data exists: \(response.data != nil)")
 
@@ -149,6 +175,38 @@ struct NotificationsView: View {
         defer { isLoading = false }
 
         do {
+            let response = try await apolloClient.fetch(query: HackersPub.NotificationsQuery(after: nil))
+            let fetchedNotifications = response.data?.viewer?.notifications.edges.map { $0.node } ?? []
+
+            // Find new notifications that aren't in the current list
+            let existingIds = Set(notifications.map { $0.id })
+            let newNotifications = fetchedNotifications.filter { !existingIds.contains($0.id) }
+
+            if !newNotifications.isEmpty {
+                // Check if there's a gap (fetched notifications don't include our first notification)
+                if let firstCurrentNotification = notifications.first,
+                   !fetchedNotifications.contains(where: { $0.id == firstCurrentNotification.id }) {
+                    hasGap = true
+                } else {
+                    hasGap = false
+                }
+
+                // Prepend new notifications
+                notifications = newNotifications + notifications
+            } else {
+                hasGap = false
+            }
+        } catch {
+            print("❌ NotificationsView: Error refreshing notifications: \(error)")
+        }
+    }
+
+    private func loadGap() async {
+        hasGap = false
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
             try await apolloClient.clearCache()
             let response = try await apolloClient.fetch(query: HackersPub.NotificationsQuery(after: nil))
             let fetchedNotifications = response.data?.viewer?.notifications.edges.map { $0.node } ?? []
@@ -156,7 +214,7 @@ struct NotificationsView: View {
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
         } catch {
-            print("❌ NotificationsView: Error refreshing notifications: \(error)")
+            print("❌ NotificationsView: Error loading gap: \(error)")
         }
     }
 }
