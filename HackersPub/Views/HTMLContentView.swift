@@ -29,6 +29,7 @@ struct HTMLContentView: View {
     var onTap: (() -> Void)?
     @State private var selectedMedia: MediaItem?
     @State private var webViewHeight: CGFloat = 0
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     private var carouselHeight: CGFloat {
         guard let firstMedia = media.first,
@@ -73,7 +74,7 @@ struct HTMLContentView: View {
             }
 
             // Display text content
-            HTMLWebView(html: html, height: $webViewHeight, onTap: onTap)
+            HTMLWebView(html: html, height: $webViewHeight, onTap: onTap, navigationCoordinator: navigationCoordinator)
                 .frame(height: webViewHeight > 0 ? webViewHeight : nil)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

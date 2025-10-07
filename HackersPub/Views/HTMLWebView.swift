@@ -49,6 +49,7 @@ struct HTMLWebView: UIViewRepresentable {
     let html: String
     @Binding var height: CGFloat
     var onTap: (() -> Void)?
+    var navigationCoordinator: NavigationCoordinator?
 
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -117,7 +118,17 @@ struct HTMLWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             if navigationAction.navigationType == .linkActivated {
                 if let url = navigationAction.request.url {
-                    UIApplication.shared.open(url)
+                    // Check if this is a profile URL like https://hackers.pub/@username
+                    if url.host == "hackers.pub" && url.path.hasPrefix("/@") {
+                        let handle = String(url.path.dropFirst(2)) // Remove "/@"
+                        if let coordinator = parent.navigationCoordinator {
+                            DispatchQueue.main.async {
+                                coordinator.navigateToProfile(handle: handle)
+                            }
+                        }
+                    } else {
+                        UIApplication.shared.open(url)
+                    }
                 }
                 decisionHandler(.cancel)
             } else {
