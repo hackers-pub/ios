@@ -29,6 +29,7 @@
 
 /* Settings */
 "settings.version" = "Version";
+"settings.appIcon" = "App Icon";
 "settings.cache" = "Cache";
 "settings.cacheSize" = "Cache Size";
 "settings.clearCache" = "Clear Cache";

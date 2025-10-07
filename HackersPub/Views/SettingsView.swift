@@ -7,12 +7,32 @@ struct SettingsView: View {
     @State private var showingClearCacheAlert = false
     @State private var cacheCleared = false
     @State private var cacheSize: String = NSLocalizedString("settings.calculating", comment: "Cache size calculating")
+#if os(iOS)
+    @State private var currentAppIcon: String = {
+        // Map actual alternate icon name to display name
+        switch UIApplication.shared.alternateIconName {
+        case "AppIconCry": return "Cry"
+        case "AppIconCurious": return "Curious"
+        case "AppIconFrown": return "Frown"
+        case "AppIconWink": return "Wink"
+        default: return "Logo"
+        }
+    }()
+#endif
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
         return "\(version) (\(build))"
     }
+
+    private let appIcons: [(name: String, displayName: String)] = [
+        ("Logo", "Default"),
+        ("Cry", "Cry"),
+        ("Curious", "Curious"),
+        ("Frown", "Frown"),
+        ("Wink", "Wink")
+    ]
 
     var body: some View {
         NavigationStack {
@@ -41,6 +61,37 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+
+#if os(iOS)
+                Section {
+                    ForEach(appIcons, id: \.name) { icon in
+                        Button {
+                            setAppIcon(icon.name)
+                        } label: {
+                            HStack {
+                                Image(icon.name)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                                Text(icon.displayName)
+                                    .foregroundStyle(.primary)
+
+                                Spacer()
+
+                                if currentAppIcon == icon.name {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                } header: {
+                    Text(NSLocalizedString("settings.appIcon", comment: "App icon section header"))
+                }
+#endif
 
                 Section {
                     HStack {
@@ -157,5 +208,29 @@ struct SettingsView: View {
         } catch {
             print("Error clearing cache: \(error)")
         }
+    }
+
+    private func setAppIcon(_ iconName: String) {
+#if os(iOS)
+        // Map display name to actual alternate icon name
+        let actualIconName: String? = {
+            switch iconName {
+            case "Logo": return nil
+            case "Cry": return "AppIconCry"
+            case "Curious": return "AppIconCurious"
+            case "Frown": return "AppIconFrown"
+            case "Wink": return "AppIconWink"
+            default: return nil
+            }
+        }()
+
+        UIApplication.shared.setAlternateIconName(actualIconName) { error in
+            if let error = error {
+                print("Failed request to update the app's icon: \(error)")
+            } else {
+                currentAppIcon = iconName
+            }
+        }
+#endif
     }
 }
