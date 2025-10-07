@@ -64,29 +64,32 @@ struct SettingsView: View {
 
 #if os(iOS)
                 Section {
-                    ForEach(appIcons, id: \.name) { icon in
-                        Button {
-                            setAppIcon(icon.name)
-                        } label: {
-                            HStack {
-                                Image(icon.name)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 16) {
+                            ForEach(appIcons, id: \.name) { icon in
+                                Button {
+                                    setAppIcon(icon.name)
+                                } label: {
+                                    VStack(spacing: 8) {
+                                        Image(icon.name)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(width: 80, height: 80)
+                                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .stroke(currentAppIcon == icon.name ? Color.blue : Color.clear, lineWidth: 3)
+                                            )
 
-                                Text(icon.displayName)
-                                    .foregroundStyle(.primary)
-
-                                Spacer()
-
-                                if currentAppIcon == icon.name {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.blue)
+                                        Text(icon.displayName)
+                                            .font(.caption)
+                                            .foregroundStyle(.primary)
+                                    }
                                 }
                             }
-                            .padding(.vertical, 4)
                         }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 8)
                     }
                 } header: {
                     Text(NSLocalizedString("settings.appIcon", comment: "App icon section header"))
