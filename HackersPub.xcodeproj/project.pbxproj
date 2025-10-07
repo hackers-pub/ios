@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		C7177A662E9293AD00FF0221 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = C7177A652E9293AD00FF0221 /* Markdown */; };
+		C7A30E862E95488A00EF5F6F /* ApolloSQLite in Frameworks */ = {isa = PBXBuildFile; productRef = C7A30E852E95488A00EF5F6F /* ApolloSQLite */; };
 		C7A39C4D2E927CD100EF77C6 /* ApolloAPI in Frameworks */ = {isa = PBXBuildFile; productRef = C7A39C4C2E927CD100EF77C6 /* ApolloAPI */; };
 		C7FBAF3A2E92547900B9BE8B /* Apollo in Frameworks */ = {isa = PBXBuildFile; productRef = C7FBAF392E92547900B9BE8B /* Apollo */; };
 		FF91B48D2E938A89009F5CBD /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = FF91B48C2E938A89009F5CBD /* Kingfisher */; };
@@ -61,6 +62,7 @@
 			files = (
 				FF91B48D2E938A89009F5CBD /* Kingfisher in Frameworks */,
 				C7177A662E9293AD00FF0221 /* Markdown in Frameworks */,
+				C7A30E862E95488A00EF5F6F /* ApolloSQLite in Frameworks */,
 				C7A39C4D2E927CD100EF77C6 /* ApolloAPI in Frameworks */,
 				C7FBAF3A2E92547900B9BE8B /* Apollo in Frameworks */,
 			);
@@ -127,6 +129,7 @@
 				C7A39C4C2E927CD100EF77C6 /* ApolloAPI */,
 				C7177A652E9293AD00FF0221 /* Markdown */,
 				FF91B48C2E938A89009F5CBD /* Kingfisher */,
+				C7A30E852E95488A00EF5F6F /* ApolloSQLite */,
 			);
 			productName = HackersPub;
 			productReference = C758C0F22E86A71600F672CE /* HackersPub.app */;
@@ -665,6 +668,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C7177A642E9293AD00FF0221 /* XCRemoteSwiftPackageReference "swift-markdown" */;
 			productName = Markdown;
+		};
+		C7A30E852E95488A00EF5F6F /* ApolloSQLite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C7FBAF382E92547900B9BE8B /* XCRemoteSwiftPackageReference "apollo-ios" */;
+			productName = ApolloSQLite;
 		};
 		C7A39C4C2E927CD100EF77C6 /* ApolloAPI */ = {
 			isa = XCSwiftPackageProductDependency;

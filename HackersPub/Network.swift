@@ -1,6 +1,7 @@
 import Foundation
 import Apollo
 import ApolloAPI
+import ApolloSQLite
 
 // Authorization interceptor that adds auth token to GraphQL requests
 struct AuthInterceptor: GraphQLInterceptor {
@@ -48,10 +49,21 @@ struct CustomInterceptorProvider: InterceptorProvider {
     }
 }
 
-// Configure Apollo client with custom network transport and store
+// Configure Apollo client with custom network transport and persistent SQLite store
 private let url = URL(string: "https://hackers.pub/graphql")!
 private let urlSession = URLSession.shared
-private let store = ApolloStore()
+
+// Create a persistent SQLite cache
+private let documentsPath = NSSearchPathForDirectoriesInDomains(
+    .documentDirectory,
+    .userDomainMask,
+    true
+).first!
+private let documentsURL = URL(fileURLWithPath: documentsPath)
+private let sqliteFileURL = documentsURL.appendingPathComponent("apollo_cache.sqlite")
+private let sqliteCache = try! SQLiteNormalizedCache(fileURL: sqliteFileURL)
+private let store = ApolloStore(cache: sqliteCache)
+
 private let networkTransport = RequestChainNetworkTransport(
     urlSession: urlSession,
     interceptorProvider: CustomInterceptorProvider(),

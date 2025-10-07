@@ -213,10 +213,14 @@ struct TimelineView: View {
     }
 
     private func fetchPosts() async {
-        isLoading = true
+        // Don't show loading initially if we have cached data
+        if posts.isEmpty {
+            isLoading = true
+        }
         defer { isLoading = false }
 
         do {
+            // Fetch will use cache first, then network - Apollo's default behavior
             let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil))
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
@@ -411,10 +415,14 @@ struct PersonalTimelineView: View {
     }
 
     private func fetchPosts() async {
-        isLoading = true
+        // Don't show loading initially if we have cached data
+        if posts.isEmpty {
+            isLoading = true
+        }
         defer { isLoading = false }
 
         do {
+            // Fetch will use cache first, then network - Apollo's default behavior
             let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil))
             let fetchedPosts = response.data?.personalTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
@@ -609,10 +617,14 @@ struct LocalTimelineView: View {
     }
 
     private func fetchPosts() async {
-        isLoading = true
+        // Don't show loading initially if we have cached data
+        if posts.isEmpty {
+            isLoading = true
+        }
         defer { isLoading = false }
 
         do {
+            // Fetch will use cache first, then network - Apollo's default behavior
             let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil))
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
