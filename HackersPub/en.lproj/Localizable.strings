@@ -90,6 +90,7 @@
 "search.noResults.description" = "Try a different search term";
 "search.recentSearches" = "Recent Searches";
 "search.accounts" = "Accounts";
+"search.relatedAccounts" = "Related Accounts";
 "search.posts" = "Posts";
 
 /* Common */

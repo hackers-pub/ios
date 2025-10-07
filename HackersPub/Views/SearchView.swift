@@ -14,15 +14,34 @@ enum SearchResultType: Identifiable, Hashable {
     }
 }
 
+actor ActorTracker {
+    private var seenActors = Set<String>()
+
+    func insert(_ id: String) -> Bool {
+        if seenActors.contains(id) {
+            return false
+        }
+        seenActors.insert(id)
+        return true
+    }
+}
+
 struct SearchView: View {
     @Binding var searchText: String
     @Binding var showingComposeView: Bool
-    @State private var actors: [SearchResultType] = []
+    @State private var directActors: [SearchResultType] = []
+    @State private var relatedActors: [SearchResultType] = []
     @State private var posts: [SearchResultType] = []
-    @State private var isLoading = false
+    @State private var isLoadingPosts = false
+    @State private var isLoadingDirectActors = false
+    @State private var isLoadingRelatedActors = false
     @State private var searchTask: Task<Void, Never>?
     @AppStorage("recentSearches") private var recentSearchesData: Data = Data()
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+
+    private var isLoading: Bool {
+        isLoadingPosts || isLoadingDirectActors || isLoadingRelatedActors
+    }
 
     init(searchText: Binding<String>, showingComposeView: Binding<Bool> = .constant(false)) {
         self._searchText = searchText
@@ -36,54 +55,100 @@ struct SearchView: View {
     var body: some View {
         NavigationStack(path: Bindable(navigationCoordinator).path) {
             Group {
-                if isLoading {
-                    ProgressView()
-                } else if actors.isEmpty && posts.isEmpty && !searchText.isEmpty {
+                if searchText.isEmpty {
+                    if !recentSearches.isEmpty {
+                        List {
+                            Section(NSLocalizedString("search.recentSearches", comment: "Recent searches section")) {
+                                ForEach(recentSearches, id: \.self) { query in
+                                    Button {
+                                        searchText = query
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "clock")
+                                                .foregroundStyle(.secondary)
+                                            Text(query)
+                                                .foregroundStyle(.primary)
+                                            Spacer()
+                                        }
+                                    }
+                                }
+                                .onDelete { indexSet in
+                                    var searches = recentSearches
+                                    searches.remove(atOffsets: indexSet)
+                                    saveRecentSearches(searches)
+                                }
+                            }
+                        }
+                    } else {
+                        ContentUnavailableView(
+                            NSLocalizedString("nav.search", comment: "Search navigation title"),
+                            systemImage: "magnifyingglass",
+                            description: Text(NSLocalizedString("search.noResults.description", comment: "No search results description"))
+                        )
+                    }
+                } else if !isLoading && directActors.isEmpty && relatedActors.isEmpty && posts.isEmpty {
                     ContentUnavailableView(
                         NSLocalizedString("search.noResults.title", comment: "No search results title"),
                         systemImage: "magnifyingglass",
                         description: Text(NSLocalizedString("search.noResults.description", comment: "No search results description"))
                     )
-                } else if searchText.isEmpty && !recentSearches.isEmpty {
-                    List {
-                        Section(NSLocalizedString("search.recentSearches", comment: "Recent searches section")) {
-                            ForEach(recentSearches, id: \.self) { query in
-                                Button {
-                                    searchText = query
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "clock")
-                                            .foregroundStyle(.secondary)
-                                        Text(query)
-                                            .foregroundStyle(.primary)
-                                        Spacer()
-                                    }
-                                }
-                            }
-                            .onDelete { indexSet in
-                                var searches = recentSearches
-                                searches.remove(atOffsets: indexSet)
-                                saveRecentSearches(searches)
-                            }
-                        }
-                    }
                 } else {
                     List {
-                        if !actors.isEmpty {
+                        if !directActors.isEmpty || isLoadingDirectActors {
                             Section(NSLocalizedString("search.accounts", comment: "Accounts section")) {
-                                ForEach(actors, id: \.id) { result in
-                                    NavigationLink(value: result) {
-                                        SearchResultRow(result: result)
+                                ForEach(directActors, id: \.id) { result in
+                                    if case .actor(let actor) = result {
+                                        NavigationLink(value: NavigationDestination.profile(handle: actor.handle)) {
+                                            SearchResultRow(result: result)
+                                        }
+                                    }
+                                }
+
+                                if isLoadingDirectActors {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                        Spacer()
                                     }
                                 }
                             }
                         }
 
-                        if !posts.isEmpty {
+                        if !relatedActors.isEmpty || isLoadingRelatedActors {
+                            Section(NSLocalizedString("search.relatedAccounts", comment: "Related accounts section")) {
+                                ForEach(relatedActors, id: \.id) { result in
+                                    if case .actor(let actor) = result {
+                                        NavigationLink(value: NavigationDestination.profile(handle: actor.handle)) {
+                                            SearchResultRow(result: result)
+                                        }
+                                    }
+                                }
+
+                                if isLoadingRelatedActors {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                        Spacer()
+                                    }
+                                }
+                            }
+                        }
+
+                        if !posts.isEmpty || isLoadingPosts {
                             Section(NSLocalizedString("search.posts", comment: "Posts section")) {
                                 ForEach(posts, id: \.id) { result in
-                                    NavigationLink(value: result) {
-                                        SearchResultRow(result: result)
+                                    if case .post(let post) = result {
+                                        NavigationLink(value: NavigationDestination.post(id: post.id)) {
+                                            SearchResultRow(result: result)
+                                        }
+                                    }
+                                }
+
+                                if isLoadingPosts {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                        Spacer()
                                     }
                                 }
                             }
@@ -92,9 +157,6 @@ struct SearchView: View {
                 }
             }
             .navigationTitle(NSLocalizedString("nav.search", comment: "Search navigation title"))
-            .navigationDestination(for: SearchResultType.self) { result in
-                SearchDetailView(result: result)
-            }
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {
                 case .profile(let handle):
@@ -117,6 +179,11 @@ struct SearchView: View {
                 searchTask?.cancel()
 
                 if !newValue.isEmpty {
+                    // Set loading state immediately
+                    isLoadingPosts = true
+                    isLoadingDirectActors = true
+                    isLoadingRelatedActors = true
+
                     // Debounce: wait 500ms before searching
                     searchTask = Task {
                         try? await Task.sleep(for: .milliseconds(500))
@@ -124,12 +191,20 @@ struct SearchView: View {
                         if !Task.isCancelled {
                             await performSearch(query: newValue)
                             addToRecentSearches(newValue)
+                        } else {
+                            // If cancelled, reset loading states
+                            isLoadingPosts = false
+                            isLoadingDirectActors = false
+                            isLoadingRelatedActors = false
                         }
                     }
                 } else {
-                    actors = []
+                    directActors = []
+                    relatedActors = []
                     posts = []
-                    isLoading = false
+                    isLoadingPosts = false
+                    isLoadingDirectActors = false
+                    isLoadingRelatedActors = false
                 }
             }
         }
@@ -155,36 +230,119 @@ struct SearchView: View {
     }
 
     private func performSearch(query: String) async {
-        isLoading = true
-        defer { isLoading = false }
-
-        var actorResults: [SearchResultType] = []
-        var postResults: [SearchResultType] = []
-        var seenActors = Set<String>()
-
-        // Search posts (which includes actor information)
-        do {
-            let response = try await apolloClient.fetch(query: HackersPub.SearchPostQuery(query: query))
-            let posts = response.data?.searchPost.edges.map { $0.node } ?? []
-
-            // Extract unique actors from posts
-            for post in posts {
-                if !seenActors.contains(post.actor.id) {
-                    seenActors.insert(post.actor.id)
-                    // Create an actor result using actorByHandle to get full profile
-                    if let actorResult = await searchActor(handle: post.actor.handle) {
-                        actorResults.append(.actor(actorResult))
-                    }
-                }
-            }
-
-            postResults = posts.map { .post($0) }
-        } catch {
-            print("Error searching posts: \(error)")
+        await MainActor.run {
+            // Clear previous results and start loading
+            directActors = []
+            relatedActors = []
+            posts = []
+            isLoadingPosts = true
+            isLoadingDirectActors = true
+            isLoadingRelatedActors = true
         }
 
-        actors = actorResults
-        self.posts = postResults
+        // Track seen actors across all tasks
+        let seenActors = ActorTracker()
+
+        // Launch all searches concurrently without waiting
+        Task {
+            await searchAndDisplayPosts(query: query, seenActors: seenActors)
+        }
+
+        Task {
+            await searchAndDisplayDirectActor(query: query, seenActors: seenActors)
+        }
+
+        Task {
+            await searchAndDisplayObject(query: query, seenActors: seenActors)
+        }
+    }
+
+    private func searchAndDisplayPosts(query: String, seenActors: ActorTracker) async {
+        let postResults = await searchPosts(query: query)
+        await MainActor.run {
+            self.posts = postResults.map { .post($0) }
+            self.isLoadingPosts = false
+        }
+
+        // Extract unique actors from posts
+        var actorResults: [SearchResultType] = []
+        for post in postResults {
+            if await seenActors.insert(post.actor.id) {
+                if let actorResult = await searchActor(handle: post.actor.handle) {
+                    actorResults.append(.actor(actorResult))
+                }
+            }
+        }
+
+        // Update related actors from posts
+        if !actorResults.isEmpty {
+            await MainActor.run {
+                self.relatedActors.append(contentsOf: actorResults)
+            }
+        }
+
+        // Turn off related actor loading after extracting from posts
+        await MainActor.run {
+            self.isLoadingRelatedActors = false
+        }
+    }
+
+    private func searchAndDisplayDirectActor(query: String, seenActors: ActorTracker) async {
+        if let directActor = await searchActorByHandle(query: query) {
+            if await seenActors.insert(directActor.id) {
+                await MainActor.run {
+                    self.directActors.append(.actor(directActor))
+                }
+            }
+        }
+
+        // Turn off direct actor loading after direct search completes
+        await MainActor.run {
+            self.isLoadingDirectActors = false
+        }
+    }
+
+    private func searchAndDisplayObject(query: String, seenActors: ActorTracker) async {
+        if let objectUrl = await searchObject(query: query) {
+            await handleSearchedObjectUrl(objectUrl, seenActors: seenActors)
+        }
+    }
+
+    private func searchPosts(query: String) async -> [HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node] {
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.SearchPostQuery(query: query))
+            return response.data?.searchPost.edges.map { $0.node } ?? []
+        } catch {
+            print("Error searching posts: \(error)")
+            return []
+        }
+    }
+
+    private func searchObject(query: String) async -> String? {
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.SearchObjectQuery(query: query))
+            if let data = response.data?.searchObject {
+                if let searchedObject = data.asSearchedObject {
+                    return searchedObject.url
+                }
+            }
+            return nil
+        } catch {
+            print("Error searching object: \(error)")
+            return nil
+        }
+    }
+
+    private func searchActorByHandle(query: String) async -> HackersPub.ActorByHandleQuery.Data.ActorByHandle? {
+        // Try searching with the query as-is (might be a handle)
+        return await searchActor(handle: query)
+    }
+
+    private func handleSearchedObjectUrl(_ url: String, seenActors: ActorTracker) async {
+        // This is a placeholder for handling fetched URLs
+        // The URL could point to an actor profile or a post
+        // You could parse the URL and extract relevant information
+        print("Found object URL: \(url)")
     }
 
     private func searchActor(handle: String) async -> HackersPub.ActorByHandleQuery.Data.ActorByHandle? {

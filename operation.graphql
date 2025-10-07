@@ -265,6 +265,17 @@ query SearchPostQuery($query: String!) {
   }
 }
 
+query SearchObjectQuery($query: String!) {
+  searchObject(query: $query) {
+    ... on SearchedObject {
+      url
+    }
+    ... on EmptySearchQueryError {
+      message
+    }
+  }
+}
+
 query ActorByHandleQuery($handle: String!, $after: String) {
   actorByHandle(handle: $handle, allowLocalHandle: true) {
     id

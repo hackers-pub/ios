@@ -43,6 +43,7 @@ public extension HackersPub {
       case "CustomEmoji": return HackersPub.Objects.CustomEmoji
       case "CustomEmojiReactionGroup": return HackersPub.Objects.CustomEmojiReactionGroup
       case "EmojiReactionGroup": return HackersPub.Objects.EmojiReactionGroup
+      case "EmptySearchQueryError": return HackersPub.Objects.EmptySearchQueryError
       case "FollowNotification": return HackersPub.Objects.FollowNotification
       case "Instance": return HackersPub.Objects.Instance
       case "InvalidInputError": return HackersPub.Objects.InvalidInputError
@@ -74,6 +75,7 @@ public extension HackersPub {
       case "ReactionGroupReactorsConnection": return HackersPub.Objects.ReactionGroupReactorsConnection
       case "ReactionGroupReactorsConnectionEdge": return HackersPub.Objects.ReactionGroupReactorsConnectionEdge
       case "ReplyNotification": return HackersPub.Objects.ReplyNotification
+      case "SearchedObject": return HackersPub.Objects.SearchedObject
       case "Session": return HackersPub.Objects.Session
       case "ShareNotification": return HackersPub.Objects.ShareNotification
       default: return nil

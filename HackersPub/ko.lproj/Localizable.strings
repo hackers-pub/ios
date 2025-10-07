@@ -90,6 +90,7 @@
 "search.noResults.description" = "다른 검색어를 시도해보세요";
 "search.recentSearches" = "최근 검색";
 "search.accounts" = "계정";
+"search.relatedAccounts" = "관련 계정";
 "search.posts" = "게시물";
 
 /* Common */
