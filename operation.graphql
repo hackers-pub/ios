@@ -624,6 +624,34 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         height
         width
       }
+      replyTarget {
+        __typename
+        id
+        name
+        published
+        summary
+        content
+        url
+        actor {
+          id
+          name
+          handle
+          avatarUrl
+        }
+        media {
+          url
+          thumbnailUrl
+          alt
+          height
+          width
+        }
+        engagementStats {
+          replies
+          reactions
+          shares
+          quotes
+        }
+      }
       sharedPost {
         __typename
         id

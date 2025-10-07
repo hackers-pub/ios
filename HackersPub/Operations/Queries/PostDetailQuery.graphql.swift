@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PostDetailQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content url visibility actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } engagementStats { __typename replies reactions shares quotes } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
+        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content url visibility actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } engagementStats { __typename replies reactions shares quotes } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
       ))
 
     public var id: ID
@@ -79,6 +79,7 @@ public extension HackersPub {
             .field("visibility", GraphQLEnum<HackersPub.PostVisibility>.self),
             .field("actor", Actor.self),
             .field("media", [Medium].self),
+            .field("replyTarget", ReplyTarget?.self),
             .field("sharedPost", SharedPost?.self),
             .field("engagementStats", EngagementStats.self),
             .field("reactionGroups", [ReactionGroup].self),
@@ -101,6 +102,7 @@ public extension HackersPub {
           public var visibility: GraphQLEnum<HackersPub.PostVisibility> { __data["visibility"] }
           public var actor: Actor { __data["actor"] }
           public var media: [Medium] { __data["media"] }
+          public var replyTarget: ReplyTarget? { __data["replyTarget"] }
           public var sharedPost: SharedPost? { __data["sharedPost"] }
           public var engagementStats: EngagementStats { __data["engagementStats"] }
           public var reactionGroups: [ReactionGroup] { __data["reactionGroups"] }
@@ -156,6 +158,118 @@ public extension HackersPub {
             public var alt: String? { __data["alt"] }
             public var height: Int? { __data["height"] }
             public var width: Int? { __data["width"] }
+          }
+
+          /// Node.AsPost.ReplyTarget
+          ///
+          /// Parent Type: `Post`
+          public struct ReplyTarget: HackersPub.SelectionSet {
+            @_spi(Unsafe) public let __data: DataDict
+            @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+            @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Interfaces.Post }
+            @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+              .field("__typename", String.self),
+              .field("id", HackersPub.ID.self),
+              .field("name", String?.self),
+              .field("published", HackersPub.DateTime.self),
+              .field("summary", String?.self),
+              .field("content", HackersPub.HTML.self),
+              .field("url", HackersPub.URL?.self),
+              .field("actor", Actor.self),
+              .field("media", [Medium].self),
+              .field("engagementStats", EngagementStats.self),
+            ] }
+            @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+              PostDetailQuery.Data.Node.AsPost.ReplyTarget.self
+            ] }
+
+            public var id: HackersPub.ID { __data["id"] }
+            public var name: String? { __data["name"] }
+            public var published: HackersPub.DateTime { __data["published"] }
+            public var summary: String? { __data["summary"] }
+            public var content: HackersPub.HTML { __data["content"] }
+            public var url: HackersPub.URL? { __data["url"] }
+            public var actor: Actor { __data["actor"] }
+            public var media: [Medium] { __data["media"] }
+            public var engagementStats: EngagementStats { __data["engagementStats"] }
+
+            /// Node.AsPost.ReplyTarget.Actor
+            ///
+            /// Parent Type: `Actor`
+            public struct Actor: HackersPub.SelectionSet {
+              @_spi(Unsafe) public let __data: DataDict
+              @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+              @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+              @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                .field("__typename", String.self),
+                .field("id", HackersPub.ID.self),
+                .field("name", HackersPub.HTML?.self),
+                .field("handle", String.self),
+                .field("avatarUrl", HackersPub.URL.self),
+              ] }
+              @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                PostDetailQuery.Data.Node.AsPost.ReplyTarget.Actor.self
+              ] }
+
+              public var id: HackersPub.ID { __data["id"] }
+              public var name: HackersPub.HTML? { __data["name"] }
+              public var handle: String { __data["handle"] }
+              public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+            }
+
+            /// Node.AsPost.ReplyTarget.Medium
+            ///
+            /// Parent Type: `PostMedium`
+            public struct Medium: HackersPub.SelectionSet {
+              @_spi(Unsafe) public let __data: DataDict
+              @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+              @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMedium }
+              @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                .field("__typename", String.self),
+                .field("url", HackersPub.URL.self),
+                .field("thumbnailUrl", String?.self),
+                .field("alt", String?.self),
+                .field("height", Int?.self),
+                .field("width", Int?.self),
+              ] }
+              @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                PostDetailQuery.Data.Node.AsPost.ReplyTarget.Medium.self
+              ] }
+
+              public var url: HackersPub.URL { __data["url"] }
+              public var thumbnailUrl: String? { __data["thumbnailUrl"] }
+              public var alt: String? { __data["alt"] }
+              public var height: Int? { __data["height"] }
+              public var width: Int? { __data["width"] }
+            }
+
+            /// Node.AsPost.ReplyTarget.EngagementStats
+            ///
+            /// Parent Type: `PostEngagementStats`
+            public struct EngagementStats: HackersPub.SelectionSet {
+              @_spi(Unsafe) public let __data: DataDict
+              @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+              @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
+              @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                .field("__typename", String.self),
+                .field("replies", Int.self),
+                .field("reactions", Int.self),
+                .field("shares", Int.self),
+                .field("quotes", Int.self),
+              ] }
+              @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                PostDetailQuery.Data.Node.AsPost.ReplyTarget.EngagementStats.self
+              ] }
+
+              public var replies: Int { __data["replies"] }
+              public var reactions: Int { __data["reactions"] }
+              public var shares: Int { __data["shares"] }
+              public var quotes: Int { __data["quotes"] }
+            }
           }
 
           /// Node.AsPost.SharedPost

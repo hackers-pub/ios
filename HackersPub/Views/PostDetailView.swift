@@ -30,6 +30,80 @@ struct PostDetailView: View {
                 .padding()
             } else if let post = post {
                 VStack(alignment: .leading, spacing: 16) {
+                    // Display parent post if this is a reply
+                    if let replyTarget = post.replyTarget {
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Parent post author
+                            HStack(spacing: 8) {
+                                Button {
+                                    navigationCoordinator.navigateToProfile(handle: replyTarget.actor.handle)
+                                } label: {
+                                    KFImage(URL(string: replyTarget.actor.avatarUrl))
+                                        .placeholder {
+                                            Color.gray.opacity(0.2)
+                                        }
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
+                                }
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    navigationCoordinator.navigateToProfile(handle: replyTarget.actor.handle)
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        if let name = replyTarget.actor.name {
+                                            HTMLTextView(html: name, font: .subheadline)
+                                                .fontWeight(.semibold)
+                                        }
+                                        Text(replyTarget.actor.handle)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+
+                                Spacer()
+                            }
+
+                            if let name = replyTarget.name {
+                                Text(name)
+                                    .font(.headline)
+                            }
+
+                            HTMLContentView(
+                                html: replyTarget.content,
+                                media: replyTarget.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
+                            )
+
+                            Text(DateFormatHelper.fullDateTime(from: replyTarget.published))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .contentShape(RoundedRectangle(cornerRadius: 12))
+                        .onTapGesture {
+                            navigationCoordinator.navigateToPost(id: replyTarget.id)
+                        }
+                        .padding(.horizontal)
+
+                        // Reply indicator
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrowshape.turn.up.left")
+                                .font(.caption)
+                            Text("Replying to")
+                                .font(.caption)
+                            Text(replyTarget.actor.handle)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                    }
+
                     // If this is a repost, show reposter info and shared post in a card
                     if let sharedPost = post.sharedPost {
                         // Reposter info
