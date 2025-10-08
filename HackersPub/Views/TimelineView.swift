@@ -103,6 +103,7 @@ struct TimelineView: View {
     @State private var showingSettings = false
     @State private var scrollPosition: String?
     @State private var hasGap = false
+    @State private var newPostsCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
@@ -117,23 +118,7 @@ struct TimelineView: View {
                 } else {
                     ScrollViewReader { proxy in
                         List {
-                            if hasGap {
-                                Button {
-                                    Task {
-                                        await loadGap()
-                                    }
-                                } label: {
-                                    HStack {
-                                        Spacer()
-                                        Label("Load newer posts", systemImage: "arrow.up.circle")
-                                            .foregroundStyle(.secondary)
-                                        Spacer()
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-
-                            ForEach(posts, id: \.id) { post in
+                            ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
                                 PostView(post: post, showAuthor: true)
                                     .id(post.id)
                                     .onAppear {
@@ -143,6 +128,23 @@ struct TimelineView: View {
                                             }
                                         }
                                     }
+
+                                // Show gap button after last new post
+                                if hasGap && index == newPostsCount - 1 {
+                                    Button {
+                                        Task {
+                                            await loadGap()
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Spacer()
+                                            Label("Load newer posts", systemImage: "arrow.up.circle")
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
 
                             if isLoading && !posts.isEmpty {
@@ -226,6 +228,7 @@ struct TimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
+            newPostsCount = 0
         } catch {
             print("Error fetching posts: \(error)")
         }
@@ -265,14 +268,17 @@ struct TimelineView: View {
                 if let firstCurrentPost = posts.first,
                    !fetchedPosts.contains(where: { $0.id == firstCurrentPost.id }) {
                     hasGap = true
+                    newPostsCount = newPosts.count
                 } else {
                     hasGap = false
+                    newPostsCount = 0
                 }
 
                 // Prepend new posts
                 posts = newPosts + posts
             } else {
                 hasGap = false
+                newPostsCount = 0
             }
         } catch {
             print("Error refreshing posts: \(error)")
@@ -281,6 +287,7 @@ struct TimelineView: View {
 
     private func loadGap() async {
         hasGap = false
+        newPostsCount = 0
         isLoading = true
         defer { isLoading = false }
 
@@ -307,6 +314,7 @@ struct PersonalTimelineView: View {
     @State private var showingSettings = false
     @State private var scrollPosition: String?
     @State private var hasGap = false
+    @State private var newPostsCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
@@ -321,23 +329,7 @@ struct PersonalTimelineView: View {
                 } else {
                     ScrollViewReader { proxy in
                         List {
-                            if hasGap {
-                                Button {
-                                    Task {
-                                        await loadGap()
-                                    }
-                                } label: {
-                                    HStack {
-                                        Spacer()
-                                        Label("Load newer posts", systemImage: "arrow.up.circle")
-                                            .foregroundStyle(.secondary)
-                                        Spacer()
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-
-                            ForEach(posts, id: \.id) { post in
+                            ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
                                 PostView(post: post, showAuthor: true)
                                     .id(post.id)
                                     .onAppear {
@@ -347,6 +339,23 @@ struct PersonalTimelineView: View {
                                             }
                                         }
                                     }
+
+                                // Show gap button after last new post
+                                if hasGap && index == newPostsCount - 1 {
+                                    Button {
+                                        Task {
+                                            await loadGap()
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Spacer()
+                                            Label("Load newer posts", systemImage: "arrow.up.circle")
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
 
                             if isLoading && !posts.isEmpty {
@@ -428,6 +437,7 @@ struct PersonalTimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
+            newPostsCount = 0
         } catch {
             print("Error fetching posts: \(error)")
         }
@@ -467,14 +477,17 @@ struct PersonalTimelineView: View {
                 if let firstCurrentPost = posts.first,
                    !fetchedPosts.contains(where: { $0.id == firstCurrentPost.id }) {
                     hasGap = true
+                    newPostsCount = newPosts.count
                 } else {
                     hasGap = false
+                    newPostsCount = 0
                 }
 
                 // Prepend new posts
                 posts = newPosts + posts
             } else {
                 hasGap = false
+                newPostsCount = 0
             }
         } catch {
             print("Error refreshing posts: \(error)")
@@ -483,6 +496,7 @@ struct PersonalTimelineView: View {
 
     private func loadGap() async {
         hasGap = false
+        newPostsCount = 0
         isLoading = true
         defer { isLoading = false }
 
@@ -509,6 +523,7 @@ struct LocalTimelineView: View {
     @State private var showingSettings = false
     @State private var scrollPosition: String?
     @State private var hasGap = false
+    @State private var newPostsCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
@@ -523,23 +538,7 @@ struct LocalTimelineView: View {
                 } else {
                     ScrollViewReader { proxy in
                         List {
-                            if hasGap {
-                                Button {
-                                    Task {
-                                        await loadGap()
-                                    }
-                                } label: {
-                                    HStack {
-                                        Spacer()
-                                        Label("Load newer posts", systemImage: "arrow.up.circle")
-                                            .foregroundStyle(.secondary)
-                                        Spacer()
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-
-                            ForEach(posts, id: \.id) { post in
+                            ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
                                 PostView(post: post, showAuthor: true)
                                     .id(post.id)
                                     .onAppear {
@@ -549,6 +548,23 @@ struct LocalTimelineView: View {
                                             }
                                         }
                                     }
+
+                                // Show gap button after last new post
+                                if hasGap && index == newPostsCount - 1 {
+                                    Button {
+                                        Task {
+                                            await loadGap()
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Spacer()
+                                            Label("Load newer posts", systemImage: "arrow.up.circle")
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
 
                             if isLoading && !posts.isEmpty {
@@ -630,6 +646,7 @@ struct LocalTimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
+            newPostsCount = 0
         } catch {
             print("Error fetching posts: \(error)")
         }
@@ -669,14 +686,17 @@ struct LocalTimelineView: View {
                 if let firstCurrentPost = posts.first,
                    !fetchedPosts.contains(where: { $0.id == firstCurrentPost.id }) {
                     hasGap = true
+                    newPostsCount = newPosts.count
                 } else {
                     hasGap = false
+                    newPostsCount = 0
                 }
 
                 // Prepend new posts
                 posts = newPosts + posts
             } else {
                 hasGap = false
+                newPostsCount = 0
             }
         } catch {
             print("Error refreshing posts: \(error)")
@@ -685,6 +705,7 @@ struct LocalTimelineView: View {
 
     private func loadGap() async {
         hasGap = false
+        newPostsCount = 0
         isLoading = true
         defer { isLoading = false }
 

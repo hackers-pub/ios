@@ -22,6 +22,7 @@ struct NotificationsView: View {
     @State private var showingSettings = false
     @State private var scrollPosition: String?
     @State private var hasGap = false
+    @State private var newNotificationsCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
@@ -38,23 +39,7 @@ struct NotificationsView: View {
                 } else {
                     ScrollViewReader { proxy in
                         List {
-                            if hasGap {
-                                Button {
-                                    Task {
-                                        await loadGap()
-                                    }
-                                } label: {
-                                    HStack {
-                                        Spacer()
-                                        Label("Load newer notifications", systemImage: "arrow.up.circle")
-                                            .foregroundStyle(.secondary)
-                                        Spacer()
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-
-                            ForEach(notifications, id: \.id) { notification in
+                            ForEach(Array(notifications.enumerated()), id: \.element.id) { index, notification in
                                 NotificationRowView(notification: notification)
                                     .id(notification.id)
                                     .onAppear {
@@ -64,6 +49,23 @@ struct NotificationsView: View {
                                             }
                                         }
                                     }
+
+                                // Show gap button after last new notification
+                                if hasGap && index == newNotificationsCount - 1 {
+                                    Button {
+                                        Task {
+                                            await loadGap()
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Spacer()
+                                            Label("Load newer notifications", systemImage: "arrow.up.circle")
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
 
                             if isLoading && !notifications.isEmpty {
@@ -147,6 +149,7 @@ struct NotificationsView: View {
             notifications = fetchedNotifications
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
+            newNotificationsCount = 0
         } catch {
             print("❌ NotificationsView: Error fetching notifications: \(error)")
         }
@@ -187,14 +190,17 @@ struct NotificationsView: View {
                 if let firstCurrentNotification = notifications.first,
                    !fetchedNotifications.contains(where: { $0.id == firstCurrentNotification.id }) {
                     hasGap = true
+                    newNotificationsCount = newNotifications.count
                 } else {
                     hasGap = false
+                    newNotificationsCount = 0
                 }
 
                 // Prepend new notifications
                 notifications = newNotifications + notifications
             } else {
                 hasGap = false
+                newNotificationsCount = 0
             }
         } catch {
             print("❌ NotificationsView: Error refreshing notifications: \(error)")
@@ -203,6 +209,7 @@ struct NotificationsView: View {
 
     private func loadGap() async {
         hasGap = false
+        newNotificationsCount = 0
         isLoading = true
         defer { isLoading = false }
 
