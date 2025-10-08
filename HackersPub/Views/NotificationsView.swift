@@ -15,7 +15,7 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.Acto
 
 struct NotificationsView: View {
     @State private var notifications: [NotificationItem] = []
-    @State private var isLoading = false
+    @State private var isLoading = true
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
