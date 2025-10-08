@@ -171,22 +171,48 @@ struct SettingsView: View {
         await withCheckedContinuation { continuation in
             Task.detached {
                 let fileManager = FileManager.default
-                guard let cacheDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else {
-                    continuation.resume(returning: 0)
-                    return
-                }
-
                 var totalSize: Int64 = 0
 
-                if let enumerator = fileManager.enumerator(at: cacheDirectory, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) {
-                    while let fileURL = enumerator.nextObject() as? URL {
+                // Calculate iOS cache directory size
+                if let cacheDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
+                    if let enumerator = fileManager.enumerator(at: cacheDirectory, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) {
+                        while let fileURL = enumerator.nextObject() as? URL {
+                            do {
+                                let resourceValues = try fileURL.resourceValues(forKeys: [.fileSizeKey])
+                                if let fileSize = resourceValues.fileSize {
+                                    totalSize += Int64(fileSize)
+                                }
+                            } catch {
+                                // Skip files that can't be read
+                            }
+                        }
+                    }
+                }
+
+                // Calculate Apollo SQLite cache size
+                if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+                    let apolloCacheURL = documentsDirectory.appendingPathComponent("apollo_cache.sqlite")
+                    do {
+                        let resourceValues = try apolloCacheURL.resourceValues(forKeys: [.fileSizeKey])
+                        if let fileSize = resourceValues.fileSize {
+                            totalSize += Int64(fileSize)
+                        }
+                    } catch {
+                        // Apollo cache file doesn't exist or can't be read
+                    }
+
+                    // Also include SQLite WAL and SHM files
+                    let walURL = documentsDirectory.appendingPathComponent("apollo_cache.sqlite-wal")
+                    let shmURL = documentsDirectory.appendingPathComponent("apollo_cache.sqlite-shm")
+
+                    for url in [walURL, shmURL] {
                         do {
-                            let resourceValues = try fileURL.resourceValues(forKeys: [.fileSizeKey])
+                            let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
                             if let fileSize = resourceValues.fileSize {
                                 totalSize += Int64(fileSize)
                             }
                         } catch {
-                            // Skip files that can't be read
+                            // File doesn't exist or can't be read
                         }
                     }
                 }
