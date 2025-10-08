@@ -37,9 +37,22 @@
 		C758C1092E86A71700F672CE /* HackersPubUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HackersPubUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1A740EE92E965646004692E4 /* Exceptions for "HackersPub" folder in "HackersPub" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C758C0F12E86A71600F672CE /* HackersPub */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C758C0F42E86A71600F672CE /* HackersPub */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1A740EE92E965646004692E4 /* Exceptions for "HackersPub" folder in "HackersPub" target */,
+			);
 			path = HackersPub;
 			sourceTree = "<group>";
 		};
@@ -420,7 +433,9 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HackersPub/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Hackers' Pub";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -466,7 +481,9 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HackersPub/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Hackers' Pub";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
