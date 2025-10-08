@@ -175,7 +175,7 @@ struct NotificationsView: View {
         defer { isLoading = false }
 
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.NotificationsQuery(after: nil))
+            let response = try await apolloClient.fetch(query: HackersPub.NotificationsQuery(after: nil), cachePolicy: .networkOnly)
             let fetchedNotifications = response.data?.viewer?.notifications.edges.map { $0.node } ?? []
 
             // Find new notifications that aren't in the current list

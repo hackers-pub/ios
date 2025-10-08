@@ -201,8 +201,7 @@ struct LocalTimelineContent: View {
         defer { isLoading = false }
 
         do {
-            try await apolloClient.clearCache()
-            let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil))
+            let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil), cachePolicy: .networkOnly)
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
@@ -361,8 +360,7 @@ struct GlobalTimelineContent: View {
         defer { isLoading = false }
 
         do {
-            try await apolloClient.clearCache()
-            let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil))
+            let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil), cachePolicy: .networkOnly)
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false

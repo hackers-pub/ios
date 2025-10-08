@@ -253,7 +253,7 @@ struct TimelineView: View {
         defer { isLoading = false }
 
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil))
+            let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil), cachePolicy: .networkOnly)
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
 
             // Find new posts that aren't in the current list
@@ -455,7 +455,7 @@ struct PersonalTimelineView: View {
         defer { isLoading = false }
 
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil))
+            let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil), cachePolicy: .networkOnly)
             let fetchedPosts = response.data?.personalTimeline.edges.map { $0.node } ?? []
 
             // Find new posts that aren't in the current list
@@ -657,7 +657,7 @@ struct LocalTimelineView: View {
         defer { isLoading = false }
 
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil))
+            let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil), cachePolicy: .networkOnly)
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
 
             // Find new posts that aren't in the current list
