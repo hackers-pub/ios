@@ -53,7 +53,7 @@ struct HTMLWebView: UIViewRepresentable {
     var onTap: (() -> Void)?
     var navigationCoordinator: NavigationCoordinator?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @EnvironmentObject private var fontSettings: FontSettingsManager
+    @ObservedObject private var fontSettings = FontSettingsManager.shared
 
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -99,11 +99,24 @@ struct HTMLWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Generate CSS with current font settings
-        let fontSize = fontSettings.scaledSize(for: .body)
-        let css = HTMLStyles.generateCSS(fontSize: fontSize, fontFamily: fontSettings.cssFontFamily)
-        let styledHTML = HTMLStyles.wrapHTML(html, css: css)
-        webView.loadHTMLString(styledHTML, baseURL: nil)
+        // Update coordinator reference
+        context.coordinator.parent = self
+
+        // Check if HTML or font settings have changed
+        let currentFontSettings = FontSettingsSnapshot(from: fontSettings)
+        let contentChanged = context.coordinator.lastHTML != html
+        let fontChanged = context.coordinator.lastFontSettings != currentFontSettings
+
+        if contentChanged || fontChanged {
+            context.coordinator.lastHTML = html
+            context.coordinator.lastFontSettings = currentFontSettings
+
+            // Generate CSS with current font settings
+            let fontSize = fontSettings.scaledSize(for: .body)
+            let css = HTMLStyles.generateCSS(fontSize: fontSize, fontFamily: fontSettings.cssFontFamily)
+            let styledHTML = HTMLStyles.wrapHTML(html, css: css)
+            webView.loadHTMLString(styledHTML, baseURL: nil)
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -112,6 +125,8 @@ struct HTMLWebView: UIViewRepresentable {
 
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: HTMLWebView
+        var lastHTML: String = ""
+        var lastFontSettings: FontSettingsSnapshot?
 
         init(_ parent: HTMLWebView) {
             self.parent = parent
