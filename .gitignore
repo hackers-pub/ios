@@ -1,0 +1,15 @@
+# Xcode User configurations
+xcuserdata/
+
+# Clang/Swift Compiler's header maps
+*.hmap
+
+# Build output files and Application Package
+*.ipa
+*.dSYM.zip
+*.dSYM
+.build/
+
+# swift-build-server and SourceKit LSP related
+.compile
+buildServer.json
