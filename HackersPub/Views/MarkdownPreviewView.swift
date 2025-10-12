@@ -36,6 +36,7 @@ struct MarkdownPreviewView: NSViewRepresentable {
 #else
 struct MarkdownPreviewView: UIViewRepresentable {
     let html: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
@@ -46,6 +47,7 @@ struct MarkdownPreviewView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        // The HTML is already wrapped with CSS that includes dynamic font sizing from ComposeView's htmlContent property
         webView.loadHTMLString(html, baseURL: nil)
     }
 

@@ -5,6 +5,7 @@ struct HTMLTextView: View {
     let font: Font
     let color: Color
     @State private var attributedText: AttributedString?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(html: String, font: Font = .body, color: Color = .primary) {
         self.html = html
@@ -22,6 +23,11 @@ struct HTMLTextView: View {
         }
         .task(id: html) {
             await parseHTML()
+        }
+        .onChange(of: dynamicTypeSize) { _, _ in
+            Task {
+                await parseHTML()
+            }
         }
     }
 

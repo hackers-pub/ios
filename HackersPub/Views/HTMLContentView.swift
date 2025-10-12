@@ -30,6 +30,7 @@ struct HTMLContentView: View {
     @State private var selectedMedia: MediaItem?
     @State private var webViewHeight: CGFloat = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var carouselHeight: CGFloat {
         guard let firstMedia = media.first,

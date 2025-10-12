@@ -1,10 +1,13 @@
 import Foundation
+import UIKit
 
 enum HTMLStyles {
-    static let defaultCSS = """
+    // Generate CSS with dynamic font sizes based on user's text size preference
+    static func generateCSS(fontSize: CGFloat) -> String {
+        """
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 17px;
+            font-size: \(fontSize)px;
             line-height: 1.5;
             margin: 0;
             padding: 0;
@@ -69,11 +72,13 @@ enum HTMLStyles {
             }
         }
         """
+    }
 
-    static let composePreviewCSS = """
+    static func generateComposePreviewCSS(fontSize: CGFloat) -> String {
+        """
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 17px;
+            font-size: \(fontSize)px;
             line-height: 1.5;
             margin: 0;
             padding: 16px;
@@ -137,6 +142,19 @@ enum HTMLStyles {
             }
         }
         """
+    }
+
+    // Default CSS using system body font size
+    static var defaultCSS: String {
+        let bodyFont = UIFont.preferredFont(forTextStyle: .body)
+        return generateCSS(fontSize: bodyFont.pointSize)
+    }
+
+    // Compose preview CSS using system body font size
+    static var composePreviewCSS: String {
+        let bodyFont = UIFont.preferredFont(forTextStyle: .body)
+        return generateComposePreviewCSS(fontSize: bodyFont.pointSize)
+    }
 
     static func wrapHTML(_ content: String, css: String = defaultCSS) -> String {
         """
