@@ -84,8 +84,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        // NOTE: iOS 26 has bug which Slider step value is ignored.
-                        Slider(value: $fontSettings.fontSizeMultiplier, in: 0.75...3.0, step: 0.05)
+                        Slider(value: SliderHelper.snappedBinding($fontSettings.fontSizeMultiplier, step: 0.05, range: 0.75...3.0), in: 0.75...3.0, step: 0.05)
                             .disabled(fontSettings.useSystemDynamicType)
                     }
                     .opacity(fontSettings.useSystemDynamicType ? 0.5 : 1.0)
