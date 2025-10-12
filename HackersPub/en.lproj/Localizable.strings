@@ -59,6 +59,8 @@
 "compose.error.failed" = "Failed to create post";
 "compose.error.failedWithDetails" = "Failed to create post: %@";
 "compose.error.ok" = "OK";
+"compose.preview.empty" = "Content is empty.";
+"compose.preview.rendering" = "Loading Preview...";
 
 /* Timeline */
 "timeline.fediverse" = "Fediverse";

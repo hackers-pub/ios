@@ -10,6 +10,7 @@ struct ComposeView: View {
     @State private var isPosting = false
     @State private var errorMessage: String?
     @State private var showPreview = false
+    @State private var isLoadingPreview = false
     @AppStorage("lastSelectedLocale") private var lastSelectedLocale: String = {
         Locale.current.language.languageCode?.identifier ?? "en"
     }()
@@ -78,27 +79,65 @@ struct ComposeView: View {
                 .padding(.top, 8)
 
                 // Text editor or preview
-                if showPreview {
-                    MarkdownPreviewView(html: htmlContent)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ZStack(alignment: .topLeading) {
-                        if content.isEmpty {
-                            Text(NSLocalizedString("compose.placeholder", comment: "Compose text placeholder"))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 8)
-                        }
-                        TextEditor(text: $content)
-                            .font(.body)
-                            .opacity(content.isEmpty ? 0.25 : 1)
-                            .onChange(of: content) { _, newValue in
-                                detectAndUpdateLanguage(from: newValue)
+                ZStack {
+                    if showPreview {
+                        ZStack {
+                            if content.isEmpty {
+                                // Empty state
+                                VStack(spacing: 16) {
+                                    Image(systemName: "doc.text")
+                                        .font(.system(size: 48))
+                                        .foregroundStyle(.tertiary)
+                                    Text(NSLocalizedString("compose.preview.empty", comment: "Empty preview message"))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                // WebView with loading overlay
+                                ZStack {
+                                    MarkdownPreviewView(html: htmlContent, isLoading: $isLoadingPreview)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .opacity(isLoadingPreview ? 0 : 1)
+
+                                    if isLoadingPreview {
+                                        VStack(spacing: 16) {
+                                            ProgressView()
+                                                .scaleEffect(1.2)
+                                            Text(NSLocalizedString("compose.preview.rendering", comment: "Rendering preview message"))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .transition(.opacity)
+                                    }
+                                }
                             }
+                        }
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    } else {
+                        ZStack(alignment: .topLeading) {
+                            if content.isEmpty {
+                                Text(NSLocalizedString("compose.placeholder", comment: "Compose text placeholder"))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 8)
+                                    .allowsHitTesting(false)
+                            }
+                            TextEditor(text: $content)
+                                .font(.body)
+                                .opacity(content.isEmpty ? 0.25 : 1)
+                                .onChange(of: content) { _, newValue in
+                                    detectAndUpdateLanguage(from: newValue)
+                                }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .animation(.easeInOut(duration: 0.25), value: showPreview)
+                .animation(.easeInOut(duration: 0.25), value: isLoadingPreview)
 
                 Divider()
 

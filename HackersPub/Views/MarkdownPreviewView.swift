@@ -4,6 +4,7 @@ import WebKit
 #if os(macOS)
 struct MarkdownPreviewView: NSViewRepresentable {
     let html: String
+    @Binding var isLoading: Bool
 
     func makeNSView(context: Context) -> WKWebView {
         let webView = WKWebView()
@@ -13,14 +14,40 @@ struct MarkdownPreviewView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        webView.loadHTMLString(html, baseURL: nil)
+        // Update the coordinator's binding reference
+        context.coordinator.isLoading = $isLoading
+        
+        // Only reload if HTML content has actually changed
+        if context.coordinator.lastHTML != html {
+            context.coordinator.lastHTML = html
+            webView.loadHTMLString(html, baseURL: nil)
+        }
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(isLoading: $isLoading)
     }
 
     class Coordinator: NSObject, WKNavigationDelegate {
+        var isLoading: Binding<Bool>
+        var lastHTML: String = ""
+        
+        init(isLoading: Binding<Bool>) {
+            self.isLoading = isLoading
+        }
+        
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            isLoading.wrappedValue = true
+        }
+        
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            isLoading.wrappedValue = false
+        }
+        
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            isLoading.wrappedValue = false
+        }
+        
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             if navigationAction.navigationType == .linkActivated {
                 if let url = navigationAction.request.url {
@@ -36,6 +63,7 @@ struct MarkdownPreviewView: NSViewRepresentable {
 #else
 struct MarkdownPreviewView: UIViewRepresentable {
     let html: String
+    @Binding var isLoading: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func makeUIView(context: Context) -> WKWebView {
@@ -47,15 +75,40 @@ struct MarkdownPreviewView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // The HTML is already wrapped with CSS that includes dynamic font sizing from ComposeView's htmlContent property
-        webView.loadHTMLString(html, baseURL: nil)
+        // Update the coordinator's binding reference
+        context.coordinator.isLoading = $isLoading
+
+        // Only reload if HTML content has actually changed
+        if context.coordinator.lastHTML != html {
+            context.coordinator.lastHTML = html
+            webView.loadHTMLString(html, baseURL: nil)
+        }
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(isLoading: $isLoading)
     }
 
     class Coordinator: NSObject, WKNavigationDelegate {
+        var isLoading: Binding<Bool>
+        var lastHTML: String = ""
+
+        init(isLoading: Binding<Bool>) {
+            self.isLoading = isLoading
+        }
+
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            isLoading.wrappedValue = true
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            isLoading.wrappedValue = false
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            isLoading.wrappedValue = false
+        }
+
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             if navigationAction.navigationType == .linkActivated {
                 if let url = navigationAction.request.url {

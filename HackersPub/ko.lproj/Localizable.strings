@@ -59,6 +59,8 @@
 "compose.error.failed" = "게시물 작성 실패";
 "compose.error.failedWithDetails" = "게시물 작성 실패: %@";
 "compose.error.ok" = "확인";
+"compose.preview.empty" = "내용이 없습니다.";
+"compose.preview.rendering" = "미리보기 로딩 중...";
 
 /* Timeline */
 "timeline.fediverse" = "페디버스";
