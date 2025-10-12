@@ -1,6 +1,7 @@
 import SwiftUI
 @preconcurrency import Apollo
 import Markdown
+import NaturalLanguage
 
 struct ComposeView: View {
     @Environment(\.dismiss) private var dismiss
@@ -91,6 +92,9 @@ struct ComposeView: View {
                         TextEditor(text: $content)
                             .font(.body)
                             .opacity(content.isEmpty ? 0.25 : 1)
+                            .onChange(of: content) { _, newValue in
+                                detectAndUpdateLanguage(from: newValue)
+                            }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -163,6 +167,26 @@ struct ComposeView: View {
             return "\(displayName) (\(localeCode))"
         }
         return localeCode
+    }
+
+    private func detectAndUpdateLanguage(from text: String) {
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(text)
+
+        // Get the dominant language
+        if let dominantLanguage = recognizer.dominantLanguage {
+            let languageCode = dominantLanguage.rawValue
+
+            if availableLocales.contains(languageCode) {
+                lastSelectedLocale = languageCode
+            } else {
+                // Try to find a matching base language (e.g., "en" for "en-US")
+                let baseLanguage = String(languageCode.prefix(2))
+                if availableLocales.contains(baseLanguage) {
+                    lastSelectedLocale = baseLanguage
+                }
+            }
+        }
     }
 
     private func post() async {
