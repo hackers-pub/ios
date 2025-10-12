@@ -1,14 +1,17 @@
 import SwiftUI
 @preconcurrency import Apollo
 import Markdown
+import NaturalLanguage
 
 struct ComposeView: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var fontSettings = FontSettingsManager.shared
     @State private var content: String = ""
     @State private var visibility: GraphQLEnum<HackersPub.PostVisibility> = .case(.public)
     @State private var isPosting = false
     @State private var errorMessage: String?
     @State private var showPreview = false
+    @State private var isLoadingPreview = false
     @AppStorage("lastSelectedLocale") private var lastSelectedLocale: String = {
         Locale.current.language.languageCode?.identifier ?? "en"
     }()
@@ -77,24 +80,66 @@ struct ComposeView: View {
                 .padding(.top, 8)
 
                 // Text editor or preview
-                if showPreview {
-                    MarkdownPreviewView(html: htmlContent)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ZStack(alignment: .topLeading) {
-                        if content.isEmpty {
-                            Text(NSLocalizedString("compose.placeholder", comment: "Compose text placeholder"))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 8)
+                ZStack {
+                    if showPreview {
+                        ZStack {
+                            if content.isEmpty {
+                                // Empty state
+                                VStack(spacing: 16) {
+                                    Image(systemName: "doc.text")
+                                        .font(.system(size: 48))
+                                        .foregroundStyle(.tertiary)
+                                    Text(NSLocalizedString("compose.preview.empty", comment: "Empty preview message"))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                // WebView with loading overlay
+                                ZStack {
+                                    MarkdownPreviewView(html: htmlContent, isLoading: $isLoadingPreview)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .opacity(isLoadingPreview ? 0 : 1)
+
+                                    if isLoadingPreview {
+                                        VStack(spacing: 16) {
+                                            ProgressView()
+                                                .scaleEffect(1.2)
+                                            Text(NSLocalizedString("compose.preview.rendering", comment: "Rendering preview message"))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .transition(.opacity)
+                                    }
+                                }
+                            }
                         }
-                        TextEditor(text: $content)
-                            .font(.body)
-                            .opacity(content.isEmpty ? 0.25 : 1)
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    } else {
+                        ZStack(alignment: .topLeading) {
+                            if content.isEmpty {
+                                Text(NSLocalizedString("compose.placeholder", comment: "Compose text placeholder"))
+                                    .font(fontSettings.font(for: .body))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 8)
+                                    .allowsHitTesting(false)
+                            }
+                            TextEditor(text: $content)
+                                .font(fontSettings.font(for: .body))
+                                .opacity(content.isEmpty ? 0.25 : 1)
+                                .onChange(of: content) { _, newValue in
+                                    detectAndUpdateLanguage(from: newValue)
+                                }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .animation(.easeInOut(duration: 0.25), value: showPreview)
+                .animation(.easeInOut(duration: 0.25), value: isLoadingPreview)
 
                 Divider()
 
@@ -163,6 +208,26 @@ struct ComposeView: View {
             return "\(displayName) (\(localeCode))"
         }
         return localeCode
+    }
+
+    private func detectAndUpdateLanguage(from text: String) {
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(text)
+
+        // Get the dominant language
+        if let dominantLanguage = recognizer.dominantLanguage {
+            let languageCode = dominantLanguage.rawValue
+
+            if availableLocales.contains(languageCode) {
+                lastSelectedLocale = languageCode
+            } else {
+                // Try to find a matching base language (e.g., "en" for "en-US")
+                let baseLanguage = String(languageCode.prefix(2))
+                if availableLocales.contains(baseLanguage) {
+                    lastSelectedLocale = baseLanguage
+                }
+            }
+        }
     }
 
     private func post() async {
