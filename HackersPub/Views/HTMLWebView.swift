@@ -37,7 +37,9 @@ struct HTMLWebView: NSViewRepresentable {
             webView.evaluateJavaScript("document.body.scrollHeight") { result, error in
                 if let height = result as? CGFloat {
                     DispatchQueue.main.async {
-                        self.parent.height = height
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            self.parent.height = height
+                        }
                     }
                 }
             }

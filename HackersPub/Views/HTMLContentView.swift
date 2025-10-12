@@ -29,6 +29,7 @@ struct HTMLContentView: View {
     var onTap: (() -> Void)?
     @State private var selectedMedia: MediaItem?
     @State private var webViewHeight: CGFloat = 0
+    @State private var isLoading: Bool = true
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -43,6 +44,14 @@ struct HTMLContentView: View {
         // Assume available width is roughly screen width minus padding
         let estimatedWidth: CGFloat = 350
         return min(estimatedWidth * aspectRatio, 500)
+    }
+
+    // Estimate minimum height based on HTML content length
+    private var estimatedMinHeight: CGFloat {
+        let characterCount = html.count
+        // Rough estimation: ~40 characters per line, ~20pt line height
+        let estimatedLines = max(2, CGFloat(characterCount) / 40)
+        return min(estimatedLines * 20, 200) // Cap at 200pt for initial estimate
     }
 
     var body: some View {
@@ -74,14 +83,96 @@ struct HTMLContentView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
-            // Display text content
-            HTMLWebView(html: html, height: $webViewHeight, onTap: onTap, navigationCoordinator: navigationCoordinator)
-                .frame(height: webViewHeight > 0 ? webViewHeight : nil)
+            // Display text content with smooth transition
+            ZStack(alignment: .topLeading) {
+                // Placeholder skeleton while loading
+                if isLoading && webViewHeight == 0 {
+                    VStack(alignment: .leading, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 16)
+                            .frame(maxWidth: .infinity)
+
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 16)
+                            .frame(maxWidth: .infinity)
+
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 16)
+                            .frame(maxWidth: 200)
+                    }
+                    .frame(minHeight: estimatedMinHeight)
+                    .redacted(reason: .placeholder)
+                    .shimmering()
+                }
+
+                // Actual HTML content
+                HTMLWebView(
+                    html: html,
+                    height: $webViewHeight,
+                    onTap: onTap,
+                    navigationCoordinator: navigationCoordinator
+                )
+                .frame(height: webViewHeight > 0 ? webViewHeight : estimatedMinHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .opacity(webViewHeight > 0 ? 1 : 0)
+                .onChange(of: webViewHeight) { oldValue, newValue in
+                    if newValue > 0 {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            isLoading = false
+                        }
+                    }
+                }
+                .onAppear {
+                    isLoading = true
+                }
+            }
         }
         .fullScreenCover(item: $selectedMedia) { item in
             FullScreenImageView(mediaItem: item, allMedia: media)
         }
+    }
+}
+
+// Shimmer effect for skeleton loading
+extension View {
+    @ViewBuilder
+    func shimmering() -> some View {
+        self.modifier(ShimmerModifier())
+    }
+}
+
+struct ShimmerModifier: ViewModifier {
+    @State private var phase: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                .clear,
+                                Color.white.opacity(0.3),
+                                .clear
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .offset(x: phase)
+                    .mask(content)
+            )
+            .onAppear {
+                withAnimation(
+                    .linear(duration: 1.0)
+                    .repeatForever(autoreverses: false)
+                ) {
+                    phase = 400
+                }
+            }
     }
 }
 
