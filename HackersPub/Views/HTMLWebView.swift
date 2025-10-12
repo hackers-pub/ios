@@ -37,7 +37,9 @@ struct HTMLWebView: NSViewRepresentable {
             webView.evaluateJavaScript("document.body.scrollHeight") { result, error in
                 if let height = result as? CGFloat {
                     DispatchQueue.main.async {
-                        self.parent.height = height
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            self.parent.height = height
+                        }
                     }
                 }
             }
@@ -50,6 +52,8 @@ struct HTMLWebView: UIViewRepresentable {
     @Binding var height: CGFloat
     var onTap: (() -> Void)?
     var navigationCoordinator: NavigationCoordinator?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @EnvironmentObject private var fontSettings: FontSettingsManager
 
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -95,7 +99,10 @@ struct HTMLWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        let styledHTML = HTMLStyles.wrapHTML(html)
+        // Generate CSS with current font settings
+        let fontSize = fontSettings.scaledSize(for: .body)
+        let css = HTMLStyles.generateCSS(fontSize: fontSize, fontFamily: fontSettings.cssFontFamily)
+        let styledHTML = HTMLStyles.wrapHTML(html, css: css)
         webView.loadHTMLString(styledHTML, baseURL: nil)
     }
 
