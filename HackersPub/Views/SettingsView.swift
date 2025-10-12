@@ -85,11 +85,17 @@ struct SettingsView: View {
                         }
 
                         Slider(value: SliderHelper.snappedBinding($fontSettings.fontSizeMultiplier, step: 0.05, range: 0.75...3.0), in: 0.75...3.0, step: 0.05)
+#if os(iOS)
                             .disabled(fontSettings.useSystemDynamicType)
+#endif
                     }
+#if os(iOS)
                     .opacity(fontSettings.useSystemDynamicType ? 0.5 : 1.0)
+#endif
 
+#if os(iOS)
                     Toggle(NSLocalizedString("settings.typography.useSystemDynamicType", comment: "Use system dynamic type toggle"), isOn: $fontSettings.useSystemDynamicType)
+#endif
 
                     Button(NSLocalizedString("settings.typography.resetToDefaults", comment: "Reset to defaults button")) {
                         fontSettings.resetToDefaults()
