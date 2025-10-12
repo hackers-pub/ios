@@ -10,7 +10,7 @@ enum HTMLStyles {
             font-size: \(fontSize)px;
             line-height: 1.5;
             margin: 0;
-            padding: 0;
+            padding: 2px 0;
             color: light-dark(#000000, #ffffff);
         }
         h1, h2, h3, h4, h5, h6 {
