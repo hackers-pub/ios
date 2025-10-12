@@ -5,6 +5,7 @@ import NaturalLanguage
 
 struct ComposeView: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var fontSettings = FontSettingsManager.shared
     @State private var content: String = ""
     @State private var visibility: GraphQLEnum<HackersPub.PostVisibility> = .case(.public)
     @State private var isPosting = false
@@ -119,13 +120,14 @@ struct ComposeView: View {
                         ZStack(alignment: .topLeading) {
                             if content.isEmpty {
                                 Text(NSLocalizedString("compose.placeholder", comment: "Compose text placeholder"))
+                                    .font(fontSettings.font(for: .body))
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 8)
                                     .allowsHitTesting(false)
                             }
                             TextEditor(text: $content)
-                                .font(.body)
+                                .font(fontSettings.font(for: .body))
                                 .opacity(content.isEmpty ? 0.25 : 1)
                                 .onChange(of: content) { _, newValue in
                                     detectAndUpdateLanguage(from: newValue)

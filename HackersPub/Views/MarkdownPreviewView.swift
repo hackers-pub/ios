@@ -1,10 +1,23 @@
 import SwiftUI
 import WebKit
 
+struct FontSettingsSnapshot: Equatable {
+    let fontName: String
+    let sizeMultiplier: Double
+    let useSystemDynamicType: Bool
+    
+    init(from manager: FontSettingsManager) {
+        self.fontName = manager.selectedFontName
+        self.sizeMultiplier = manager.fontSizeMultiplier
+        self.useSystemDynamicType = manager.useSystemDynamicType
+    }
+}
+
 #if os(macOS)
 struct MarkdownPreviewView: NSViewRepresentable {
     let html: String
     @Binding var isLoading: Bool
+    @ObservedObject private var fontSettings = FontSettingsManager.shared
 
     func makeNSView(context: Context) -> WKWebView {
         let webView = WKWebView()
@@ -17,9 +30,14 @@ struct MarkdownPreviewView: NSViewRepresentable {
         // Update the coordinator's binding reference
         context.coordinator.isLoading = $isLoading
         
-        // Only reload if HTML content has actually changed
-        if context.coordinator.lastHTML != html {
+        // Check if HTML or font settings have changed
+        let currentFontSettings = FontSettingsSnapshot(from: fontSettings)
+        let contentChanged = context.coordinator.lastHTML != html
+        let fontChanged = context.coordinator.lastFontSettings != currentFontSettings
+        
+        if contentChanged || fontChanged {
             context.coordinator.lastHTML = html
+            context.coordinator.lastFontSettings = currentFontSettings
             webView.loadHTMLString(html, baseURL: nil)
         }
     }
@@ -31,6 +49,7 @@ struct MarkdownPreviewView: NSViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate {
         var isLoading: Binding<Bool>
         var lastHTML: String = ""
+        var lastFontSettings: FontSettingsSnapshot?
         
         init(isLoading: Binding<Bool>) {
             self.isLoading = isLoading
@@ -64,6 +83,7 @@ struct MarkdownPreviewView: NSViewRepresentable {
 struct MarkdownPreviewView: UIViewRepresentable {
     let html: String
     @Binding var isLoading: Bool
+    @ObservedObject private var fontSettings = FontSettingsManager.shared
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func makeUIView(context: Context) -> WKWebView {
@@ -78,9 +98,14 @@ struct MarkdownPreviewView: UIViewRepresentable {
         // Update the coordinator's binding reference
         context.coordinator.isLoading = $isLoading
 
-        // Only reload if HTML content has actually changed
-        if context.coordinator.lastHTML != html {
+        // Check if HTML or font settings have changed
+        let currentFontSettings = FontSettingsSnapshot(from: fontSettings)
+        let contentChanged = context.coordinator.lastHTML != html
+        let fontChanged = context.coordinator.lastFontSettings != currentFontSettings
+        
+        if contentChanged || fontChanged {
             context.coordinator.lastHTML = html
+            context.coordinator.lastFontSettings = currentFontSettings
             webView.loadHTMLString(html, baseURL: nil)
         }
     }
@@ -92,6 +117,7 @@ struct MarkdownPreviewView: UIViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate {
         var isLoading: Binding<Bool>
         var lastHTML: String = ""
+        var lastFontSettings: FontSettingsSnapshot?
 
         init(isLoading: Binding<Bool>) {
             self.isLoading = isLoading
