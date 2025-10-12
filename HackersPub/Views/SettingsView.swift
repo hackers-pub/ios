@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var authManager
+    @EnvironmentObject private var fontSettings: FontSettingsManager
     @State private var showingClearCacheAlert = false
     @State private var cacheCleared = false
     @State private var cacheSize: String = NSLocalizedString("settings.calculating", comment: "Cache size calculating")
@@ -59,6 +60,55 @@ struct SettingsView: View {
                         Spacer()
                         Text(appVersion)
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section {
+                    NavigationLink {
+                        FontPickerView()
+                    } label: {
+                        HStack {
+                            Text(NSLocalizedString("settings.typography.fontFamily", comment: "Font family setting"))
+                            Spacer()
+                            Text(fontSettings.selectedFontName)
+                                .foregroundStyle(.secondary)
+                                .font(fontSettings.font(for: .body))
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(NSLocalizedString("settings.typography.fontSize", comment: "Font size setting"))
+                            Spacer()
+                            Text("\(Int(fontSettings.fontSizeMultiplier * 100))%")
+                                .foregroundStyle(.secondary)
+                        }
+
+                        // NOTE: iOS 26 has bug which Slider step value is ignored.
+                        Slider(value: $fontSettings.fontSizeMultiplier, in: 0.75...3.0, step: 0.05)
+                            .disabled(fontSettings.useSystemDynamicType)
+                    }
+                    .opacity(fontSettings.useSystemDynamicType ? 0.5 : 1.0)
+
+                    Toggle(NSLocalizedString("settings.typography.useSystemDynamicType", comment: "Use system dynamic type toggle"), isOn: $fontSettings.useSystemDynamicType)
+
+                    Button(NSLocalizedString("settings.typography.resetToDefaults", comment: "Reset to defaults button")) {
+                        fontSettings.resetToDefaults()
+                    }
+                    .foregroundStyle(.blue)
+                } header: {
+                    Text(NSLocalizedString("settings.typography", comment: "Typography section header"))
+                } footer: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(NSLocalizedString("settings.typography.preview", comment: "Preview label"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Text(NSLocalizedString("settings.typography.previewText", comment: "Preview text"))
+                            .font(fontSettings.font(for: .body))
+                            .padding(12)
+                            .background(Color.gray.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
 

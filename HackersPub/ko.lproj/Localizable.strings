@@ -114,3 +114,23 @@
 "date.monthsAgo" = "%d개월 전";
 "date.yearAgo" = "1년 전";
 "date.yearsAgo" = "%d년 전";
+
+/* Font Settings */
+"fontPicker.title" = "폰트 선택";
+"fontPicker.category" = "카테고리";
+"fontPicker.category.common" = "추천";
+"fontPicker.category.all" = "전체 폰트";
+"fontPicker.footer.common" = "자주 사용되는 인기 시스템 폰트";
+"fontPicker.footer.all" = "이 기기에 설치된 전체 %d개의 폰트";
+"fontPicker.fontsCount" = "%d개의 폰트";
+"fontPicker.search" = "폰트 검색";
+"fontPicker.preview" = "꽁꽁 얼어붙은 한강 위로 고양이가 걸어다닙니다.";
+
+/* Typography Settings */
+"settings.typography" = "텍스트 설정";
+"settings.typography.fontFamily" = "글꼴";
+"settings.typography.fontSize" = "글자 크기";
+"settings.typography.useSystemDynamicType" = "유동적 글자 크기 조절 사용";
+"settings.typography.resetToDefaults" = "기본값으로 재설정";
+"settings.typography.preview" = "미리보기";
+"settings.typography.previewText" = "꽁꽁 얼어붙은 한강 위로 고양이가 걸어다닙니다.";

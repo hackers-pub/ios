@@ -53,6 +53,7 @@ struct HTMLWebView: UIViewRepresentable {
     var onTap: (() -> Void)?
     var navigationCoordinator: NavigationCoordinator?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @EnvironmentObject private var fontSettings: FontSettingsManager
 
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -98,9 +99,9 @@ struct HTMLWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Generate CSS with current dynamic type size
-        let bodyFont = UIFont.preferredFont(forTextStyle: .body)
-        let css = HTMLStyles.generateCSS(fontSize: bodyFont.pointSize)
+        // Generate CSS with current font settings
+        let fontSize = fontSettings.scaledSize(for: .body)
+        let css = HTMLStyles.generateCSS(fontSize: fontSize, fontFamily: fontSettings.cssFontFamily)
         let styledHTML = HTMLStyles.wrapHTML(html, css: css)
         webView.loadHTMLString(styledHTML, baseURL: nil)
     }

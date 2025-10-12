@@ -12,6 +12,7 @@ import Kingfisher
 struct HackersPubApp: App {
     @State private var authManager = AuthManager.shared
     @State private var navigationCoordinator = NavigationCoordinator()
+    @State private var fontSettings = FontSettingsManager.shared
 
     init() {
         setupImageCache()
@@ -22,6 +23,7 @@ struct HackersPubApp: App {
             ContentView()
                 .environment(authManager)
                 .environment(navigationCoordinator)
+                .environmentObject(fontSettings)
                 .onOpenURL { url in
                     handleURL(url)
                 }

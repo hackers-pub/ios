@@ -114,3 +114,23 @@
 "date.monthsAgo" = "%d months ago";
 "date.yearAgo" = "1 year ago";
 "date.yearsAgo" = "%d years ago";
+
+/* Font Settings */
+"fontPicker.title" = "Select Font";
+"fontPicker.category" = "Category";
+"fontPicker.category.common" = "Common";
+"fontPicker.category.all" = "All Fonts";
+"fontPicker.footer.common" = "System fonts that are commonly used";
+"fontPicker.footer.all" = "All %d fonts installed on this device";
+"fontPicker.fontsCount" = "%d fonts";
+"fontPicker.search" = "Search fonts";
+"fontPicker.preview" = "The quick black cat jumps over the lazy dog";
+
+/* Typography Settings */
+"settings.typography" = "Typography";
+"settings.typography.fontFamily" = "Font Family";
+"settings.typography.fontSize" = "Font Size";
+"settings.typography.useSystemDynamicType" = "Use System Dynamic Type";
+"settings.typography.resetToDefaults" = "Reset to Defaults";
+"settings.typography.preview" = "Preview";
+"settings.typography.previewText" = "The quick black cat jumps over the lazy dog";
