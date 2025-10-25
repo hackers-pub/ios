@@ -48,7 +48,7 @@
 "compose.visibility.unlisted" = "목록에서 제외";
 "compose.visibility.followers" = "팔로워";
 "compose.language" = "언어";
-"compose.replyingTo" = "@%@님에게 답글";
+"compose.replyingTo" = "%@님에게 답글";
 "compose.mode.edit" = "편집";
 "compose.mode.preview" = "미리보기";
 "compose.post" = "게시";
