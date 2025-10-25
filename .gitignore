@@ -10,6 +10,13 @@ xcuserdata/
 *.dSYM
 .build/
 
+# Apollo Codegen
+apollo-ios-cli
+
 # swift-build-server and SourceKit LSP related
 .compile
 buildServer.json
+
+# Specific IDE Configurations for VSCode or Cursor
+.vscode/*
+!.vscode/extensions.json

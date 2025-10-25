@@ -25,6 +25,7 @@ protocol PostProtocol {
     var sharedPost: SharedPostType? { get }
     var engagementStats: EngagementStatsType { get }
 
+    var mentionedHandles: [String] { get }
     var isArticle: Bool { get }
 }
 
@@ -304,7 +305,14 @@ struct PostView<P: PostProtocol>: View {
             )
         }
         .sheet(isPresented: $showingReplyView) {
-            ComposeView(replyToPostId: post.id, replyToActor: post.actor.handle)
+            ComposeView(
+                replyToPostId: post.id,
+                replyToActor: post.actor.handle,
+                initialMentions: getMentionHandles(
+                    from: post,
+                    excludingHandle: AuthManager.shared.currentAccount?.handle
+                )
+            )
         }
     }
 }

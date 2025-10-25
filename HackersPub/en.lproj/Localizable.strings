@@ -48,7 +48,7 @@
 "compose.visibility.unlisted" = "Unlisted";
 "compose.visibility.followers" = "Followers";
 "compose.language" = "Language";
-"compose.replyingTo" = "Replying to @%@";
+"compose.replyingTo" = "Replying to %@";
 "compose.mode.edit" = "Edit";
 "compose.mode.preview" = "Preview";
 "compose.post" = "Post";

@@ -12,6 +12,10 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node: PostProt
         // Temporarily disabled - just show all posts as regular posts
         return false
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.Actor: ActorProtocol {}
@@ -27,6 +31,10 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPos
         // Temporarily disabled - just show all posts as regular posts
         return false
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.Actor: ActorProtocol {}
@@ -40,6 +48,10 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node: PostProto
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
         return false
+    }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -55,6 +67,10 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
         return false
+    }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -72,6 +88,10 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node: Post
         // Temporarily disabled - just show all posts as regular posts
         return false
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Actor: ActorProtocol {}
@@ -86,6 +106,10 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Share
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
         return false
+    }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
     }
 }
 

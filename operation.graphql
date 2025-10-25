@@ -50,12 +50,26 @@ query PublicTimelineQuery($after: String) {
             shares
             quotes
           }
+          mentions(first: 20) {
+            edges {
+              node {
+                handle
+              }
+            }
+          }
         }
         engagementStats {
           replies
           reactions
           shares
           quotes
+        }
+        mentions(first: 20) {
+          edges {
+            node {
+              handle
+            }
+          }
         }
       }
     }
@@ -112,11 +126,25 @@ query LocalTimelineQuery($after: String) {
             height
             width
           }
+          mentions(first: 20) {
+            edges {
+              node {
+                handle
+              }
+            }
+          }
           engagementStats {
             replies
             reactions
             shares
             quotes
+          }
+        }
+        mentions(first: 20) {
+          edges {
+            node {
+              handle
+            }
           }
         }
         engagementStats {
@@ -180,11 +208,25 @@ query PersonalTimelineQuery($after: String) {
             height
             width
           }
+          mentions(first: 20) {
+            edges {
+              node {
+                handle
+              }
+            }
+          }
           engagementStats {
             replies
             reactions
             shares
             quotes
+          }
+        }
+        mentions(first: 20) {
+          edges {
+            node {
+              handle
+            }
           }
         }
         engagementStats {
@@ -253,12 +295,26 @@ query SearchPostQuery($query: String!) {
             shares
             quotes
           }
+          mentions(first: 20) {
+            edges {
+              node {
+                handle
+              }
+            }
+          }
         }
         engagementStats {
           replies
           reactions
           shares
           quotes
+        }
+        mentions(first: 20) {
+          edges {
+            node {
+              handle
+            }
+          }
         }
       }
     }
@@ -334,12 +390,27 @@ query ActorByHandleQuery($handle: String!, $after: String) {
               shares
               quotes
             }
+            mentions(first: 20) {
+              edges {
+                node {
+                  handle
+                }
+              }
+            }
           }
           engagementStats {
             replies
             reactions
             shares
             quotes
+          }
+          mentions(first: 20) {
+            edges {
+              node {
+                id
+                handle
+              }
+            }
           }
         }
       }
@@ -462,6 +533,13 @@ query NotificationsQuery($after: String) {
                 shares
                 quotes
               }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
+              }
             }
           }
           ... on ReplyNotification {
@@ -492,6 +570,13 @@ query NotificationsQuery($after: String) {
                 shares
                 quotes
               }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
+              }
             }
           }
           ... on QuoteNotification {
@@ -521,6 +606,13 @@ query NotificationsQuery($after: String) {
                 reactions
                 shares
                 quotes
+              }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
               }
             }
           }
@@ -558,6 +650,13 @@ query NotificationsQuery($after: String) {
                 shares
                 quotes
               }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
+              }
             }
           }
           ... on ShareNotification {
@@ -587,6 +686,13 @@ query NotificationsQuery($after: String) {
                 reactions
                 shares
                 quotes
+              }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
               }
             }
           }
@@ -673,11 +779,25 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
           height
           width
         }
+        mentions(first: 20) {
+          edges {
+            node {
+              handle
+            }
+          }
+        }
         engagementStats {
           replies
           reactions
           shares
           quotes
+        }
+      }
+      mentions(first: 20) {
+        edges {
+          node {
+            handle
+          }
         }
       }
       engagementStats {
@@ -774,11 +894,25 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
                 height
                 width
               }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
+              }
               engagementStats {
                 replies
                 reactions
                 shares
                 quotes
+              }
+            }
+            mentions(first: 20) {
+              edges {
+                node {
+                  handle
+                }
               }
             }
             engagementStats {
