@@ -20,6 +20,11 @@ struct SettingsView: View {
         }
     }()
 #endif
+    @State private var markdownMaxLength: Int = 0 {
+        didSet {
+            UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
+        }
+    }
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
@@ -115,6 +120,36 @@ struct SettingsView: View {
                             .background(Color.gray.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(NSLocalizedString("settings.timeline.markdownMaxLength", comment: "Timeline markdown max length label"))
+                            Spacer()
+                            Picker(selection: Binding(
+                                get: {
+                                    return markdownMaxLength
+                                },
+                                set: { newValue in
+                                    markdownMaxLength = newValue
+                                }
+                            ), label: Text("")) {
+                                Text("300").tag(300)
+                                Text("500").tag(500)
+                                Text("700").tag(700)
+                                Text("1,000").tag(1000)
+                                Text(NSLocalizedString("settings.timeline.unlimited", comment: "Unlimited option label")).tag(0)
+                            }
+                            .pickerStyle(MenuPickerStyle())
+                        }
+                    }
+                } header: {
+                    Text(NSLocalizedString("settings.timeline", comment: "Timeline section header"))
+                } footer: {
+                    Text(NSLocalizedString("settings.timeline.footer", comment: "Timeline footer"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
 #if os(iOS)
