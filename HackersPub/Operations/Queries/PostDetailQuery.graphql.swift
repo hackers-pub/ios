@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PostDetailQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content url visibility actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } engagementStats { __typename replies reactions shares quotes } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
+        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content url visibility actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
       ))
 
     public var id: ID
@@ -81,6 +81,7 @@ public extension HackersPub {
             .field("media", [Medium].self),
             .field("replyTarget", ReplyTarget?.self),
             .field("sharedPost", SharedPost?.self),
+            .field("mentions", Mentions.self, arguments: ["first": 20]),
             .field("engagementStats", EngagementStats.self),
             .field("reactionGroups", [ReactionGroup].self),
             .field("replies", Replies.self, arguments: [
@@ -104,6 +105,7 @@ public extension HackersPub {
           public var media: [Medium] { __data["media"] }
           public var replyTarget: ReplyTarget? { __data["replyTarget"] }
           public var sharedPost: SharedPost? { __data["sharedPost"] }
+          public var mentions: Mentions { __data["mentions"] }
           public var engagementStats: EngagementStats { __data["engagementStats"] }
           public var reactionGroups: [ReactionGroup] { __data["reactionGroups"] }
           public var replies: Replies { __data["replies"] }
@@ -290,6 +292,7 @@ public extension HackersPub {
               .field("url", HackersPub.URL?.self),
               .field("actor", Actor.self),
               .field("media", [Medium].self),
+              .field("mentions", Mentions.self, arguments: ["first": 20]),
               .field("engagementStats", EngagementStats.self),
             ] }
             @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
@@ -304,6 +307,7 @@ public extension HackersPub {
             public var url: HackersPub.URL? { __data["url"] }
             public var actor: Actor { __data["actor"] }
             public var media: [Medium] { __data["media"] }
+            public var mentions: Mentions { __data["mentions"] }
             public var engagementStats: EngagementStats { __data["engagementStats"] }
 
             /// Node.AsPost.SharedPost.Actor
@@ -358,6 +362,63 @@ public extension HackersPub {
               public var width: Int? { __data["width"] }
             }
 
+            /// Node.AsPost.SharedPost.Mentions
+            ///
+            /// Parent Type: `PostMentionsConnection`
+            public struct Mentions: HackersPub.SelectionSet {
+              @_spi(Unsafe) public let __data: DataDict
+              @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+              @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnection }
+              @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                .field("__typename", String.self),
+                .field("edges", [Edge].self),
+              ] }
+              @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                PostDetailQuery.Data.Node.AsPost.SharedPost.Mentions.self
+              ] }
+
+              public var edges: [Edge] { __data["edges"] }
+
+              /// Node.AsPost.SharedPost.Mentions.Edge
+              ///
+              /// Parent Type: `PostMentionsConnectionEdge`
+              public struct Edge: HackersPub.SelectionSet {
+                @_spi(Unsafe) public let __data: DataDict
+                @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnectionEdge }
+                @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                  .field("__typename", String.self),
+                  .field("node", Node.self),
+                ] }
+                @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                  PostDetailQuery.Data.Node.AsPost.SharedPost.Mentions.Edge.self
+                ] }
+
+                public var node: Node { __data["node"] }
+
+                /// Node.AsPost.SharedPost.Mentions.Edge.Node
+                ///
+                /// Parent Type: `Actor`
+                public struct Node: HackersPub.SelectionSet {
+                  @_spi(Unsafe) public let __data: DataDict
+                  @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                  @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                  @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                    .field("__typename", String.self),
+                    .field("handle", String.self),
+                  ] }
+                  @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                    PostDetailQuery.Data.Node.AsPost.SharedPost.Mentions.Edge.Node.self
+                  ] }
+
+                  public var handle: String { __data["handle"] }
+                }
+              }
+            }
+
             /// Node.AsPost.SharedPost.EngagementStats
             ///
             /// Parent Type: `PostEngagementStats`
@@ -381,6 +442,63 @@ public extension HackersPub {
               public var reactions: Int { __data["reactions"] }
               public var shares: Int { __data["shares"] }
               public var quotes: Int { __data["quotes"] }
+            }
+          }
+
+          /// Node.AsPost.Mentions
+          ///
+          /// Parent Type: `PostMentionsConnection`
+          public struct Mentions: HackersPub.SelectionSet {
+            @_spi(Unsafe) public let __data: DataDict
+            @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+            @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnection }
+            @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+              .field("__typename", String.self),
+              .field("edges", [Edge].self),
+            ] }
+            @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+              PostDetailQuery.Data.Node.AsPost.Mentions.self
+            ] }
+
+            public var edges: [Edge] { __data["edges"] }
+
+            /// Node.AsPost.Mentions.Edge
+            ///
+            /// Parent Type: `PostMentionsConnectionEdge`
+            public struct Edge: HackersPub.SelectionSet {
+              @_spi(Unsafe) public let __data: DataDict
+              @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+              @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnectionEdge }
+              @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                .field("__typename", String.self),
+                .field("node", Node.self),
+              ] }
+              @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                PostDetailQuery.Data.Node.AsPost.Mentions.Edge.self
+              ] }
+
+              public var node: Node { __data["node"] }
+
+              /// Node.AsPost.Mentions.Edge.Node
+              ///
+              /// Parent Type: `Actor`
+              public struct Node: HackersPub.SelectionSet {
+                @_spi(Unsafe) public let __data: DataDict
+                @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                  .field("__typename", String.self),
+                  .field("handle", String.self),
+                ] }
+                @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                  PostDetailQuery.Data.Node.AsPost.Mentions.Edge.Node.self
+                ] }
+
+                public var handle: String { __data["handle"] }
+              }
             }
           }
 
@@ -732,6 +850,7 @@ public extension HackersPub {
                   .field("actor", Actor.self),
                   .field("media", [Medium].self),
                   .field("sharedPost", SharedPost?.self),
+                  .field("mentions", Mentions.self, arguments: ["first": 20]),
                   .field("engagementStats", EngagementStats.self),
                 ] }
                 @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
@@ -747,6 +866,7 @@ public extension HackersPub {
                 public var actor: Actor { __data["actor"] }
                 public var media: [Medium] { __data["media"] }
                 public var sharedPost: SharedPost? { __data["sharedPost"] }
+                public var mentions: Mentions { __data["mentions"] }
                 public var engagementStats: EngagementStats { __data["engagementStats"] }
 
                 /// Node.AsPost.Replies.Edge.Node.Actor
@@ -819,6 +939,7 @@ public extension HackersPub {
                     .field("url", HackersPub.URL?.self),
                     .field("actor", Actor.self),
                     .field("media", [Medium].self),
+                    .field("mentions", Mentions.self, arguments: ["first": 20]),
                     .field("engagementStats", EngagementStats.self),
                   ] }
                   @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
@@ -833,6 +954,7 @@ public extension HackersPub {
                   public var url: HackersPub.URL? { __data["url"] }
                   public var actor: Actor { __data["actor"] }
                   public var media: [Medium] { __data["media"] }
+                  public var mentions: Mentions { __data["mentions"] }
                   public var engagementStats: EngagementStats { __data["engagementStats"] }
 
                   /// Node.AsPost.Replies.Edge.Node.SharedPost.Actor
@@ -887,6 +1009,63 @@ public extension HackersPub {
                     public var width: Int? { __data["width"] }
                   }
 
+                  /// Node.AsPost.Replies.Edge.Node.SharedPost.Mentions
+                  ///
+                  /// Parent Type: `PostMentionsConnection`
+                  public struct Mentions: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnection }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("edges", [Edge].self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost.Mentions.self
+                    ] }
+
+                    public var edges: [Edge] { __data["edges"] }
+
+                    /// Node.AsPost.Replies.Edge.Node.SharedPost.Mentions.Edge
+                    ///
+                    /// Parent Type: `PostMentionsConnectionEdge`
+                    public struct Edge: HackersPub.SelectionSet {
+                      @_spi(Unsafe) public let __data: DataDict
+                      @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                      @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnectionEdge }
+                      @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                        .field("__typename", String.self),
+                        .field("node", Node.self),
+                      ] }
+                      @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                        PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost.Mentions.Edge.self
+                      ] }
+
+                      public var node: Node { __data["node"] }
+
+                      /// Node.AsPost.Replies.Edge.Node.SharedPost.Mentions.Edge.Node
+                      ///
+                      /// Parent Type: `Actor`
+                      public struct Node: HackersPub.SelectionSet {
+                        @_spi(Unsafe) public let __data: DataDict
+                        @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                        @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                        @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                          .field("__typename", String.self),
+                          .field("handle", String.self),
+                        ] }
+                        @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                          PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost.Mentions.Edge.Node.self
+                        ] }
+
+                        public var handle: String { __data["handle"] }
+                      }
+                    }
+                  }
+
                   /// Node.AsPost.Replies.Edge.Node.SharedPost.EngagementStats
                   ///
                   /// Parent Type: `PostEngagementStats`
@@ -910,6 +1089,63 @@ public extension HackersPub {
                     public var reactions: Int { __data["reactions"] }
                     public var shares: Int { __data["shares"] }
                     public var quotes: Int { __data["quotes"] }
+                  }
+                }
+
+                /// Node.AsPost.Replies.Edge.Node.Mentions
+                ///
+                /// Parent Type: `PostMentionsConnection`
+                public struct Mentions: HackersPub.SelectionSet {
+                  @_spi(Unsafe) public let __data: DataDict
+                  @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                  @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnection }
+                  @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                    .field("__typename", String.self),
+                    .field("edges", [Edge].self),
+                  ] }
+                  @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                    PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.Mentions.self
+                  ] }
+
+                  public var edges: [Edge] { __data["edges"] }
+
+                  /// Node.AsPost.Replies.Edge.Node.Mentions.Edge
+                  ///
+                  /// Parent Type: `PostMentionsConnectionEdge`
+                  public struct Edge: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnectionEdge }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("node", Node.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.Mentions.Edge.self
+                    ] }
+
+                    public var node: Node { __data["node"] }
+
+                    /// Node.AsPost.Replies.Edge.Node.Mentions.Edge.Node
+                    ///
+                    /// Parent Type: `Actor`
+                    public struct Node: HackersPub.SelectionSet {
+                      @_spi(Unsafe) public let __data: DataDict
+                      @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                      @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                      @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                        .field("__typename", String.self),
+                        .field("handle", String.self),
+                      ] }
+                      @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                        PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.Mentions.Edge.Node.self
+                      ] }
+
+                      public var handle: String { __data["handle"] }
+                    }
                   }
                 }
 

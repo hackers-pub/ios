@@ -1,5 +1,36 @@
 import Foundation
 
+// MARK: - Mention Utilities
+
+/// Extract mention handles from a generic post (without explicit mention data)
+/// - Parameters:
+///   - post: The post to extract mentions from
+///   - excludingHandle: The handle to exclude from the mention list (usually the current user's handle)
+/// - Returns: Array containing only the post author (since other mentions aren't available)
+func getMentionHandles<P: PostProtocol>(
+    from post: P,
+    excludingHandle: String? = nil
+) -> [String] {
+    var handles: [String] = []
+    
+    // Add the post author as the first mention
+    handles.append(post.actor.handle)
+    
+    // Add other mentioned users from the mentions field
+    for handle in post.mentionedHandles {
+        if !handles.contains(handle) {
+            handles.append(handle)
+        }
+    }
+
+    // Remove the specified handle to avoid self-mentions
+    if let excludingHandle = excludingHandle {
+        handles.removeAll { $0 == excludingHandle }
+    }
+    
+    return handles
+}
+
 // MARK: - EngagementStats Protocol Conformance
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.EngagementStats: EngagementStatsProtocol {}
@@ -32,6 +63,10 @@ extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node: PostProtocol {
         // Temporarily disabled - just show all posts as regular posts
         return false
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.Actor: ActorProtocol {}
@@ -46,6 +81,10 @@ extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost: PostP
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
         return false
+    }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -63,6 +102,10 @@ extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node: Post
         // Temporarily disabled - just show all posts as regular posts
         return false
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.Actor: ActorProtocol {}
@@ -77,6 +120,10 @@ extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.Share
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
         return false
+    }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -96,6 +143,10 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMe
     var isArticle: Bool {
         return __typename == "Article"
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post.Actor: ActorProtocol {}
@@ -109,6 +160,10 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsRe
 
     var isArticle: Bool {
         return __typename == "Article"
+    }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -124,6 +179,10 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQu
     var isArticle: Bool {
         return __typename == "Article"
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.Actor: ActorProtocol {}
@@ -138,6 +197,10 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsRe
     var isArticle: Bool {
         return __typename == "Article"
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post.Actor: ActorProtocol {}
@@ -151,6 +214,10 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSh
 
     var isArticle: Bool {
         return __typename == "Article"
+    }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -167,6 +234,10 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost: PostProtocol {
     var isArticle: Bool {
         return __typename == "Article"
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Actor: ActorProtocol {}
@@ -180,6 +251,10 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost: PostProtocol {
 
     var isArticle: Bool {
         return __typename == "Article"
+    }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -196,6 +271,10 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node: PostPro
     var isArticle: Bool {
         return __typename == "Article"
     }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
 }
 
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.Actor: ActorProtocol {}
@@ -209,6 +288,10 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPo
 
     var isArticle: Bool {
         return __typename == "Article"
+    }
+    
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
     }
 }
 

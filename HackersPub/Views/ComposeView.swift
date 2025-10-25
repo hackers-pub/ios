@@ -6,7 +6,7 @@ import NaturalLanguage
 struct ComposeView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var fontSettings = FontSettingsManager.shared
-    @State private var content: String = ""
+    @State private var content: String
     @State private var visibility: GraphQLEnum<HackersPub.PostVisibility> = .case(.public)
     @State private var isPosting = false
     @State private var errorMessage: String?
@@ -24,10 +24,20 @@ struct ComposeView: View {
 
     let replyToPostId: String?
     let replyToActor: String?
+    let initialMentions: [String]
 
-    init(replyToPostId: String? = nil, replyToActor: String? = nil) {
+    init(replyToPostId: String? = nil, replyToActor: String? = nil, initialMentions: [String] = []) {
         self.replyToPostId = replyToPostId
         self.replyToActor = replyToActor
+        self.initialMentions = initialMentions
+        
+        // 초기 멘션 목록이 있으면 content에 자동으로 추가
+        if !self.initialMentions.isEmpty {
+            let mentionsText = self.initialMentions.joined(separator: " ")
+            _content = State(initialValue: mentionsText + " ")
+        } else {
+            _content = State(initialValue: "")
+        }
     }
 
     private let availableLocales = [

@@ -395,7 +395,14 @@ struct PostDetailView: View {
             }
         }) {
             if let post = post {
-                ComposeView(replyToPostId: post.id, replyToActor: post.actor.handle)
+                ComposeView(
+                    replyToPostId: post.id,
+                    replyToActor: post.actor.handle,
+                    initialMentions: getMentionHandles(
+                        from: post,
+                        excludingHandle: AuthManager.shared.currentAccount?.handle
+                    )
+                )
             }
         }
         .sheet(item: $selectedReaction) { reaction in

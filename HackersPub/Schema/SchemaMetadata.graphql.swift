@@ -60,6 +60,8 @@ public extension HackersPub {
       case "PostEngagementStats": return HackersPub.Objects.PostEngagementStats
       case "PostLink": return HackersPub.Objects.PostLink
       case "PostMedium": return HackersPub.Objects.PostMedium
+      case "PostMentionsConnection": return HackersPub.Objects.PostMentionsConnection
+      case "PostMentionsConnectionEdge": return HackersPub.Objects.PostMentionsConnectionEdge
       case "PostRepliesConnection": return HackersPub.Objects.PostRepliesConnection
       case "PostRepliesConnectionEdge": return HackersPub.Objects.PostRepliesConnectionEdge
       case "Query": return HackersPub.Objects.Query
