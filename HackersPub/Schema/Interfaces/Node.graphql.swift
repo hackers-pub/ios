@@ -25,6 +25,7 @@ public extension HackersPub.Interfaces {
       "Question",
       "QuoteNotification",
       "ReactNotification",
+      "Reaction",
       "ReplyNotification",
       "ShareNotification"
     ]

@@ -9,6 +9,7 @@ query PublicTimelineQuery($after: String) {
         published
         summary
         content
+        excerpt
         url
         actor {
           id
@@ -30,6 +31,7 @@ query PublicTimelineQuery($after: String) {
           published
           summary
           content
+          excerpt
           url
           actor {
             id
@@ -91,6 +93,7 @@ query LocalTimelineQuery($after: String) {
         published
         summary
         content
+        excerpt
         url
         actor {
           id
@@ -112,6 +115,7 @@ query LocalTimelineQuery($after: String) {
           published
           summary
           content
+          excerpt
           url
           actor {
             id
@@ -173,6 +177,7 @@ query PersonalTimelineQuery($after: String) {
         published
         summary
         content
+        excerpt
         url
         actor {
           id
@@ -194,6 +199,7 @@ query PersonalTimelineQuery($after: String) {
           published
           summary
           content
+          excerpt
           url
           actor {
             id
@@ -254,6 +260,7 @@ query SearchPostQuery($query: String!) {
         published
         summary
         content
+        excerpt
         url
         actor {
           id
@@ -275,6 +282,7 @@ query SearchPostQuery($query: String!) {
           published
           summary
           content
+          excerpt
           url
           actor {
             id
@@ -349,6 +357,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
           published
           summary
           content
+          excerpt
           url
           actor {
             id
@@ -370,6 +379,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
             published
             summary
             content
+            excerpt
             url
             actor {
               id
@@ -513,6 +523,7 @@ query NotificationsQuery($after: String) {
               published
               summary
               content
+              excerpt
               url
               media {
                 url
@@ -550,6 +561,7 @@ query NotificationsQuery($after: String) {
               published
               summary
               content
+              excerpt
               url
               media {
                 url
@@ -587,6 +599,7 @@ query NotificationsQuery($after: String) {
               published
               summary
               content
+              excerpt
               url
               media {
                 url
@@ -630,6 +643,7 @@ query NotificationsQuery($after: String) {
               published
               summary
               content
+              excerpt
               url
               media {
                 url
@@ -667,6 +681,7 @@ query NotificationsQuery($after: String) {
               published
               summary
               content
+              excerpt
               url
               media {
                 url
@@ -715,6 +730,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
       published
       summary
       content
+      excerpt
       url
       visibility
       actor {
@@ -737,6 +753,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         published
         summary
         content
+        excerpt
         url
         actor {
           id
@@ -765,6 +782,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         published
         summary
         content
+        excerpt
         url
         actor {
           id
@@ -859,6 +877,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
             published
             summary
             content
+            excerpt
             url
             actor {
               id
@@ -880,6 +899,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               published
               summary
               content
+              excerpt
               url
               actor {
                 id
