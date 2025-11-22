@@ -20,7 +20,7 @@ struct SettingsView: View {
         }
     }()
 #endif
-    @State private var markdownMaxLength: Int = 0 {
+    @State private var markdownMaxLength = UserDefaults.standard.integer(forKey: "markdownMaxLength") {
         didSet {
             UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
         }

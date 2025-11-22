@@ -19,6 +19,7 @@ protocol PostProtocol {
     var published: String { get }
     var summary: String? { get }
     var content: String { get }
+    var excerpt: String { get }
     var url: String? { get }
     var actor: ActorType { get }
     var media: [MediaType] { get }
@@ -92,6 +93,11 @@ struct PostView<P: PostProtocol>: View {
     let disableNavigation: Bool
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @State private var showingReplyView = false
+    @State private var markdownMaxLength = UserDefaults.standard.integer(forKey: "markdownMaxLength") {
+        didSet {
+            UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
+        }
+    }
 
     init(post: P, showAuthor: Bool = true, disableNavigation: Bool = false) {
         self.post = post
@@ -99,6 +105,14 @@ struct PostView<P: PostProtocol>: View {
         self.disableNavigation = disableNavigation
     }
 
+    private func getContent(content: String) -> String {
+        if self.markdownMaxLength != 0 {
+            return content.htmlTruncated(limit: self.markdownMaxLength)
+        }
+
+        return content
+    }
+    
     var body: some View {
         Group {
             VStack(alignment: .leading, spacing: 8) {
@@ -180,13 +194,16 @@ struct PostView<P: PostProtocol>: View {
                         Text(name)
                             .font(.headline)
                     }
+                    
+                    let content = self.getContent(content: post.content)
                     HTMLContentView(
-                        html: sharedPost.content,
+                        html: content,
                         media: sharedPost.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) },
                         onTap: !disableNavigation ? {
                             navigationCoordinator.navigateToPost(id: post.id)
                         } : nil
                     )
+
                     Text(DateFormatHelper.relativeTime(from: sharedPost.published))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -227,8 +244,10 @@ struct PostView<P: PostProtocol>: View {
                     Text(name)
                         .font(.headline)
                 }
+                
+                let content = self.getContent(content: post.content)
                 HTMLContentView(
-                    html: post.content,
+                    html: content,
                     media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) },
                     onTap: !disableNavigation && !post.isArticle ? {
                         navigationCoordinator.navigateToPost(id: post.id)
