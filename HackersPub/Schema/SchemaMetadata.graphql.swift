@@ -74,6 +74,7 @@ public extension HackersPub {
       case "Question": return HackersPub.Objects.Question
       case "QuoteNotification": return HackersPub.Objects.QuoteNotification
       case "ReactNotification": return HackersPub.Objects.ReactNotification
+      case "Reaction": return HackersPub.Objects.Reaction
       case "ReactionGroupReactorsConnection": return HackersPub.Objects.ReactionGroupReactorsConnection
       case "ReactionGroupReactorsConnectionEdge": return HackersPub.Objects.ReactionGroupReactorsConnectionEdge
       case "ReplyNotification": return HackersPub.Objects.ReplyNotification

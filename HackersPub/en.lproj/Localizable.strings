@@ -136,3 +136,9 @@
 "settings.typography.resetToDefaults" = "Reset to Defaults";
 "settings.typography.preview" = "Preview";
 "settings.typography.previewText" = "The quick black cat jumps over the lazy dog";
+
+/* Timeline Settings */
+"settings.timeline" = "Timeline";
+"settings.timeline.footer" = "The timeline content length limit is based on the number of Markdown characters and is only enforced in the list view.";
+"settings.timeline.markdownMaxLength" = "Content Length Limit";
+"settings.timeline.unlimited" = "Unlimited";

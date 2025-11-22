@@ -136,3 +136,9 @@
 "settings.typography.resetToDefaults" = "기본값으로 재설정";
 "settings.typography.preview" = "미리보기";
 "settings.typography.previewText" = "꽁꽁 얼어붙은 한강 위로 고양이가 걸어다닙니다.";
+
+/* Timeline Settings */
+"settings.timeline" = "타임라인 설정";
+"settings.timeline.footer" = "타임라인의 콘텐츠 길이 제한은 마크다운의 글자 수를 기준으로 적용되며 리스트에서만 적용됩니다.";
+"settings.timeline.markdownMaxLength" = "콘텐츠 길이 제한";
+"settings.timeline.unlimited" = "제한 없음";
