@@ -511,10 +511,7 @@ struct ActorProfileView: View {
     private func refreshPosts() async {
         do {
             // Fetch from network, ignoring cache
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ActorByHandleQuery(handle: actor.handle, after: nil),
-                cachePolicy: .fetchIgnoringCacheData
-            )
+            let response = try await apolloClient.fetch(query: HackersPub.ActorByHandleQuery(handle: actor.handle, after: nil), cachePolicy: .networkOnly)
             if let actorData = response.data?.actorByHandle {
                 posts = actorData.posts.edges.map { $0.node }
                 hasNextPage = actorData.posts.pageInfo.hasNextPage

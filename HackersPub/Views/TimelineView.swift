@@ -777,10 +777,7 @@ struct ActorProfileViewWrapper: View {
 
         do {
             // Always fetch from network to get fresh data
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ActorByHandleQuery(handle: handle, after: nil),
-                cachePolicy: .fetchIgnoringCacheData
-            )
+            let response = try await apolloClient.fetch(query: HackersPub.ActorByHandleQuery(handle: handle, after: nil), cachePolicy: .networkOnly)
             if let actorData = response.data?.actorByHandle {
                 actor = actorData
             } else {
