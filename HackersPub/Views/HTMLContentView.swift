@@ -56,33 +56,6 @@ struct HTMLContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Display images in carousel if present
-            if !media.isEmpty {
-                TabView {
-                    ForEach(media) { item in
-                        if let thumbnailURL = item.thumbnailUrl.flatMap({ URL(string: $0) }) ?? URL(string: item.url) {
-                            KFImage(thumbnailURL)
-                                .placeholder {
-                                    ZStack {
-                                        Color.gray.opacity(0.1)
-                                        ProgressView()
-                                    }
-                                }
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    selectedMedia = item
-                                }
-                        }
-                    }
-                }
-                .tabViewStyle(.page)
-                .frame(height: carouselHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-
             // Display text content with smooth transition
             ZStack(alignment: .topLeading) {
                 // Placeholder skeleton while loading
@@ -128,6 +101,33 @@ struct HTMLContentView: View {
                 .onAppear {
                     isLoading = true
                 }
+            }
+
+            // Display images in carousel if present
+            if !media.isEmpty {
+                TabView {
+                    ForEach(media) { item in
+                        if let thumbnailURL = item.thumbnailUrl.flatMap({ URL(string: $0) }) ?? URL(string: item.url) {
+                            KFImage(thumbnailURL)
+                                .placeholder {
+                                    ZStack {
+                                        Color.gray.opacity(0.1)
+                                        ProgressView()
+                                    }
+                                }
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedMedia = item
+                                }
+                        }
+                    }
+                }
+                .tabViewStyle(.page)
+                .frame(height: carouselHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
         .fullScreenCover(item: $selectedMedia) { item in
