@@ -139,11 +139,12 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMe
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post
     typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
+    var viewerHasShared: Bool { false }
 
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
         return self.mentions.edges.map { $0.node.handle }
     }
@@ -157,11 +158,12 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsRe
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post
     typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
+    var viewerHasShared: Bool { false }
 
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
         return self.mentions.edges.map { $0.node.handle }
     }
@@ -175,11 +177,12 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQu
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post
     typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
+    var viewerHasShared: Bool { false }
 
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
         return self.mentions.edges.map { $0.node.handle }
     }
@@ -193,11 +196,12 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsRe
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post
     typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
+    var viewerHasShared: Bool { false }
 
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
         return self.mentions.edges.map { $0.node.handle }
     }
@@ -211,11 +215,12 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSh
     typealias SharedPostType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post
     typealias EngagementStatsType = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post.EngagementStats
     var sharedPost: SharedPostType? { nil }
+    var viewerHasShared: Bool { false }
 
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
         return self.mentions.edges.map { $0.node.handle }
     }

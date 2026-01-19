@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "SearchPostQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query SearchPostQuery($query: String!) { searchPost(query: $query) { __typename edges { __typename node { __typename id name published summary content excerpt url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } } }"#
+        #"query SearchPostQuery($query: String!) { searchPost(query: $query) { __typename edges { __typename node { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } } }"#
       ))
 
     public var query: String
@@ -87,6 +87,7 @@ public extension HackersPub {
               .field("content", HackersPub.HTML.self),
               .field("excerpt", String.self),
               .field("url", HackersPub.URL?.self),
+              .field("viewerHasShared", Bool.self),
               .field("actor", Actor.self),
               .field("media", [Medium].self),
               .field("sharedPost", SharedPost?.self),
@@ -104,6 +105,7 @@ public extension HackersPub {
             public var content: HackersPub.HTML { __data["content"] }
             public var excerpt: String { __data["excerpt"] }
             public var url: HackersPub.URL? { __data["url"] }
+            public var viewerHasShared: Bool { __data["viewerHasShared"] }
             public var actor: Actor { __data["actor"] }
             public var media: [Medium] { __data["media"] }
             public var sharedPost: SharedPost? { __data["sharedPost"] }
@@ -179,6 +181,7 @@ public extension HackersPub {
                 .field("content", HackersPub.HTML.self),
                 .field("excerpt", String.self),
                 .field("url", HackersPub.URL?.self),
+                .field("viewerHasShared", Bool.self),
                 .field("actor", Actor.self),
                 .field("media", [Medium].self),
                 .field("engagementStats", EngagementStats.self),
@@ -195,6 +198,7 @@ public extension HackersPub {
               public var content: HackersPub.HTML { __data["content"] }
               public var excerpt: String { __data["excerpt"] }
               public var url: HackersPub.URL? { __data["url"] }
+              public var viewerHasShared: Bool { __data["viewerHasShared"] }
               public var actor: Actor { __data["actor"] }
               public var media: [Medium] { __data["media"] }
               public var engagementStats: EngagementStats { __data["engagementStats"] }

@@ -1,5 +1,6 @@
 import SwiftUI
 import Kingfisher
+@preconcurrency import Apollo
 
 protocol EngagementStatsProtocol {
     var replies: Int { get }
@@ -25,6 +26,7 @@ protocol PostProtocol {
     var media: [MediaType] { get }
     var sharedPost: SharedPostType? { get }
     var engagementStats: EngagementStatsType { get }
+    var viewerHasShared: Bool { get }
 
     var mentionedHandles: [String] { get }
     var isArticle: Bool { get }
@@ -93,6 +95,9 @@ struct PostView<P: PostProtocol>: View {
     let disableNavigation: Bool
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @State private var showingReplyView = false
+    @State private var isSharing = false
+    @State private var hasShared: Bool
+    @State private var sharesCount: Int
     @State private var markdownMaxLength = UserDefaults.standard.integer(forKey: "markdownMaxLength") {
         didSet {
             UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
@@ -103,6 +108,8 @@ struct PostView<P: PostProtocol>: View {
         self.post = post
         self.showAuthor = showAuthor
         self.disableNavigation = disableNavigation
+        self._hasShared = State(initialValue: post.viewerHasShared)
+        self._sharesCount = State(initialValue: post.engagementStats.shares)
     }
 
     private func getContent(content: String) -> String {
@@ -112,7 +119,37 @@ struct PostView<P: PostProtocol>: View {
 
         return content
     }
-    
+
+    private func toggleShare() async {
+        guard !isSharing else { return }
+        isSharing = true
+        defer { isSharing = false }
+
+        do {
+            if hasShared {
+                // Unshare
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.UnsharePostMutation(postId: post.id)
+                )
+                if let payload = response.data?.unsharePost.asUnsharePostPayload {
+                    hasShared = payload.originalPost.viewerHasShared
+                    sharesCount = payload.originalPost.engagementStats.shares
+                }
+            } else {
+                // Share
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.SharePostMutation(postId: post.id)
+                )
+                if let payload = response.data?.sharePost.asSharePostPayload {
+                    hasShared = payload.originalPost.viewerHasShared
+                    sharesCount = payload.originalPost.engagementStats.shares
+                }
+            }
+        } catch {
+            print("Error toggling share: \(error)")
+        }
+    }
+
     var body: some View {
         Group {
             VStack(alignment: .leading, spacing: 8) {
@@ -282,12 +319,29 @@ struct PostView<P: PostProtocol>: View {
                         }
                     }
 
-                    if post.engagementStats.shares > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.2.squarepath")
-                            Text("\(post.engagementStats.shares)")
-                                .font(.caption)
+                    if sharesCount > 0 || AuthManager.shared.currentAccount != nil {
+                        Button {
+                            Task {
+                                await toggleShare()
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                if isSharing {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                } else {
+                                    Image(systemName: "arrow.2.squarepath")
+                                        .foregroundStyle(hasShared ? Color.green : Color.secondary)
+                                }
+                                if sharesCount > 0 {
+                                    Text("\(sharesCount)")
+                                        .font(.caption)
+                                        .foregroundStyle(hasShared ? Color.green : Color.secondary)
+                                }
+                            }
                         }
+                        .buttonStyle(.borderless)
+                        .disabled(isSharing || AuthManager.shared.currentAccount == nil)
                     }
 
                     if post.engagementStats.quotes > 0 {

@@ -39,6 +39,7 @@ public extension HackersPub {
       case "ActorPostsConnectionEdge": return HackersPub.Objects.ActorPostsConnectionEdge
       case "Article": return HackersPub.Objects.Article
       case "ArticleContent": return HackersPub.Objects.ArticleContent
+      case "ArticleDraft": return HackersPub.Objects.ArticleDraft
       case "CreateNotePayload": return HackersPub.Objects.CreateNotePayload
       case "CustomEmoji": return HackersPub.Objects.CustomEmoji
       case "CustomEmojiReactionGroup": return HackersPub.Objects.CustomEmojiReactionGroup
@@ -81,6 +82,8 @@ public extension HackersPub {
       case "SearchedObject": return HackersPub.Objects.SearchedObject
       case "Session": return HackersPub.Objects.Session
       case "ShareNotification": return HackersPub.Objects.ShareNotification
+      case "SharePostPayload": return HackersPub.Objects.SharePostPayload
+      case "UnsharePostPayload": return HackersPub.Objects.UnsharePostPayload
       default: return nil
       }
     }

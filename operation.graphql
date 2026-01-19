@@ -11,6 +11,7 @@ query PublicTimelineQuery($after: String) {
         content
         excerpt
         url
+        viewerHasShared
         actor {
           id
           name
@@ -33,6 +34,7 @@ query PublicTimelineQuery($after: String) {
           content
           excerpt
           url
+          viewerHasShared
           actor {
             id
             name
@@ -95,6 +97,7 @@ query LocalTimelineQuery($after: String) {
         content
         excerpt
         url
+        viewerHasShared
         actor {
           id
           name
@@ -117,6 +120,7 @@ query LocalTimelineQuery($after: String) {
           content
           excerpt
           url
+          viewerHasShared
           actor {
             id
             name
@@ -179,6 +183,7 @@ query PersonalTimelineQuery($after: String) {
         content
         excerpt
         url
+        viewerHasShared
         actor {
           id
           name
@@ -201,6 +206,7 @@ query PersonalTimelineQuery($after: String) {
           content
           excerpt
           url
+          viewerHasShared
           actor {
             id
             name
@@ -262,6 +268,7 @@ query SearchPostQuery($query: String!) {
         content
         excerpt
         url
+        viewerHasShared
         actor {
           id
           name
@@ -284,6 +291,7 @@ query SearchPostQuery($query: String!) {
           content
           excerpt
           url
+          viewerHasShared
           actor {
             id
             name
@@ -359,6 +367,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
           content
           excerpt
           url
+          viewerHasShared
           actor {
             id
             name
@@ -381,6 +390,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
             content
             excerpt
             url
+            viewerHasShared
             actor {
               id
               name
@@ -733,6 +743,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
       excerpt
       url
       visibility
+      viewerHasShared
       actor {
         id
         name
@@ -755,6 +766,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         content
         excerpt
         url
+        viewerHasShared
         actor {
           id
           name
@@ -784,6 +796,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         content
         excerpt
         url
+        viewerHasShared
         actor {
           id
           name
@@ -879,6 +892,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
             content
             excerpt
             url
+            viewerHasShared
             actor {
               id
               name
@@ -901,6 +915,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               content
               excerpt
               url
+              viewerHasShared
               actor {
                 id
                 name
@@ -948,6 +963,55 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
           endCursor
         }
       }
+    }
+  }
+}
+
+mutation SharePostMutation($postId: ID!) {
+  sharePost(input: { postId: $postId }) {
+    ... on SharePostPayload {
+      originalPost {
+        id
+        viewerHasShared
+        engagementStats {
+          replies
+          reactions
+          shares
+          quotes
+        }
+      }
+      share {
+        id
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation UnsharePostMutation($postId: ID!) {
+  unsharePost(input: { postId: $postId }) {
+    ... on UnsharePostPayload {
+      originalPost {
+        id
+        viewerHasShared
+        engagementStats {
+          replies
+          reactions
+          shares
+          quotes
+        }
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
     }
   }
 }

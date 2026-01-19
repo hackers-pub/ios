@@ -13,6 +13,7 @@ public extension HackersPub.Interfaces {
       "Actor",
       "Article",
       "ArticleContent",
+      "ArticleDraft",
       "CustomEmoji",
       "FollowNotification",
       "Instance",

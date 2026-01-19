@@ -12,6 +12,9 @@ struct PostDetailView: View {
     @State private var hasMoreReplies = false
     @State private var repliesCursor: String?
     @State private var isLoadingMoreReplies = false
+    @State private var isSharing = false
+    @State private var hasShared = false
+    @State private var sharesCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
@@ -276,7 +279,7 @@ struct PostDetailView: View {
                     HStack(spacing: 24) {
                         StatView(count: post.engagementStats.replies, label: "Replies", icon: "arrowshape.turn.up.left")
                         StatView(count: post.engagementStats.reactions, label: "Reactions", icon: "heart")
-                        StatView(count: post.engagementStats.shares, label: "Shares", icon: "arrow.2.squarepath")
+                        StatView(count: sharesCount, label: "Shares", icon: "arrow.2.squarepath")
                         StatView(count: post.engagementStats.quotes, label: "Quotes", icon: "quote.bubble")
                     }
                     .padding(.horizontal)
@@ -293,6 +296,25 @@ struct PostDetailView: View {
                                 .labelStyle(.iconOnly)
                         }
                         .buttonStyle(.borderless)
+
+                        if AuthManager.shared.currentAccount != nil {
+                            Button {
+                                Task {
+                                    await toggleShare()
+                                }
+                            } label: {
+                                if isSharing {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                } else {
+                                    Label("Repost", systemImage: "arrow.2.squarepath")
+                                        .labelStyle(.iconOnly)
+                                        .foregroundStyle(hasShared ? Color.green : Color.secondary)
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(isSharing)
+                        }
 
                         Spacer()
 
@@ -431,6 +453,8 @@ struct PostDetailView: View {
             post = fetchedPost
             hasMoreReplies = fetchedPost.replies.pageInfo.hasNextPage
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
+            hasShared = fetchedPost.viewerHasShared
+            sharesCount = fetchedPost.engagementStats.shares
         } catch {
             errorMessage = "Failed to load post: \(error.localizedDescription)"
         }
@@ -477,8 +501,40 @@ struct PostDetailView: View {
             post = fetchedPost
             hasMoreReplies = fetchedPost.replies.pageInfo.hasNextPage
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
+            hasShared = fetchedPost.viewerHasShared
+            sharesCount = fetchedPost.engagementStats.shares
         } catch {
             errorMessage = "Failed to load post: \(error.localizedDescription)"
+        }
+    }
+
+    private func toggleShare() async {
+        guard !isSharing else { return }
+        isSharing = true
+        defer { isSharing = false }
+
+        do {
+            if hasShared {
+                // Unshare
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.UnsharePostMutation(postId: postId)
+                )
+                if let payload = response.data?.unsharePost.asUnsharePostPayload {
+                    hasShared = payload.originalPost.viewerHasShared
+                    sharesCount = payload.originalPost.engagementStats.shares
+                }
+            } else {
+                // Share
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.SharePostMutation(postId: postId)
+                )
+                if let payload = response.data?.sharePost.asSharePostPayload {
+                    hasShared = payload.originalPost.viewerHasShared
+                    sharesCount = payload.originalPost.engagementStats.shares
+                }
+            }
+        } catch {
+            print("Error toggling share: \(error)")
         }
     }
 
