@@ -484,6 +484,9 @@ struct ActorProfileView: View {
                 }
             }
         }
+        .refreshable {
+            await refreshPosts()
+        }
         .task {
             await fetchPosts()
         }
@@ -502,6 +505,23 @@ struct ActorProfileView: View {
             }
         } catch {
             print("Error fetching actor posts: \(error)")
+        }
+    }
+
+    private func refreshPosts() async {
+        do {
+            // Fetch from network, ignoring cache
+            let response = try await apolloClient.fetch(
+                query: HackersPub.ActorByHandleQuery(handle: actor.handle, after: nil),
+                cachePolicy: .fetchIgnoringCacheData
+            )
+            if let actorData = response.data?.actorByHandle {
+                posts = actorData.posts.edges.map { $0.node }
+                hasNextPage = actorData.posts.pageInfo.hasNextPage
+                endCursor = actorData.posts.pageInfo.endCursor
+            }
+        } catch {
+            print("Error refreshing actor posts: \(error)")
         }
     }
 
