@@ -155,6 +155,7 @@
 
 /* Engagement Settings */
 "settings.engagement" = "Engagement Toolbar";
+"settings.engagement.confirmBeforeDelete" = "Show confirmation before delete action";
 "settings.engagement.confirmBeforeShare" = "Show confirmation before share action";
 "settings.engagement.swapShareActions" = "Swap Share Tap and Long Press";
 "settings.engagement.swapQuoteActions" = "Swap Quote Tap and Long Press";
@@ -165,6 +166,17 @@
 "share.confirm.shareAction" = "Share";
 "share.confirm.unshareTitle" = "Undo share for this post?";
 "share.confirm.unshareAction" = "Undo Share";
+
+/* Delete */
+"post.action.delete" = "Delete post";
+"delete.confirm.title" = "Delete this post?";
+"delete.confirm.action" = "Delete";
+"delete.error.title" = "Delete failed";
+"delete.error.notAuthenticated" = "You must be signed in to delete posts.";
+"delete.error.invalidInput" = "Invalid input: %@";
+"delete.error.sharedPostNotAllowed" = "Shared posts cannot be deleted.";
+"delete.error.failed" = "Failed to delete post.";
+"delete.error.failedWithDetails" = "Failed to delete post: %@";
 
 /* Truncation */
 "truncate.readMore" = "Read more";

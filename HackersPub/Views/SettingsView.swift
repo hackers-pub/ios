@@ -28,6 +28,7 @@ struct SettingsView: View {
     @AppStorage("engagement.sharePressActionsSwapped") private var sharePressActionsSwapped = false
     @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
     @AppStorage("engagement.confirmBeforeShare") private var confirmBeforeShare = false
+    @AppStorage("engagement.confirmBeforeDelete") private var confirmBeforeDelete = true
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
@@ -156,6 +157,10 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle(
+                        NSLocalizedString("settings.engagement.confirmBeforeDelete", comment: "Confirm before delete toggle"),
+                        isOn: $confirmBeforeDelete
+                    )
                     Toggle(
                         NSLocalizedString("settings.engagement.confirmBeforeShare", comment: "Confirm before share toggle"),
                         isOn: $confirmBeforeShare

@@ -295,6 +295,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     let showAuthor: Bool
     let disableNavigation: Bool
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @Environment(AuthManager.self) private var authManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var activeSheet: ActiveSheet?
     @State private var showingReactionPicker = false
@@ -321,7 +322,11 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     @AppStorage("engagement.sharePressActionsSwapped") private var sharePressActionsSwapped = false
     @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
     @AppStorage("engagement.confirmBeforeShare") private var confirmBeforeShare = false
+    @AppStorage("engagement.confirmBeforeDelete") private var confirmBeforeDelete = true
     @State private var showingShareConfirmation = false
+    @State private var showingDeleteConfirmation = false
+    @State private var isDeleting = false
+    @State private var deleteErrorMessage: String?
     @State private var markdownMaxLength = UserDefaults.standard.integer(forKey: "markdownMaxLength") {
         didSet {
             UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
@@ -344,6 +349,11 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
 
     private var viewerHasReacted: Bool {
         reactionGroups.contains(where: { $0.viewerHasReacted })
+    }
+
+    private var canDeleteCurrentPost: Bool {
+        guard let viewerHandle = authManager.currentAccount?.handle else { return false }
+        return viewerHandle.caseInsensitiveCompare(post.actor.handle) == .orderedSame
     }
 
     private func getContent(content: String) -> String {
@@ -410,6 +420,60 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             showingShareConfirmation = true
         } else {
             performShareToggle()
+        }
+    }
+
+    private func deletePost() async {
+        guard !isDeleting else { return }
+        guard AuthManager.shared.currentAccount != nil else {
+            deleteErrorMessage = NSLocalizedString("delete.error.notAuthenticated", comment: "Delete requires sign in")
+            return
+        }
+
+        isDeleting = true
+        deleteErrorMessage = nil
+        defer { isDeleting = false }
+
+        do {
+            let response = try await apolloClient.perform(
+                mutation: HackersPub.DeletePostMutation(id: post.id)
+            )
+
+            if response.data?.deletePost.asDeletePostPayload != nil {
+                NotificationCenter.default.post(name: Notification.Name("RefreshTimeline"), object: nil)
+            } else if let invalidInput = response.data?.deletePost.asInvalidInputError {
+                deleteErrorMessage = String(
+                    format: NSLocalizedString("delete.error.invalidInput", comment: "Delete invalid input error"),
+                    invalidInput.inputPath
+                )
+            } else if response.data?.deletePost.asNotAuthenticatedError != nil {
+                deleteErrorMessage = NSLocalizedString("delete.error.notAuthenticated", comment: "Delete requires sign in")
+            } else if response.data?.deletePost.asSharedPostDeletionNotAllowedError != nil {
+                deleteErrorMessage = NSLocalizedString("delete.error.sharedPostNotAllowed", comment: "Shared post deletion not allowed")
+            } else {
+                deleteErrorMessage = NSLocalizedString("delete.error.failed", comment: "Delete failed")
+            }
+        } catch {
+            deleteErrorMessage = String(
+                format: NSLocalizedString("delete.error.failedWithDetails", comment: "Delete failed with details"),
+                error.localizedDescription
+            )
+        }
+    }
+
+    private func performDeletePost() {
+        guard canDeleteCurrentPost else { return }
+        Task {
+            await deletePost()
+        }
+    }
+
+    private func requestDeletePost() {
+        guard canDeleteCurrentPost else { return }
+        if confirmBeforeDelete {
+            showingDeleteConfirmation = true
+        } else {
+            performDeletePost()
         }
     }
 
@@ -889,6 +953,22 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
 
                     Spacer()
 
+                    if canDeleteCurrentPost {
+                        Button {
+                            requestDeletePost()
+                        } label: {
+                            if isDeleting {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                            } else {
+                                Image(systemName: "trash")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.red)
+                        .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
+                    }
+
                     if let urlString = post.url, let url = URL(string: urlString) {
                         ShareLink(item: url) {
                             Label("Share", systemImage: "square.and.arrow.up")
@@ -1053,6 +1133,23 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         } message: {
             Text(reactionErrorMessage ?? "")
         }
+        .alert(
+            NSLocalizedString("delete.error.title", comment: "Delete error title"),
+            isPresented: Binding(
+                get: { deleteErrorMessage != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        deleteErrorMessage = nil
+                    }
+                }
+            )
+        ) {
+            Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
+                deleteErrorMessage = nil
+            }
+        } message: {
+            Text(deleteErrorMessage ?? "")
+        }
         .confirmationDialog(
             hasShared
                 ? NSLocalizedString("share.confirm.unshareTitle", comment: "Confirmation dialog title for undoing a share")
@@ -1066,6 +1163,20 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     : NSLocalizedString("share.confirm.shareAction", comment: "Confirmation action to share")
             ) {
                 performShareToggle()
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
+        }
+        .confirmationDialog(
+            NSLocalizedString("delete.confirm.title", comment: "Delete confirmation title"),
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(
+                NSLocalizedString("delete.confirm.action", comment: "Delete confirmation action"),
+                role: .destructive
+            ) {
+                performDeletePost()
             }
 
             Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}

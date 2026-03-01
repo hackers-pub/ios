@@ -155,6 +155,7 @@
 
 /* Engagement Settings */
 "settings.engagement" = "게시물 반응 툴바";
+"settings.engagement.confirmBeforeDelete" = "삭제 동작 전에 확인 다이얼로그 표시";
 "settings.engagement.confirmBeforeShare" = "공유 동작 전에 확인 다이얼로그 표시";
 "settings.engagement.swapShareActions" = "공유 탭 / 길게 누르기 바꾸기";
 "settings.engagement.swapQuoteActions" = "인용 탭 / 길게 누르기 바꾸기";
@@ -165,6 +166,17 @@
 "share.confirm.shareAction" = "공유";
 "share.confirm.unshareTitle" = "이 게시물의 공유를 취소할까요?";
 "share.confirm.unshareAction" = "공유 취소";
+
+/* Delete */
+"post.action.delete" = "게시물 삭제";
+"delete.confirm.title" = "이 게시물을 삭제할까요?";
+"delete.confirm.action" = "삭제";
+"delete.error.title" = "삭제 실패";
+"delete.error.notAuthenticated" = "게시물을 삭제하려면 로그인해야 합니다.";
+"delete.error.invalidInput" = "잘못된 입력: %@";
+"delete.error.sharedPostNotAllowed" = "공유 게시물은 삭제할 수 없습니다.";
+"delete.error.failed" = "게시물 삭제에 실패했습니다.";
+"delete.error.failedWithDetails" = "게시물 삭제에 실패했습니다: %@";
 
 /* Truncation */
 "truncate.readMore" = "더 보기";

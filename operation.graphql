@@ -1493,3 +1493,20 @@ mutation UnsharePostMutation($postId: ID!) {
     }
   }
 }
+
+mutation DeletePostMutation($id: ID!) {
+  deletePost(input: { id: $id }) {
+    ... on DeletePostPayload {
+      deletedPostId
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+    ... on SharedPostDeletionNotAllowedError {
+      inputPath
+    }
+  }
+}

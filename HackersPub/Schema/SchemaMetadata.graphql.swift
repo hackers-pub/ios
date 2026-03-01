@@ -44,6 +44,7 @@ public extension HackersPub {
       case "CreateNotePayload": return HackersPub.Objects.CreateNotePayload
       case "CustomEmoji": return HackersPub.Objects.CustomEmoji
       case "CustomEmojiReactionGroup": return HackersPub.Objects.CustomEmojiReactionGroup
+      case "DeletePostPayload": return HackersPub.Objects.DeletePostPayload
       case "EmojiReactionGroup": return HackersPub.Objects.EmojiReactionGroup
       case "EmptySearchQueryError": return HackersPub.Objects.EmptySearchQueryError
       case "FollowNotification": return HackersPub.Objects.FollowNotification
@@ -89,6 +90,7 @@ public extension HackersPub {
       case "Session": return HackersPub.Objects.Session
       case "ShareNotification": return HackersPub.Objects.ShareNotification
       case "SharePostPayload": return HackersPub.Objects.SharePostPayload
+      case "SharedPostDeletionNotAllowedError": return HackersPub.Objects.SharedPostDeletionNotAllowedError
       case "UnsharePostPayload": return HackersPub.Objects.UnsharePostPayload
       default: return nil
       }
