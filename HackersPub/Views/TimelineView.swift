@@ -142,41 +142,48 @@ struct TimelineView: View {
                     ProgressView()
                 } else {
                     ScrollViewReader { proxy in
-                        List {
-                            ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
-                                PostView(post: post, showAuthor: true)
-                                    .id(post.id)
-                                    .onAppear {
-                                        if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                            Task {
-                                                await loadMore()
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
+                                    PostView(post: post, showAuthor: true)
+                                        .padding()
+                                        .id(post.id)
+                                        .onAppear {
+                                            if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                                Task {
+                                                    await loadMore()
+                                                }
                                             }
                                         }
-                                    }
 
-                                // Show gap button after last new post
-                                if hasGap && index == newPostsCount - 1 {
-                                    Button {
-                                        Task {
-                                            await loadGap()
+                                    Divider()
+
+                                    // Show gap button after last new post
+                                    if hasGap && index == newPostsCount - 1 {
+                                        Button {
+                                            Task {
+                                                await loadGap()
+                                            }
+                                        } label: {
+                                            HStack {
+                                                Spacer()
+                                                Label("Load newer posts", systemImage: "arrow.up.circle")
+                                                    .foregroundStyle(.secondary)
+                                                Spacer()
+                                            }
                                         }
-                                    } label: {
-                                        HStack {
-                                            Spacer()
-                                            Label("Load newer posts", systemImage: "arrow.up.circle")
-                                                .foregroundStyle(.secondary)
-                                            Spacer()
-                                        }
+                                        .buttonStyle(.plain)
+                                        .padding()
                                     }
-                                    .buttonStyle(.plain)
                                 }
-                            }
 
-                            if isLoading && !posts.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    ProgressView()
-                                    Spacer()
+                                if isLoading && !posts.isEmpty {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                        Spacer()
+                                    }
+                                    .padding()
                                 }
                             }
                         }
@@ -353,41 +360,48 @@ struct PersonalTimelineView: View {
                     ProgressView()
                 } else {
                     ScrollViewReader { proxy in
-                        List {
-                            ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
-                                PostView(post: post, showAuthor: true)
-                                    .id(post.id)
-                                    .onAppear {
-                                        if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                            Task {
-                                                await loadMore()
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
+                                    PostView(post: post, showAuthor: true)
+                                        .padding()
+                                        .id(post.id)
+                                        .onAppear {
+                                            if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                                Task {
+                                                    await loadMore()
+                                                }
                                             }
                                         }
-                                    }
 
-                                // Show gap button after last new post
-                                if hasGap && index == newPostsCount - 1 {
-                                    Button {
-                                        Task {
-                                            await loadGap()
+                                    Divider()
+
+                                    // Show gap button after last new post
+                                    if hasGap && index == newPostsCount - 1 {
+                                        Button {
+                                            Task {
+                                                await loadGap()
+                                            }
+                                        } label: {
+                                            HStack {
+                                                Spacer()
+                                                Label("Load newer posts", systemImage: "arrow.up.circle")
+                                                    .foregroundStyle(.secondary)
+                                                Spacer()
+                                            }
                                         }
-                                    } label: {
-                                        HStack {
-                                            Spacer()
-                                            Label("Load newer posts", systemImage: "arrow.up.circle")
-                                                .foregroundStyle(.secondary)
-                                            Spacer()
-                                        }
+                                        .buttonStyle(.plain)
+                                        .padding()
                                     }
-                                    .buttonStyle(.plain)
                                 }
-                            }
 
-                            if isLoading && !posts.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    ProgressView()
-                                    Spacer()
+                                if isLoading && !posts.isEmpty {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                        Spacer()
+                                    }
+                                    .padding()
                                 }
                             }
                         }
@@ -563,41 +577,48 @@ struct LocalTimelineView: View {
                     ProgressView()
                 } else {
                     ScrollViewReader { proxy in
-                        List {
-                            ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
-                                PostView(post: post, showAuthor: true)
-                                    .id(post.id)
-                                    .onAppear {
-                                        if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                            Task {
-                                                await loadMore()
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
+                                    PostView(post: post, showAuthor: true)
+                                        .padding()
+                                        .id(post.id)
+                                        .onAppear {
+                                            if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                                Task {
+                                                    await loadMore()
+                                                }
                                             }
                                         }
-                                    }
 
-                                // Show gap button after last new post
-                                if hasGap && index == newPostsCount - 1 {
-                                    Button {
-                                        Task {
-                                            await loadGap()
+                                    Divider()
+
+                                    // Show gap button after last new post
+                                    if hasGap && index == newPostsCount - 1 {
+                                        Button {
+                                            Task {
+                                                await loadGap()
+                                            }
+                                        } label: {
+                                            HStack {
+                                                Spacer()
+                                                Label("Load newer posts", systemImage: "arrow.up.circle")
+                                                    .foregroundStyle(.secondary)
+                                                Spacer()
+                                            }
                                         }
-                                    } label: {
-                                        HStack {
-                                            Spacer()
-                                            Label("Load newer posts", systemImage: "arrow.up.circle")
-                                                .foregroundStyle(.secondary)
-                                            Spacer()
-                                        }
+                                        .buttonStyle(.plain)
+                                        .padding()
                                     }
-                                    .buttonStyle(.plain)
                                 }
-                            }
 
-                            if isLoading && !posts.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    ProgressView()
-                                    Spacer()
+                                if isLoading && !posts.isEmpty {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                        Spacer()
+                                    }
+                                    .padding()
                                 }
                             }
                         }
