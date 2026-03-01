@@ -81,9 +81,13 @@ struct RepostIndicator<Actor: ActorProtocol>: View {
             } label: {
                 if let name = actor.name {
                     HTMLTextView(html: name, font: .caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 } else {
                     Text(actor.handle)
                         .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
             .buttonStyle(.plain)
@@ -146,11 +150,17 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
                         if let name = quotedPost.actor.name {
                             HTMLTextView(html: name, font: .subheadline)
                                 .fontWeight(.semibold)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
                         }
                         Text(quotedPost.actor.handle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.trailing, 8)
                 }
                 .buttonStyle(.plain)
 
@@ -371,11 +381,17 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 if let name = post.actor.name {
                                     HTMLTextView(html: name, font: .headline)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
                                 }
                                 Text(post.actor.handle)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.trailing, 8)
                         }
                         .buttonStyle(.plain)
 
@@ -407,11 +423,17 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     if let name = sharedPost.actor.name {
                                         HTMLTextView(html: name, font: .headline)
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
                                     }
                                     Text(sharedPost.actor.handle)
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.trailing, 8)
                             }
                             .buttonStyle(.plain)
 
@@ -601,7 +623,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                 }
             )
         }
-        .onChange(of: post.id) { _ in
+        .onChange(of: post.id) {
             hasShared = post.viewerHasShared
             sharesCount = post.engagementStats.shares
             reactionsCount = post.engagementStats.reactions
