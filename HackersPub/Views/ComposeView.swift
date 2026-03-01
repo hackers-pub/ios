@@ -1,5 +1,6 @@
 import SwiftUI
 @preconcurrency import Apollo
+import Kingfisher
 import Markdown
 import NaturalLanguage
 
@@ -12,6 +13,9 @@ struct ComposeView: View {
     @State private var errorMessage: String?
     @State private var showPreview = false
     @State private var isLoadingPreview = false
+    @State private var quotedPostPreview: HackersPub.PostDetailQuery.Data.Node.AsPost?
+    @State private var isLoadingQuotedPost = false
+    @State private var didFailToLoadQuotedPost = false
     @AppStorage("lastSelectedLocale") private var lastSelectedLocale: String = {
         Locale.current.language.languageCode?.identifier ?? "en"
     }()
@@ -85,6 +89,10 @@ struct ComposeView: View {
                             .padding(.top, 8)
                         Spacer()
                     }
+                }
+
+                if quotedPostId != nil {
+                    quoteTargetSection
                 }
 
                 // Editor/Preview toggle
@@ -182,8 +190,11 @@ struct ComposeView: View {
             }
             .navigationTitle(replyToPostId != nil ? NSLocalizedString("nav.reply", comment: "Reply navigation title") : NSLocalizedString("nav.newPost", comment: "New post navigation title"))
             .navigationBarTitleDisplayMode(.inline)
+            .task(id: quotedPostId) {
+                await fetchQuotedPostPreview()
+            }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
                         dismiss()
                     }
@@ -223,6 +234,71 @@ struct ComposeView: View {
         }
     }
 
+    @ViewBuilder
+    private var quoteTargetSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "quote.bubble")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(NSLocalizedString("compose.quoting", comment: "Quoting indicator title"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+
+            if isLoadingQuotedPost && quotedPostPreview == nil {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text(NSLocalizedString("compose.quotingLoading", comment: "Loading quoted post message"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 8)
+            } else if let quotedPostPreview {
+                HStack(alignment: .top, spacing: 10) {
+                    KFImage(URL(string: quotedPostPreview.actor.avatarUrl))
+                        .placeholder {
+                            Color.gray.opacity(0.2)
+                        }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 28, height: 28)
+                        .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let name = quotedPostPreview.actor.name {
+                            HTMLTextView(html: name, font: .caption)
+                                .lineLimit(1)
+                        }
+                        Text(quotedPostPreview.actor.handle)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+
+                        Text(quotedPostPreview.excerpt)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+                .padding(.top, 10)
+            } else if didFailToLoadQuotedPost {
+                Text(NSLocalizedString("compose.quotingUnavailable", comment: "Unable to load quoted post message"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 8)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal)
+        .padding(.vertical, 6)
+    }
+
     private func localeDisplayName(for localeCode: String) -> String {
         let locale = Locale(identifier: localeCode)
         if let displayName = locale.localizedString(forIdentifier: localeCode) {
@@ -248,6 +324,30 @@ struct ComposeView: View {
                     lastSelectedLocale = baseLanguage
                 }
             }
+        }
+    }
+
+    private func fetchQuotedPostPreview() async {
+        guard let quotedPostId else { return }
+        isLoadingQuotedPost = true
+        didFailToLoadQuotedPost = false
+        defer { isLoadingQuotedPost = false }
+
+        do {
+            let response = try await apolloClient.fetch(
+                query: HackersPub.PostDetailQuery(id: quotedPostId, repliesAfter: nil),
+                cachePolicy: .networkOnly
+            )
+            guard let quotedPost = response.data?.node?.asPost else {
+                quotedPostPreview = nil
+                didFailToLoadQuotedPost = true
+                return
+            }
+            quotedPostPreview = quotedPost
+        } catch {
+            print("Error fetching quoted post preview: \(error)")
+            quotedPostPreview = nil
+            didFailToLoadQuotedPost = true
         }
     }
 

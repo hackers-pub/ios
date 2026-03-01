@@ -49,6 +49,9 @@
 "compose.visibility.followers" = "Followers";
 "compose.language" = "Language";
 "compose.replyingTo" = "Replying to %@";
+"compose.quoting" = "Quoting";
+"compose.quotingLoading" = "Loading quoted post...";
+"compose.quotingUnavailable" = "Unable to load quoted post.";
 "compose.mode.edit" = "Edit";
 "compose.mode.preview" = "Preview";
 "compose.post" = "Post";

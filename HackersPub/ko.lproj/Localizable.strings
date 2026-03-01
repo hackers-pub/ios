@@ -49,6 +49,9 @@
 "compose.visibility.followers" = "팔로워";
 "compose.language" = "언어";
 "compose.replyingTo" = "%@님에게 답글";
+"compose.quoting" = "인용 중";
+"compose.quotingLoading" = "인용 게시물을 불러오는 중...";
+"compose.quotingUnavailable" = "인용 게시물을 불러올 수 없습니다.";
 "compose.mode.edit" = "편집";
 "compose.mode.preview" = "미리보기";
 "compose.post" = "게시";
