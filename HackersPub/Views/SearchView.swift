@@ -57,8 +57,10 @@ struct SearchView: View {
             Group {
                 if searchText.isEmpty {
                     if !recentSearches.isEmpty {
-                        List {
-                            Section(NSLocalizedString("search.recentSearches", comment: "Recent searches section")) {
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 0) {
+                                sectionHeader(NSLocalizedString("search.recentSearches", comment: "Recent searches section"))
+
                                 ForEach(recentSearches, id: \.self) { query in
                                     Button {
                                         searchText = query
@@ -70,12 +72,9 @@ struct SearchView: View {
                                                 .foregroundStyle(.primary)
                                             Spacer()
                                         }
+                                        .padding()
                                     }
-                                }
-                                .onDelete { indexSet in
-                                    var searches = recentSearches
-                                    searches.remove(atOffsets: indexSet)
-                                    saveRecentSearches(searches)
+                                    Divider()
                                 }
                             }
                         }
@@ -93,15 +92,19 @@ struct SearchView: View {
                         description: Text(NSLocalizedString("search.noResults.description", comment: "No search results description"))
                     )
                 } else {
-                    List {
-                        if !directActors.isEmpty || isLoadingDirectActors {
-                            Section(NSLocalizedString("search.accounts", comment: "Accounts section")) {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            if !directActors.isEmpty || isLoadingDirectActors {
+                                sectionHeader(NSLocalizedString("search.accounts", comment: "Accounts section"))
+
                                 ForEach(directActors, id: \.id) { result in
                                     if case .actor(let actor) = result {
                                         NavigationLink(value: NavigationDestination.profile(handle: actor.handle)) {
                                             SearchResultRow(result: result)
+                                                .padding()
                                         }
                                     }
+                                    Divider()
                                 }
 
                                 if isLoadingDirectActors {
@@ -110,18 +113,21 @@ struct SearchView: View {
                                         ProgressView()
                                         Spacer()
                                     }
+                                    .padding()
                                 }
                             }
-                        }
 
-                        if !relatedActors.isEmpty || isLoadingRelatedActors {
-                            Section(NSLocalizedString("search.relatedAccounts", comment: "Related accounts section")) {
+                            if !relatedActors.isEmpty || isLoadingRelatedActors {
+                                sectionHeader(NSLocalizedString("search.relatedAccounts", comment: "Related accounts section"))
+
                                 ForEach(relatedActors, id: \.id) { result in
                                     if case .actor(let actor) = result {
                                         NavigationLink(value: NavigationDestination.profile(handle: actor.handle)) {
                                             SearchResultRow(result: result)
+                                                .padding()
                                         }
                                     }
+                                    Divider()
                                 }
 
                                 if isLoadingRelatedActors {
@@ -130,18 +136,21 @@ struct SearchView: View {
                                         ProgressView()
                                         Spacer()
                                     }
+                                    .padding()
                                 }
                             }
-                        }
 
-                        if !posts.isEmpty || isLoadingPosts {
-                            Section(NSLocalizedString("search.posts", comment: "Posts section")) {
+                            if !posts.isEmpty || isLoadingPosts {
+                                sectionHeader(NSLocalizedString("search.posts", comment: "Posts section"))
+
                                 ForEach(posts, id: \.id) { result in
                                     if case .post(let post) = result {
                                         NavigationLink(value: NavigationDestination.post(id: post.id)) {
                                             SearchResultRow(result: result)
+                                                .padding()
                                         }
                                     }
+                                    Divider()
                                 }
 
                                 if isLoadingPosts {
@@ -150,6 +159,7 @@ struct SearchView: View {
                                         ProgressView()
                                         Spacer()
                                     }
+                                    .padding()
                                 }
                             }
                         }
@@ -208,6 +218,17 @@ struct SearchView: View {
                 }
             }
         }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.footnote)
+            .fontWeight(.semibold)
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .padding(.horizontal)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
     }
 
     private func saveRecentSearches(_ searches: [String]) {

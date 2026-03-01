@@ -73,23 +73,29 @@ struct LocalTimelineContent: View {
             if isLoading && posts.isEmpty {
                 ProgressView()
             } else {
-                List {
-                    ForEach(posts, id: \.id) { post in
-                        PostView(post: post)
-                            .onAppear {
-                                if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                    Task {
-                                        await loadMore()
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(posts, id: \.id) { post in
+                            PostView(post: post)
+                                .padding()
+                                .onAppear {
+                                    if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                        Task {
+                                            await loadMore()
+                                        }
                                     }
                                 }
-                            }
-                    }
 
-                    if isLoading && !posts.isEmpty {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
+                            Divider()
+                        }
+
+                        if isLoading && !posts.isEmpty {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                            .padding()
                         }
                     }
                 }
@@ -231,23 +237,29 @@ struct GlobalTimelineContent: View {
             if isLoading && posts.isEmpty {
                 ProgressView()
             } else {
-                List {
-                    ForEach(posts, id: \.id) { post in
-                        PostView(post: post)
-                            .onAppear {
-                                if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                    Task {
-                                        await loadMore()
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(posts, id: \.id) { post in
+                            PostView(post: post)
+                                .padding()
+                                .onAppear {
+                                    if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                        Task {
+                                            await loadMore()
+                                        }
                                     }
                                 }
-                            }
-                    }
 
-                    if isLoading && !posts.isEmpty {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
+                            Divider()
+                        }
+
+                        if isLoading && !posts.isEmpty {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                            .padding()
                         }
                     }
                 }
