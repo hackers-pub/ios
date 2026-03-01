@@ -478,18 +478,15 @@ struct ActorProfileView: View {
                 if !posts.isEmpty {
                     LazyVStack(spacing: 0) {
                         ForEach(posts, id: \.id) { post in
-                            NavigationLink(value: NavigationDestination.post(id: post.id)) {
-                                PostView(post: post, showAuthor: true, disableNavigation: true)
-                                    .padding()
-                            }
-                            .buttonStyle(.plain)
-                            .onAppear {
-                                if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                    Task {
-                                        await loadMore()
+                            PostView(post: post, showAuthor: true, disableNavigation: false)
+                                .padding()
+                                .onAppear {
+                                    if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                        Task {
+                                            await loadMore()
+                                        }
                                     }
                                 }
-                            }
                             Divider()
                         }
 
