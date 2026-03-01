@@ -23,11 +23,18 @@ struct ComposeView: View {
     }
 
     let replyToPostId: String?
+    let quotedPostId: String?
     let replyToActor: String?
     let initialMentions: [String]
 
-    init(replyToPostId: String? = nil, replyToActor: String? = nil, initialMentions: [String] = []) {
+    init(
+        replyToPostId: String? = nil,
+        quotedPostId: String? = nil,
+        replyToActor: String? = nil,
+        initialMentions: [String] = []
+    ) {
         self.replyToPostId = replyToPostId
+        self.quotedPostId = quotedPostId
         self.replyToActor = replyToActor
         self.initialMentions = initialMentions
         
@@ -254,7 +261,8 @@ struct ComposeView: View {
                     content: content,
                     language: lastSelectedLocale,
                     visibility: visibility,
-                    replyTargetId: replyToPostId.map { .some($0) } ?? nil
+                    replyTargetId: replyToPostId.map { .some($0) } ?? nil,
+                    quotedPostId: quotedPostId.map { .some($0) } ?? nil
                 )
             )
 

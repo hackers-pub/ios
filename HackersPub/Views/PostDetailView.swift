@@ -5,21 +5,24 @@ import Kingfisher
 struct PostDetailView: View {
     private enum ActiveSheet: Identifiable {
         case reply
+        case quote
         case reactors(ReactionGroupInfo)
         case shares
-        case quotes
+        case quotesList
         case reactionPicker
 
         var id: String {
             switch self {
             case .reply:
                 return "reply"
+            case .quote:
+                return "quote"
             case .reactors(let reaction):
                 return "reactors-\(reaction.id.uuidString)"
             case .shares:
                 return "shares"
-            case .quotes:
-                return "quotes"
+            case .quotesList:
+                return "quotesList"
             case .reactionPicker:
                 return "reactionPicker"
             }
@@ -337,86 +340,70 @@ struct PostDetailView: View {
                     Divider()
                         .padding(.horizontal)
 
-                    // Engagement stats
-                    HStack(spacing: 24) {
-                        StatView(count: post.engagementStats.replies, label: "Replies", icon: "arrowshape.turn.up.left")
-                        StatView(count: reactionsCount, label: ReactionL10n.title, icon: "heart")
-                        Button {
-                            refreshPostOnSheetDismiss = false
-                            activeSheet = .shares
-                            Task {
-                                await fetchShares()
-                            }
-                        } label: {
-                            StatView(count: sharesCount, label: "Shares", icon: "arrow.2.squarepath")
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            refreshPostOnSheetDismiss = false
-                            activeSheet = .quotes
-                            Task {
-                                await fetchQuotes()
-                            }
-                        } label: {
-                            StatView(count: post.engagementStats.quotes, label: "Quotes", icon: "quote.bubble")
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal)
-
-                    Divider()
-                        .padding(.horizontal)
-
-                    // Action buttons
                     HStack(spacing: 16) {
-                        Button {
-                            if useReactionPopover {
-                                showingReactionPicker = true
-                            } else {
-                                refreshPostOnSheetDismiss = false
-                                activeSheet = .reactionPicker
+                        EngagementToolbarButton(
+                            icon: viewerHasReacted ? "heart.fill" : "heart",
+                            count: reactionsCount,
+                            showsZeroCount: true,
+                            tint: viewerHasReacted ? .red : .secondary,
+                            isLoading: isReacting,
+                            onTap: {
+                                if useReactionPopover {
+                                    showingReactionPicker = true
+                                } else {
+                                    refreshPostOnSheetDismiss = false
+                                    activeSheet = .reactionPicker
+                                }
                             }
-                        } label: {
-                            if isReacting {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                            } else {
-                                Label(ReactionL10n.react, systemImage: viewerHasReacted ? "heart.fill" : "heart")
-                                    .labelStyle(.iconOnly)
-                                    .foregroundStyle(viewerHasReacted ? Color.red : Color.secondary)
+                        )
+
+                        EngagementToolbarButton(
+                            icon: "arrowshape.turn.up.left",
+                            count: post.engagementStats.replies,
+                            showsZeroCount: true,
+                            onTap: {
+                                refreshPostOnSheetDismiss = true
+                                activeSheet = .reply
                             }
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(isReacting || AuthManager.shared.currentAccount == nil)
+                        )
 
-                        Button {
-                            refreshPostOnSheetDismiss = true
-                            activeSheet = .reply
-                        } label: {
-                            Label("Reply", systemImage: "arrowshape.turn.up.left")
-                                .labelStyle(.iconOnly)
-                        }
-                        .buttonStyle(.borderless)
-
-                        if AuthManager.shared.currentAccount != nil {
-                            Button {
+                        EngagementToolbarButton(
+                            icon: "arrow.2.squarepath",
+                            count: sharesCount,
+                            showsZeroCount: true,
+                            tint: hasShared ? .green : .secondary,
+                            isLoading: isSharing,
+                            onTap: {
+                                guard AuthManager.shared.currentAccount != nil else { return }
                                 Task {
                                     await toggleShare()
                                 }
-                            } label: {
-                                if isSharing {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                } else {
-                                    Label("Repost", systemImage: "arrow.2.squarepath")
-                                        .labelStyle(.iconOnly)
-                                        .foregroundStyle(hasShared ? Color.green : Color.secondary)
+                            },
+                            onLongPress: {
+                                refreshPostOnSheetDismiss = false
+                                activeSheet = .shares
+                                Task {
+                                    await fetchShares()
                                 }
                             }
-                            .buttonStyle(.borderless)
-                            .disabled(isSharing)
-                        }
+                        )
+
+                        EngagementToolbarButton(
+                            icon: "quote.bubble",
+                            count: post.engagementStats.quotes,
+                            showsZeroCount: true,
+                            onTap: {
+                                refreshPostOnSheetDismiss = true
+                                activeSheet = .quote
+                            },
+                            onLongPress: {
+                                refreshPostOnSheetDismiss = false
+                                activeSheet = .quotesList
+                                Task {
+                                    await fetchQuotes()
+                                }
+                            }
+                        )
 
                         Spacer()
 
@@ -430,6 +417,9 @@ struct PostDetailView: View {
                     }
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
+
+                    Divider()
+                        .padding(.horizontal)
 
                     // Reactions section
                     if !post.reactionGroups.isEmpty {
@@ -533,6 +523,10 @@ struct PostDetailView: View {
                         )
                     )
                 }
+            case .quote:
+                if let post = post {
+                    ComposeView(quotedPostId: post.id)
+                }
             case .reactors(let reaction):
                 ReactorsListView(reaction: reaction)
             case .shares:
@@ -556,7 +550,7 @@ struct PostDetailView: View {
                         }
                     }
                 )
-            case .quotes:
+            case .quotesList:
                 NavigationStack {
                     QuotesListSheetView(
                         items: quotes,

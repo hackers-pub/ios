@@ -53,6 +53,71 @@ protocol MediaProtocol {
     var height: Int? { get }
 }
 
+struct EngagementToolbarButton: View {
+    let icon: String
+    let count: Int
+    let showsZeroCount: Bool
+    let tint: Color
+    let isLoading: Bool
+    let onTap: () -> Void
+    let onLongPress: (() -> Void)?
+
+    @State private var suppressTap = false
+
+    init(
+        icon: String,
+        count: Int,
+        showsZeroCount: Bool,
+        tint: Color = .secondary,
+        isLoading: Bool = false,
+        onTap: @escaping () -> Void,
+        onLongPress: (() -> Void)? = nil
+    ) {
+        self.icon = icon
+        self.count = count
+        self.showsZeroCount = showsZeroCount
+        self.tint = tint
+        self.isLoading = isLoading
+        self.onTap = onTap
+        self.onLongPress = onLongPress
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if isLoading {
+                ProgressView()
+                    .scaleEffect(0.7)
+            } else {
+                Image(systemName: icon)
+                    .foregroundStyle(tint)
+            }
+
+            if showsZeroCount || count > 0 {
+                Text("\(count)")
+                    .font(.caption)
+                    .foregroundStyle(tint)
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityAddTraits(.isButton)
+        .onTapGesture {
+            if suppressTap {
+                suppressTap = false
+                return
+            }
+            onTap()
+        }
+        .onLongPressGesture(minimumDuration: 0.45) {
+            guard let onLongPress else { return }
+            suppressTap = true
+            onLongPress()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                suppressTap = false
+            }
+        }
+    }
+}
+
 struct RepostIndicator<Actor: ActorProtocol>: View {
     let actor: Actor
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
@@ -203,12 +268,35 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
 }
 
 struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
+    private enum ActiveSheet: Identifiable {
+        case reply
+        case quote
+        case shares
+        case quotes
+        case reactionPicker
+
+        var id: String {
+            switch self {
+            case .reply:
+                return "reply"
+            case .quote:
+                return "quote"
+            case .shares:
+                return "shares"
+            case .quotes:
+                return "quotes"
+            case .reactionPicker:
+                return "reactionPicker"
+            }
+        }
+    }
+
     let post: P
     let showAuthor: Bool
     let disableNavigation: Bool
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var showingReplyView = false
+    @State private var activeSheet: ActiveSheet?
     @State private var showingReactionPicker = false
     @State private var isSharing = false
     @State private var isReacting = false
@@ -218,6 +306,18 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     @State private var reactionSheetHeight: CGFloat = 180
     @State private var reactionGroups: [ReactionGroupSnapshot]
     @State private var reactionErrorMessage: String?
+    @State private var shareActors: [ShareActorInfo] = []
+    @State private var isLoadingShares = false
+    @State private var sharesErrorMessage: String?
+    @State private var hasMoreShares = false
+    @State private var sharesCursor: String?
+    @State private var isLoadingMoreShares = false
+    @State private var quotes: [HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node] = []
+    @State private var isLoadingQuotes = false
+    @State private var quotesErrorMessage: String?
+    @State private var hasMoreQuotes = false
+    @State private var quotesCursor: String?
+    @State private var isLoadingMoreQuotes = false
     @State private var markdownMaxLength = UserDefaults.standard.integer(forKey: "markdownMaxLength") {
         didSet {
             UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
@@ -348,6 +448,143 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         } catch {
             reactionErrorMessage = shouldRemove ? ReactionL10n.unableToRemove : ReactionL10n.unableToAdd
             print("Error toggling reaction: \(error)")
+        }
+    }
+
+    private func fetchShares() async {
+        guard !isLoadingShares else { return }
+
+        isLoadingShares = true
+        sharesErrorMessage = nil
+        defer { isLoadingShares = false }
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.PostSharesQuery(id: post.id, after: nil))
+
+            if let errors = response.errors, !errors.isEmpty {
+                sharesErrorMessage = errors.first?.message ?? "Unknown error"
+                return
+            }
+
+            guard let shares = response.data?.node?.asPost?.shares else {
+                shareActors = []
+                hasMoreShares = false
+                sharesCursor = nil
+                return
+            }
+
+            shareActors = shares.edges.map { edge in
+                ShareActorInfo(
+                    id: edge.node.actor.id,
+                    name: edge.node.actor.name,
+                    handle: edge.node.actor.handle,
+                    avatarUrl: edge.node.actor.avatarUrl
+                )
+            }
+            hasMoreShares = shares.pageInfo.hasNextPage
+            sharesCursor = shares.pageInfo.endCursor
+        } catch {
+            sharesErrorMessage = "Failed to load shares: \(error.localizedDescription)"
+        }
+    }
+
+    private func loadMoreShares() async {
+        guard let cursor = sharesCursor, hasMoreShares, !isLoadingMoreShares else { return }
+
+        isLoadingMoreShares = true
+        defer { isLoadingMoreShares = false }
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.PostSharesQuery(id: post.id, after: .some(cursor)))
+
+            if let errors = response.errors, !errors.isEmpty {
+                sharesErrorMessage = errors.first?.message ?? "Unknown error"
+                return
+            }
+
+            guard let shares = response.data?.node?.asPost?.shares else {
+                return
+            }
+
+            let incoming = shares.edges.map { edge in
+                ShareActorInfo(
+                    id: edge.node.actor.id,
+                    name: edge.node.actor.name,
+                    handle: edge.node.actor.handle,
+                    avatarUrl: edge.node.actor.avatarUrl
+                )
+            }
+            for actor in incoming where !shareActors.contains(where: { $0.id == actor.id }) {
+                shareActors.append(actor)
+            }
+
+            hasMoreShares = shares.pageInfo.hasNextPage
+            sharesCursor = shares.pageInfo.endCursor
+        } catch {
+            sharesErrorMessage = "Failed to load more shares: \(error.localizedDescription)"
+        }
+    }
+
+    private func fetchQuotes() async {
+        guard !isLoadingQuotes else { return }
+
+        isLoadingQuotes = true
+        quotesErrorMessage = nil
+        defer { isLoadingQuotes = false }
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.PostQuotesQuery(id: post.id, after: nil))
+
+            if let errors = response.errors, !errors.isEmpty {
+                quotesErrorMessage = errors.first?.message ?? "Unknown error"
+                return
+            }
+
+            guard let quotesConnection = response.data?.node?.asPost?.quotes else {
+                quotes = []
+                hasMoreQuotes = false
+                quotesCursor = nil
+                return
+            }
+
+            quotes = quotesConnection.edges.map { $0.node }
+            hasMoreQuotes = quotesConnection.pageInfo.hasNextPage
+            quotesCursor = quotesConnection.pageInfo.endCursor
+        } catch {
+            quotesErrorMessage = "Failed to load quotes: \(error.localizedDescription)"
+        }
+    }
+
+    private func loadMoreQuotes() async {
+        guard let cursor = quotesCursor, hasMoreQuotes, !isLoadingMoreQuotes else { return }
+
+        isLoadingMoreQuotes = true
+        defer { isLoadingMoreQuotes = false }
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.PostQuotesQuery(id: post.id, after: .some(cursor)))
+
+            if let errors = response.errors, !errors.isEmpty {
+                quotesErrorMessage = errors.first?.message ?? "Unknown error"
+                return
+            }
+
+            guard let quotesConnection = response.data?.node?.asPost?.quotes else {
+                return
+            }
+
+            quotes.append(contentsOf: quotesConnection.edges.map { $0.node })
+            hasMoreQuotes = quotesConnection.pageInfo.hasNextPage
+            quotesCursor = quotesConnection.pageInfo.endCursor
+        } catch {
+            quotesErrorMessage = "Failed to load more quotes: \(error.localizedDescription)"
+        }
+    }
+
+    private func openQuotedPost(id: String) {
+        activeSheet = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            navigationCoordinator.navigateToPost(id: id)
         }
     }
 
@@ -529,74 +766,65 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                // Action buttons with engagement stats
                 HStack(spacing: 16) {
-                    Button {
-                        showingReactionPicker = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            if isReacting {
-                                ProgressView()
-                                    .scaleEffect(0.7)
+                    EngagementToolbarButton(
+                        icon: viewerHasReacted ? "heart.fill" : "heart",
+                        count: reactionsCount,
+                        showsZeroCount: false,
+                        tint: viewerHasReacted ? .red : .secondary,
+                        isLoading: isReacting,
+                        onTap: {
+                            if useReactionPopover {
+                                showingReactionPicker = true
                             } else {
-                                Image(systemName: viewerHasReacted ? "heart.fill" : "heart")
-                                    .foregroundStyle(viewerHasReacted ? Color.red : Color.secondary)
-                            }
-                            if reactionsCount > 0 {
-                                Text("\(reactionsCount)")
-                                    .font(.caption)
-                                    .foregroundStyle(viewerHasReacted ? Color.red : Color.secondary)
+                                activeSheet = .reactionPicker
                             }
                         }
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(isReacting || AuthManager.shared.currentAccount == nil)
+                    )
 
-                    Button {
-                        showingReplyView = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrowshape.turn.up.left")
-                            if post.engagementStats.replies > 0 {
-                                Text("\(post.engagementStats.replies)")
-                                    .font(.caption)
-                            }
+                    EngagementToolbarButton(
+                        icon: "arrowshape.turn.up.left",
+                        count: post.engagementStats.replies,
+                        showsZeroCount: false,
+                        onTap: {
+                            activeSheet = .reply
                         }
-                    }
-                    .buttonStyle(.borderless)
+                    )
 
-                    if sharesCount > 0 || AuthManager.shared.currentAccount != nil {
-                        Button {
+                    EngagementToolbarButton(
+                        icon: "arrow.2.squarepath",
+                        count: sharesCount,
+                        showsZeroCount: false,
+                        tint: hasShared ? .green : .secondary,
+                        isLoading: isSharing,
+                        onTap: {
+                            guard AuthManager.shared.currentAccount != nil else { return }
                             Task {
                                 await toggleShare()
                             }
-                        } label: {
-                            HStack(spacing: 4) {
-                                if isSharing {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                } else {
-                                    Image(systemName: "arrow.2.squarepath")
-                                        .foregroundStyle(hasShared ? Color.green : Color.secondary)
-                                }
-                                if sharesCount > 0 {
-                                    Text("\(sharesCount)")
-                                        .font(.caption)
-                                        .foregroundStyle(hasShared ? Color.green : Color.secondary)
-                                }
+                        },
+                        onLongPress: {
+                            activeSheet = .shares
+                            Task {
+                                await fetchShares()
                             }
                         }
-                        .buttonStyle(.borderless)
-                        .disabled(isSharing || AuthManager.shared.currentAccount == nil)
-                    }
+                    )
 
-                    if post.engagementStats.quotes > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "quote.bubble")
-                            Text("\(post.engagementStats.quotes)")
-                                .font(.caption)
+                    EngagementToolbarButton(
+                        icon: "quote.bubble",
+                        count: post.engagementStats.quotes,
+                        showsZeroCount: false,
+                        onTap: {
+                            activeSheet = .quote
+                        },
+                        onLongPress: {
+                            activeSheet = .quotes
+                            Task {
+                                await fetchQuotes()
+                            }
                         }
-                    }
+                    )
 
                     Spacer()
 
@@ -629,45 +857,98 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             reactionsCount = post.engagementStats.reactions
             reactionGroups = post.reactionGroupsSnapshot
         }
-        .sheet(isPresented: $showingReplyView) {
-            ComposeView(
-                replyToPostId: post.id,
-                replyToActor: post.actor.handle,
-                initialMentions: getMentionHandles(
-                    from: post,
-                    excludingHandle: AuthManager.shared.currentAccount?.handle
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .reply:
+                ComposeView(
+                    replyToPostId: post.id,
+                    replyToActor: post.actor.handle,
+                    initialMentions: getMentionHandles(
+                        from: post,
+                        excludingHandle: AuthManager.shared.currentAccount?.handle
+                    )
                 )
-            )
-        }
-        .sheet(
-            isPresented: Binding(
-                get: { showingReactionPicker && !useReactionPopover },
-                set: { isPresented in
-                    if !isPresented {
-                        showingReactionPicker = false
+            case .quote:
+                ComposeView(quotedPostId: post.id)
+            case .shares:
+                SharesListSheetView(
+                    title: "Shares",
+                    actors: shareActors,
+                    isLoading: isLoadingShares,
+                    isLoadingMore: isLoadingMoreShares,
+                    errorMessage: sharesErrorMessage,
+                    emptyTitle: "No shares yet",
+                    hasMore: hasMoreShares,
+                    loadMoreTitle: "Load more shares",
+                    onRetry: {
+                        Task {
+                            await fetchShares()
+                        }
+                    },
+                    onLoadMore: {
+                        Task {
+                            await loadMoreShares()
+                        }
+                    }
+                )
+            case .quotes:
+                NavigationStack {
+                    QuotesListSheetView(
+                        items: quotes,
+                        isLoading: isLoadingQuotes,
+                        errorMessage: quotesErrorMessage,
+                        emptyTitle: "No quotes yet",
+                        hasMore: hasMoreQuotes,
+                        isLoadingMore: isLoadingMoreQuotes,
+                        loadMoreTitle: "Load more quotes",
+                        onRetry: {
+                            Task {
+                                await fetchQuotes()
+                            }
+                        },
+                        onLoadMore: {
+                            Task {
+                                await loadMoreQuotes()
+                            }
+                        },
+                        onPostSelected: { selectedId in
+                            openQuotedPost(id: selectedId)
+                        }
+                    )
+                    .navigationTitle("Quotes")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                activeSheet = nil
+                            } label: {
+                                Image(systemName: "xmark")
+                            }
+                            .accessibilityLabel(NSLocalizedString("reaction.action.close", comment: "Close"))
+                        }
                     }
                 }
-            )
-        ) {
-            ReactionPickerView(
-                reactionGroups: reactionGroups,
-                isSubmitting: isReacting,
-                onEmojiSelect: { emoji in
-                    Task {
-                        await toggleReaction(emoji: emoji)
+            case .reactionPicker:
+                ReactionPickerView(
+                    reactionGroups: reactionGroups,
+                    isSubmitting: isReacting,
+                    onEmojiSelect: { emoji in
+                        Task {
+                            await toggleReaction(emoji: emoji)
+                        }
+                    },
+                    onClose: {
+                        activeSheet = nil
                     }
-                },
-                onClose: {
-                    showingReactionPicker = false
+                )
+                .trackReactionPickerHeight { contentHeight in
+                    let targetHeight = min(max(contentHeight + 24, 160), 340)
+                    if abs(reactionSheetHeight - targetHeight) > 1 {
+                        reactionSheetHeight = targetHeight
+                    }
                 }
-            )
-            .trackReactionPickerHeight { contentHeight in
-                let targetHeight = min(max(contentHeight + 24, 160), 340)
-                if abs(reactionSheetHeight - targetHeight) > 1 {
-                    reactionSheetHeight = targetHeight
-                }
+                .presentationDetents([.height(reactionSheetHeight)])
             }
-            .presentationDetents([.height(reactionSheetHeight)])
         }
         .popover(
             isPresented: Binding(
