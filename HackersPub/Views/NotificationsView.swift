@@ -36,24 +36,30 @@ struct NotificationsView: View {
                     )
                 } else {
                     ScrollViewReader { proxy in
-                        List {
-                            ForEach(notifications, id: \.id) { notification in
-                                NotificationRowView(notification: notification)
-                                    .id(notification.id)
-                                    .onAppear {
-                                        if notification.id == notifications.last?.id && hasNextPage && !isLoading {
-                                            Task {
-                                                await loadMore()
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(notifications, id: \.id) { notification in
+                                    NotificationRowView(notification: notification)
+                                        .padding()
+                                        .id(notification.id)
+                                        .onAppear {
+                                            if notification.id == notifications.last?.id && hasNextPage && !isLoading {
+                                                Task {
+                                                    await loadMore()
+                                                }
                                             }
                                         }
-                                    }
-                            }
 
-                            if isLoading && !notifications.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    ProgressView()
-                                    Spacer()
+                                    Divider()
+                                }
+
+                                if isLoading && !notifications.isEmpty {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                        Spacer()
+                                    }
+                                    .padding()
                                 }
                             }
                         }
