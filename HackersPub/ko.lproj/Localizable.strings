@@ -155,9 +155,16 @@
 
 /* Engagement Settings */
 "settings.engagement" = "게시물 반응 툴바";
+"settings.engagement.confirmBeforeShare" = "공유 동작 전에 확인 다이얼로그 표시";
 "settings.engagement.swapShareActions" = "공유 탭 / 길게 누르기 바꾸기";
 "settings.engagement.swapQuoteActions" = "인용 탭 / 길게 누르기 바꾸기";
 "settings.engagement.footer" = "공유와 인용 버튼의 탭과 길게 누르기 동작을 서로 바꿉니다.";
+
+/* Share Confirmation */
+"share.confirm.shareTitle" = "이 게시물을 공유할까요?";
+"share.confirm.shareAction" = "공유";
+"share.confirm.unshareTitle" = "이 게시물의 공유를 취소할까요?";
+"share.confirm.unshareAction" = "공유 취소";
 
 /* Truncation */
 "truncate.readMore" = "더 보기";

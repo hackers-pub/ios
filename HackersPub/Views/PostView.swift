@@ -320,6 +320,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     @State private var isLoadingMoreQuotes = false
     @AppStorage("engagement.sharePressActionsSwapped") private var sharePressActionsSwapped = false
     @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
+    @AppStorage("engagement.confirmBeforeShare") private var confirmBeforeShare = false
+    @State private var showingShareConfirmation = false
     @State private var markdownMaxLength = UserDefaults.standard.integer(forKey: "markdownMaxLength") {
         didSet {
             UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
@@ -402,17 +404,26 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         }
     }
 
-    private func handleShareTap() {
-        if sharePressActionsSwapped {
-            presentSharesSheet()
+    private func requestShareToggle() {
+        guard AuthManager.shared.currentAccount != nil else { return }
+        if confirmBeforeShare {
+            showingShareConfirmation = true
         } else {
             performShareToggle()
         }
     }
 
+    private func handleShareTap() {
+        if sharePressActionsSwapped {
+            presentSharesSheet()
+        } else {
+            requestShareToggle()
+        }
+    }
+
     private func handleShareLongPress() {
         if sharePressActionsSwapped {
-            performShareToggle()
+            requestShareToggle()
         } else {
             presentSharesSheet()
         }
@@ -1041,6 +1052,23 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             }
         } message: {
             Text(reactionErrorMessage ?? "")
+        }
+        .confirmationDialog(
+            hasShared
+                ? NSLocalizedString("share.confirm.unshareTitle", comment: "Confirmation dialog title for undoing a share")
+                : NSLocalizedString("share.confirm.shareTitle", comment: "Confirmation dialog title for sharing a post"),
+            isPresented: $showingShareConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(
+                hasShared
+                    ? NSLocalizedString("share.confirm.unshareAction", comment: "Confirmation action to undo share")
+                    : NSLocalizedString("share.confirm.shareAction", comment: "Confirmation action to share")
+            ) {
+                performShareToggle()
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
         }
     }
 }

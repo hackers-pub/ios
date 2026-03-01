@@ -155,9 +155,16 @@
 
 /* Engagement Settings */
 "settings.engagement" = "Engagement Toolbar";
+"settings.engagement.confirmBeforeShare" = "Show confirmation before share action";
 "settings.engagement.swapShareActions" = "Swap Share Tap and Long Press";
 "settings.engagement.swapQuoteActions" = "Swap Quote Tap and Long Press";
 "settings.engagement.footer" = "Swap what tap and long press do for Shares and Quotes buttons.";
+
+/* Share Confirmation */
+"share.confirm.shareTitle" = "Share this post?";
+"share.confirm.shareAction" = "Share";
+"share.confirm.unshareTitle" = "Undo share for this post?";
+"share.confirm.unshareAction" = "Undo Share";
 
 /* Truncation */
 "truncate.readMore" = "Read more";

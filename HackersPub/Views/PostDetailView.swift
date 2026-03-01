@@ -61,6 +61,8 @@ struct PostDetailView: View {
     @State private var isLoadingMoreQuotes = false
     @AppStorage("engagement.sharePressActionsSwapped") private var sharePressActionsSwapped = false
     @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
+    @AppStorage("engagement.confirmBeforeShare") private var confirmBeforeShare = false
+    @State private var showingShareConfirmation = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
@@ -641,6 +643,23 @@ struct PostDetailView: View {
         } message: {
             Text(reactionErrorMessage ?? "")
         }
+        .confirmationDialog(
+            hasShared
+                ? NSLocalizedString("share.confirm.unshareTitle", comment: "Confirmation dialog title for undoing a share")
+                : NSLocalizedString("share.confirm.shareTitle", comment: "Confirmation dialog title for sharing a post"),
+            isPresented: $showingShareConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(
+                hasShared
+                    ? NSLocalizedString("share.confirm.unshareAction", comment: "Confirmation action to undo share")
+                    : NSLocalizedString("share.confirm.shareAction", comment: "Confirmation action to share")
+            ) {
+                performShareToggle()
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
+        }
     }
 
     private func fetchPost() async {
@@ -897,6 +916,15 @@ struct PostDetailView: View {
         }
     }
 
+    private func requestShareToggle() {
+        guard AuthManager.shared.currentAccount != nil else { return }
+        if confirmBeforeShare {
+            showingShareConfirmation = true
+        } else {
+            performShareToggle()
+        }
+    }
+
     private func presentSharesSheet() {
         refreshPostOnSheetDismiss = false
         activeSheet = .shares
@@ -909,13 +937,13 @@ struct PostDetailView: View {
         if sharePressActionsSwapped {
             presentSharesSheet()
         } else {
-            performShareToggle()
+            requestShareToggle()
         }
     }
 
     private func handleShareLongPress() {
         if sharePressActionsSwapped {
-            performShareToggle()
+            requestShareToggle()
         } else {
             presentSharesSheet()
         }
