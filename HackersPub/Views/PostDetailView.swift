@@ -3,14 +3,32 @@ import Kingfisher
 @preconcurrency import Apollo
 
 struct PostDetailView: View {
+    private enum ActiveSheet: Identifiable {
+        case reply
+        case reactors(ReactionGroupInfo)
+        case shares
+        case quotes
+
+        var id: String {
+            switch self {
+            case .reply:
+                return "reply"
+            case .reactors(let reaction):
+                return "reactors-\(reaction.id.uuidString)"
+            case .shares:
+                return "shares"
+            case .quotes:
+                return "quotes"
+            }
+        }
+    }
+
     let postId: String
     @State private var post: HackersPub.PostDetailQuery.Data.Node.AsPost?
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var selectedReaction: ReactionGroupInfo?
-    @State private var showingSharesSheet = false
-    @State private var showingQuotesSheet = false
-    @State private var showingReplyView = false
+    @State private var activeSheet: ActiveSheet?
+    @State private var refreshPostOnSheetDismiss = false
     @State private var hasMoreReplies = false
     @State private var repliesCursor: String?
     @State private var isLoadingMoreReplies = false
@@ -321,7 +339,8 @@ struct PostDetailView: View {
                         StatView(count: post.engagementStats.replies, label: "Replies", icon: "arrowshape.turn.up.left")
                         StatView(count: reactionsCount, label: ReactionL10n.title, icon: "heart")
                         Button {
-                            showingSharesSheet = true
+                            refreshPostOnSheetDismiss = false
+                            activeSheet = .shares
                             Task {
                                 await fetchShares()
                             }
@@ -331,7 +350,8 @@ struct PostDetailView: View {
                         .buttonStyle(.plain)
 
                         Button {
-                            showingQuotesSheet = true
+                            refreshPostOnSheetDismiss = false
+                            activeSheet = .quotes
                             Task {
                                 await fetchQuotes()
                             }
@@ -363,7 +383,8 @@ struct PostDetailView: View {
                         .disabled(isReacting || AuthManager.shared.currentAccount == nil)
 
                         Button {
-                            showingReplyView = true
+                            refreshPostOnSheetDismiss = true
+                            activeSheet = .reply
                         } label: {
                             Label("Reply", systemImage: "arrowshape.turn.up.left")
                                 .labelStyle(.iconOnly)
@@ -426,7 +447,8 @@ struct PostDetailView: View {
                                         ReactionGroupView(group: group, onTap: {
                                             let info = reactionGroupInfo(from: group)
                                             print("🔴 Opening reactors sheet - Emoji: \(info.emoji), Total: \(info.totalCount), Reactors in list: \(info.reactors.count)")
-                                            selectedReaction = info
+                                            refreshPostOnSheetDismiss = false
+                                            activeSheet = .reactors(info)
                                         })
                                     }
                                 }
@@ -483,77 +505,72 @@ struct PostDetailView: View {
         .refreshable {
             await refreshPost()
         }
-        .sheet(isPresented: $showingReplyView, onDismiss: {
-            // Refetch post after dismissing reply sheet
-            Task {
-                await refreshPost()
-            }
-        }) {
-            if let post = post {
-                ComposeView(
-                    replyToPostId: post.id,
-                    replyToActor: post.actor.handle,
-                    initialMentions: getMentionHandles(
-                        from: post,
-                        excludingHandle: AuthManager.shared.currentAccount?.handle
-                    )
-                )
-            }
-        }
-        .sheet(item: $selectedReaction) { reaction in
-            ReactorsListView(reaction: reaction)
-        }
-        .sheet(isPresented: $showingSharesSheet) {
-            SharesListSheetView(
-                title: "Shares",
-                actors: shareActors,
-                isLoading: isLoadingShares,
-                isLoadingMore: isLoadingMoreShares,
-                errorMessage: sharesErrorMessage,
-                emptyTitle: "No shares yet",
-                hasMore: hasMoreShares,
-                loadMoreTitle: "Load more shares",
-                onRetry: {
-                    Task {
-                        await fetchShares()
-                    }
-                },
-                onLoadMore: {
-                    Task {
-                        await loadMoreShares()
-                    }
+        .sheet(item: $activeSheet, onDismiss: {
+            if refreshPostOnSheetDismiss {
+                refreshPostOnSheetDismiss = false
+                Task {
+                    await refreshPost()
                 }
-            )
-        }
-        .sheet(isPresented: $showingQuotesSheet) {
-            NavigationStack {
-                QuotesListSheetView(
-                    items: quotes,
-                    isLoading: isLoadingQuotes,
-                    errorMessage: quotesErrorMessage,
-                    emptyTitle: "No quotes yet",
-                    hasMore: hasMoreQuotes,
-                    isLoadingMore: isLoadingMoreQuotes,
-                    loadMoreTitle: "Load more quotes",
+            }
+        }) { sheet in
+            switch sheet {
+            case .reply:
+                if let post = post {
+                    ComposeView(
+                        replyToPostId: post.id,
+                        replyToActor: post.actor.handle,
+                        initialMentions: getMentionHandles(
+                            from: post,
+                            excludingHandle: AuthManager.shared.currentAccount?.handle
+                        )
+                    )
+                }
+            case .reactors(let reaction):
+                ReactorsListView(reaction: reaction)
+            case .shares:
+                SharesListSheetView(
+                    title: "Shares",
+                    actors: shareActors,
+                    isLoading: isLoadingShares,
+                    isLoadingMore: isLoadingMoreShares,
+                    errorMessage: sharesErrorMessage,
+                    emptyTitle: "No shares yet",
+                    hasMore: hasMoreShares,
+                    loadMoreTitle: "Load more shares",
                     onRetry: {
                         Task {
-                            await fetchQuotes()
+                            await fetchShares()
                         }
                     },
                     onLoadMore: {
                         Task {
-                            await loadMoreQuotes()
+                            await loadMoreShares()
                         }
                     }
                 )
-                .navigationTitle("Quotes")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(NSLocalizedString("settings.done", comment: "Done button")) {
-                            showingQuotesSheet = false
+            case .quotes:
+                NavigationStack {
+                    QuotesListSheetView(
+                        items: quotes,
+                        isLoading: isLoadingQuotes,
+                        errorMessage: quotesErrorMessage,
+                        emptyTitle: "No quotes yet",
+                        hasMore: hasMoreQuotes,
+                        isLoadingMore: isLoadingMoreQuotes,
+                        loadMoreTitle: "Load more quotes",
+                        onRetry: {
+                            Task {
+                                await fetchQuotes()
+                            }
+                        },
+                        onLoadMore: {
+                            Task {
+                                await loadMoreQuotes()
+                            }
                         }
-                    }
+                    )
+                    .navigationTitle("Quotes")
+                    .navigationBarTitleDisplayMode(.inline)
                 }
             }
         }
