@@ -193,12 +193,12 @@ struct TimelineView: View {
                             }
                         }
                     }
+                    .refreshable {
+                        await refreshPosts()
+                    }
                 }
             }
             .navigationTitle(NSLocalizedString("timeline.fediverse", comment: "Fediverse navigation title"))
-            .refreshable {
-                await refreshPosts()
-            }
             .task {
                 guard !hasLoadedInitial else { return }
                 hasLoadedInitial = true
@@ -260,8 +260,7 @@ struct TimelineView: View {
         defer { isLoading = false }
 
         do {
-            // Fetch will use cache first, then network - Apollo's default behavior
-            let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil))
+            let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil), cachePolicy: .networkFirst)
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
@@ -346,12 +345,12 @@ struct PersonalTimelineView: View {
                             }
                         }
                     }
+                    .refreshable {
+                        await refreshPosts()
+                    }
                 }
             }
             .navigationTitle(NSLocalizedString("nav.timeline", comment: "Timeline navigation title"))
-            .refreshable {
-                await refreshPosts()
-            }
             .task {
                 guard !hasLoadedInitial else { return }
                 hasLoadedInitial = true
@@ -411,8 +410,7 @@ struct PersonalTimelineView: View {
         defer { isLoading = false }
 
         do {
-            // Fetch will use cache first, then network - Apollo's default behavior
-            let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil))
+            let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil), cachePolicy: .networkFirst)
             let fetchedPosts = response.data?.personalTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
@@ -498,12 +496,12 @@ struct LocalTimelineView: View {
                             }
                         }
                     }
+                    .refreshable {
+                        await refreshPosts()
+                    }
                 }
             }
             .navigationTitle(NSLocalizedString("timeline.hackersPub", comment: "Hackers' Pub navigation title"))
-            .refreshable {
-                await refreshPosts()
-            }
             .task {
                 guard !hasLoadedInitial else { return }
                 hasLoadedInitial = true
@@ -565,8 +563,7 @@ struct LocalTimelineView: View {
         defer { isLoading = false }
 
         do {
-            // Fetch will use cache first, then network - Apollo's default behavior
-            let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil))
+            let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil), cachePolicy: .networkFirst)
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false

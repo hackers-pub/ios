@@ -51,7 +51,18 @@ struct CustomInterceptorProvider: InterceptorProvider {
 
 // Configure Apollo client with custom network transport and persistent SQLite store
 private let url = URL(string: "https://hackers.pub/graphql")!
-private let urlSession = URLSession.shared
+private let urlSession: URLSession = {
+    // Use a dedicated session that bypasses local HTTP response caching so
+    // pull-to-refresh always fetches fresh timeline data from the network.
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+    configuration.urlCache = nil
+    configuration.httpAdditionalHeaders = [
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+    ]
+    return URLSession(configuration: configuration)
+}()
 
 // Create a persistent SQLite cache
 private let documentsPath = NSSearchPathForDirectoriesInDomains(
