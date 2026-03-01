@@ -153,5 +153,11 @@
 "settings.timeline.markdownMaxLength" = "콘텐츠 길이 제한";
 "settings.timeline.unlimited" = "제한 없음";
 
+/* Engagement Settings */
+"settings.engagement" = "게시물 반응 툴바";
+"settings.engagement.swapShareActions" = "공유 탭 / 길게 누르기 바꾸기";
+"settings.engagement.swapQuoteActions" = "인용 탭 / 길게 누르기 바꾸기";
+"settings.engagement.footer" = "공유와 인용 버튼의 탭과 길게 누르기 동작을 서로 바꿉니다.";
+
 /* Truncation */
 "truncate.readMore" = "더 보기";

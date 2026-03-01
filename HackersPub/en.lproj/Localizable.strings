@@ -153,5 +153,11 @@
 "settings.timeline.markdownMaxLength" = "Content Length Limit";
 "settings.timeline.unlimited" = "Unlimited";
 
+/* Engagement Settings */
+"settings.engagement" = "Engagement Toolbar";
+"settings.engagement.swapShareActions" = "Swap Share Tap and Long Press";
+"settings.engagement.swapQuoteActions" = "Swap Quote Tap and Long Press";
+"settings.engagement.footer" = "Swap what tap and long press do for Shares and Quotes buttons.";
+
 /* Truncation */
 "truncate.readMore" = "Read more";

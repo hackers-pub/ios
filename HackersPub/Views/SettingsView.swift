@@ -25,6 +25,8 @@ struct SettingsView: View {
             UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
         }
     }
+    @AppStorage("engagement.sharePressActionsSwapped") private var sharePressActionsSwapped = false
+    @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
@@ -148,6 +150,23 @@ struct SettingsView: View {
                     Text(NSLocalizedString("settings.timeline", comment: "Timeline section header"))
                 } footer: {
                     Text(NSLocalizedString("settings.timeline.footer", comment: "Timeline footer"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Toggle(
+                        NSLocalizedString("settings.engagement.swapShareActions", comment: "Swap share tap and long press actions toggle"),
+                        isOn: $sharePressActionsSwapped
+                    )
+                    Toggle(
+                        NSLocalizedString("settings.engagement.swapQuoteActions", comment: "Swap quote tap and long press actions toggle"),
+                        isOn: $quotePressActionsSwapped
+                    )
+                } header: {
+                    Text(NSLocalizedString("settings.engagement", comment: "Engagement section header"))
+                } footer: {
+                    Text(NSLocalizedString("settings.engagement.footer", comment: "Engagement section footer"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

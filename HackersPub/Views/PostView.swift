@@ -318,6 +318,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     @State private var hasMoreQuotes = false
     @State private var quotesCursor: String?
     @State private var isLoadingMoreQuotes = false
+    @AppStorage("engagement.sharePressActionsSwapped") private var sharePressActionsSwapped = false
+    @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
     @State private var markdownMaxLength = UserDefaults.standard.integer(forKey: "markdownMaxLength") {
         didSet {
             UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
@@ -383,6 +385,63 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             }
         } catch {
             print("Error toggling share: \(error)")
+        }
+    }
+
+    private func presentSharesSheet() {
+        activeSheet = .shares
+        Task {
+            await fetchShares()
+        }
+    }
+
+    private func performShareToggle() {
+        guard AuthManager.shared.currentAccount != nil else { return }
+        Task {
+            await toggleShare()
+        }
+    }
+
+    private func handleShareTap() {
+        if sharePressActionsSwapped {
+            presentSharesSheet()
+        } else {
+            performShareToggle()
+        }
+    }
+
+    private func handleShareLongPress() {
+        if sharePressActionsSwapped {
+            performShareToggle()
+        } else {
+            presentSharesSheet()
+        }
+    }
+
+    private func presentQuotesSheet() {
+        activeSheet = .quotes
+        Task {
+            await fetchQuotes()
+        }
+    }
+
+    private func presentQuoteComposer() {
+        activeSheet = .quote
+    }
+
+    private func handleQuoteTap() {
+        if quotePressActionsSwapped {
+            presentQuotesSheet()
+        } else {
+            presentQuoteComposer()
+        }
+    }
+
+    private func handleQuoteLongPress() {
+        if quotePressActionsSwapped {
+            presentQuoteComposer()
+        } else {
+            presentQuotesSheet()
         }
     }
 
@@ -798,16 +857,10 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         tint: hasShared ? .green : .secondary,
                         isLoading: isSharing,
                         onTap: {
-                            guard AuthManager.shared.currentAccount != nil else { return }
-                            Task {
-                                await toggleShare()
-                            }
+                            handleShareTap()
                         },
                         onLongPress: {
-                            activeSheet = .shares
-                            Task {
-                                await fetchShares()
-                            }
+                            handleShareLongPress()
                         }
                     )
 
@@ -816,13 +869,10 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         count: post.engagementStats.quotes,
                         showsZeroCount: false,
                         onTap: {
-                            activeSheet = .quote
+                            handleQuoteTap()
                         },
                         onLongPress: {
-                            activeSheet = .quotes
-                            Task {
-                                await fetchQuotes()
-                            }
+                            handleQuoteLongPress()
                         }
                     )
 

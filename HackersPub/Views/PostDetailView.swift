@@ -59,6 +59,8 @@ struct PostDetailView: View {
     @State private var hasMoreQuotes = false
     @State private var quotesCursor: String?
     @State private var isLoadingMoreQuotes = false
+    @AppStorage("engagement.sharePressActionsSwapped") private var sharePressActionsSwapped = false
+    @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
@@ -374,17 +376,10 @@ struct PostDetailView: View {
                             tint: hasShared ? .green : .secondary,
                             isLoading: isSharing,
                             onTap: {
-                                guard AuthManager.shared.currentAccount != nil else { return }
-                                Task {
-                                    await toggleShare()
-                                }
+                                handleShareTap()
                             },
                             onLongPress: {
-                                refreshPostOnSheetDismiss = false
-                                activeSheet = .shares
-                                Task {
-                                    await fetchShares()
-                                }
+                                handleShareLongPress()
                             }
                         )
 
@@ -393,15 +388,10 @@ struct PostDetailView: View {
                             count: post.engagementStats.quotes,
                             showsZeroCount: true,
                             onTap: {
-                                refreshPostOnSheetDismiss = true
-                                activeSheet = .quote
+                                handleQuoteTap()
                             },
                             onLongPress: {
-                                refreshPostOnSheetDismiss = false
-                                activeSheet = .quotesList
-                                Task {
-                                    await fetchQuotes()
-                                }
+                                handleQuoteLongPress()
                             }
                         )
 
@@ -897,6 +887,66 @@ struct PostDetailView: View {
             }
         } catch {
             print("Error toggling share: \(error)")
+        }
+    }
+
+    private func performShareToggle() {
+        guard AuthManager.shared.currentAccount != nil else { return }
+        Task {
+            await toggleShare()
+        }
+    }
+
+    private func presentSharesSheet() {
+        refreshPostOnSheetDismiss = false
+        activeSheet = .shares
+        Task {
+            await fetchShares()
+        }
+    }
+
+    private func handleShareTap() {
+        if sharePressActionsSwapped {
+            presentSharesSheet()
+        } else {
+            performShareToggle()
+        }
+    }
+
+    private func handleShareLongPress() {
+        if sharePressActionsSwapped {
+            performShareToggle()
+        } else {
+            presentSharesSheet()
+        }
+    }
+
+    private func presentQuoteComposer() {
+        refreshPostOnSheetDismiss = true
+        activeSheet = .quote
+    }
+
+    private func presentQuotesSheet() {
+        refreshPostOnSheetDismiss = false
+        activeSheet = .quotesList
+        Task {
+            await fetchQuotes()
+        }
+    }
+
+    private func handleQuoteTap() {
+        if quotePressActionsSwapped {
+            presentQuotesSheet()
+        } else {
+            presentQuoteComposer()
+        }
+    }
+
+    private func handleQuoteLongPress() {
+        if quotePressActionsSwapped {
+            presentQuoteComposer()
+        } else {
+            presentQuotesSheet()
         }
     }
 
