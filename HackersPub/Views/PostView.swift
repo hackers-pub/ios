@@ -353,7 +353,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
 
     private var canDeleteCurrentPost: Bool {
         guard let viewerHandle = authManager.currentAccount?.handle else { return false }
-        return viewerHandle.caseInsensitiveCompare(post.actor.handle) == .orderedSame
+        let isViewerAuthor = viewerHandle.caseInsensitiveCompare(post.actor.handle) == .orderedSame
+        return isViewerAuthor && post.sharedPost == nil
     }
 
     private func getContent(content: String) -> String {
