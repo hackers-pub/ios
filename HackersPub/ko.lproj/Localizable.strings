@@ -142,3 +142,6 @@
 "settings.timeline.footer" = "타임라인의 콘텐츠 길이 제한은 마크다운의 글자 수를 기준으로 적용되며 리스트에서만 적용됩니다.";
 "settings.timeline.markdownMaxLength" = "콘텐츠 길이 제한";
 "settings.timeline.unlimited" = "제한 없음";
+
+/* Truncation */
+"truncate.readMore" = "더 보기";

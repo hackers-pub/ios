@@ -142,3 +142,6 @@
 "settings.timeline.footer" = "The timeline content length limit is based on the number of Markdown characters and is only enforced in the list view.";
 "settings.timeline.markdownMaxLength" = "Content Length Limit";
 "settings.timeline.unlimited" = "Unlimited";
+
+/* Truncation */
+"truncate.readMore" = "Read more";

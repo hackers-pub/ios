@@ -2,23 +2,23 @@ import Foundation
 
 // MARK: - Options
 
-/// struct to configure the HTML string truncation
+/// Configuration for HTML string truncation.
 public struct HTMLTruncateOptions {
     public let keepImageTag: Bool
-    public let truncateLastWord: Bool
-    public let slop: Int
     public let ellipsis: String
+    /// Optional text displayed after the ellipsis when truncation occurs
+    /// (e.g. "Read more"). When non-nil the text is wrapped in a styled
+    /// `<span>` so it appears as a link-like indicator inside the HTML.
+    public let readMoreText: String?
 
     public init(
         keepImageTag: Bool = false,
-        truncateLastWord: Bool = true,
-        slop: Int = 10,
-        ellipsis: String = "..."
+        ellipsis: String = "\u{2026}",
+        readMoreText: String? = nil
     ) {
         self.keepImageTag = keepImageTag
-        self.truncateLastWord = truncateLastWord
-        self.slop = slop
         self.ellipsis = ellipsis
+        self.readMoreText = readMoreText
     }
 
     public static let `default` = HTMLTruncateOptions()
@@ -27,143 +27,190 @@ public struct HTMLTruncateOptions {
 // MARK: - String Extension
 
 public extension String {
-
-    /// truncate string safely with keep html tags
+    /// Truncate an HTML string by visible text length while preserving tag structure.
+    ///
+    /// The implementation counts only visible text characters (excluding HTML tags)
+    /// and closes any open tags after the truncation point. HTML entities such as
+    /// `&amp;` count as a single visible character.
     func htmlTruncated(limit: Int, options: HTMLTruncateOptions = .default) -> String {
-        let effectiveSlopyb = min(options.slop, limit)
-        let slop = options.slop > limit ? limit : effectiveSlopyb
-        
-        var tagStack: [String] = []
-        var currentTextLength = 0
-        var result = ""
-        var currentIndex = self.startIndex
-        
-        let attrPattern = #"[a-zA-Z0-9-]+\s*=\s*"[^"]*"\s*"#
-        let tagPattern = try! Regex(#"<\/?([a-zA-Z0-9]+)(?:\s*(?:\#(attrPattern))*)?\s*\/?>"#)
-        
-        let matches = self.matches(of: tagPattern)
-        for match in matches {
-            let textBeforeTag = self[currentIndex..<match.range.lowerBound]
-            let textCount = textBeforeTag.count
-            
-            if currentTextLength + textCount > limit {
-                let remainingLimit = limit - currentTextLength
-                let cutPosition = calculateEndPosition(
-                    text: String(textBeforeTag),
-                    limit: remainingLimit,
-                    slop: slop,
-                    truncateLastWord: options.truncateLastWord
-                )
-                
-                result += textBeforeTag.prefix(cutPosition)
-                currentIndex = match.range.lowerBound
-                currentTextLength = limit + 1
-                break
-            }
-            
-            // 텍스트 추가
-            result += textBeforeTag
-            currentTextLength += textCount
-            
-            // process tag
-            let tagString = String(self[match.range])
-            guard let tagNameSubstring = match.output[1].substring else { continue }
-            let tagName = String(tagNameSubstring)
-            
-            if tagString.hasPrefix("</") {
-                // close tag
-                if tagStack.last == tagName {
-                    tagStack.removeLast()
-                }
-            } else if !tagString.hasSuffix("/>") && !HTMLConstants.voidTags.contains(tagName.lowercased()) {
-                // open tag, add to stack
-                tagStack.append(tagName)
-            }
-            
-            // tag itself is not included in the length and added to the result
-            result += tagString
-            currentIndex = match.range.upperBound
-        }
-        
-        // process remaining text
-        if currentTextLength <= limit && currentIndex < self.endIndex {
-            let remainingText = self[currentIndex...]
-            let remainingLimit = limit - currentTextLength
-            
-            if remainingText.count > remainingLimit {
-                let cutPosition = calculateEndPosition(
-                    text: String(remainingText),
-                    limit: remainingLimit,
-                    slop: slop,
-                    truncateLastWord: options.truncateLastWord
-                )
-                result += remainingText.prefix(cutPosition)
-            } else {
-                result += remainingText
-            }
-        }
+        guard limit > 0 else { return "" }
 
-        // check need to add ellipsis
-        let plainTextLength = self.replacing(tagPattern, with: "").count
-        if plainTextLength > limit {
-            result += options.ellipsis
+        do {
+            return try HTMLSafeTruncator.truncate(html: self, limit: limit, options: options)
+        } catch {
+            return self
         }
-        
-        // close open tags
-        result += tagStack.reversed()
-            .filter { !HTMLConstants.excludeTags.contains($0) }
-            .map { "</\($0)>" }
-            .joined()
-        
-        // process image tag
-        if !options.keepImageTag {
-            // remove image tag
-            result = result.replacing(try! Regex(#"<img\s+[^>]*>"#).ignoresCase(), with: "")
-        }
-        
-        return result
-    }
-    
-    // MARK: - Helper Methods
-    
-    /// calculate the position to truncate the text
-    private func calculateEndPosition(text: String, limit: Int, slop: Int, truncateLastWord: Bool) -> Int {
-        if truncateLastWord || limit <= slop {
-            return limit
-        }
-        
-        // find the word boundary near the limit
-        let searchRangeStart = text.index(text.startIndex, offsetBy: max(0, limit - slop))
-        let searchRangeEnd = text.index(text.startIndex, offsetBy: min(text.count, limit + slop))
-        let searchRange = searchRangeStart..<searchRangeEnd
-        let substring = text[searchRange]
-        
-        // find the word boundary
-        let wordBreakPattern = try! Regex(#"\W+"#)
-        let matches = substring.matches(of: wordBreakPattern)
-        
-        // find the word boundary near the limit
-        var bestCutIndex = text.index(text.startIndex, offsetBy: limit)
-        var minDistance = Int.max
-        
-        for match in matches {
-            let distance = abs(text.distance(from: match.range.lowerBound, to: bestCutIndex))
-            if distance < minDistance {
-                minDistance = distance
-                bestCutIndex = match.range.lowerBound
-            }
-        }
-        
-        return text.distance(from: text.startIndex, to: bestCutIndex)
     }
 }
 
-// MARK: - Constants
+// MARK: - HTMLSafeTruncator
 
-private enum HTMLConstants {
-    /// tags that don't need a closing tag
-    static let voidTags: Set<String> = ["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]
-    
-    /// tags that don't need a closing tag
-    static let excludeTags: Set<String> = ["img", "br"]
+/// A stateless truncator that walks an HTML string token-by-token,
+/// counting only visible text towards the limit while preserving the full
+/// tag structure.
+enum HTMLSafeTruncator {
+    /// Truncate *html* so that at most *limit* visible characters remain.
+    static func truncate(html: String, limit: Int, options: HTMLTruncateOptions) throws -> String {
+        let tokens = try HTMLTokenizer.tokenize(html)
+        let visibleLength = visibleTextLength(of: tokens)
+
+        guard visibleLength > limit else {
+            let safe = rebuildSafe(tokens: tokens)
+            return options.keepImageTag ? safe : stripImgTags(safe)
+        }
+
+        let truncated = buildTruncatedOutput(tokens: tokens, limit: limit, options: options)
+        return options.keepImageTag ? truncated : stripImgTags(truncated)
+    }
+}
+
+// MARK: - Safe Rebuild
+
+private extension HTMLSafeTruncator {
+    /// Rebuild the HTML from tokens, stripping unsafe (script/style) content.
+    static func rebuildSafe(tokens: [HTMLToken]) -> String {
+        var result = ""
+        for token in tokens {
+            switch token {
+            case let .text(value):
+                result += value
+            case let .entity(raw, _):
+                result += raw
+            case let .openTag(raw, name):
+                guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { continue }
+                result += raw
+            case let .closeTag(raw, name):
+                guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { continue }
+                result += raw
+            case let .voidTag(raw, name):
+                guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { continue }
+                result += raw
+            case .unsafeContent:
+                continue
+            }
+        }
+        return result
+    }
+}
+
+// MARK: - Output Builder
+
+private extension HTMLSafeTruncator {
+    static func buildTruncatedOutput(
+        tokens: [HTMLToken],
+        limit: Int,
+        options: HTMLTruncateOptions
+    ) -> String {
+        var result = ""
+        var tagStack: [String] = []
+        var counted = 0
+
+        for token in tokens {
+            if counted >= limit { break }
+            processToken(token, result: &result, tagStack: &tagStack, counted: &counted, limit: limit)
+        }
+
+        result += options.ellipsis
+        if let readMore = options.readMoreText {
+            // Use system link color via -apple-system-link so the indicator
+            // adapts to Light / Dark Mode automatically.
+            result += " <span style=\"color: -apple-system-link;\">\(readMore)</span>"
+        }
+        appendClosingTags(to: &result, tagStack: tagStack)
+        return result
+    }
+
+    static func processToken(
+        _ token: HTMLToken,
+        result: inout String,
+        tagStack: inout [String],
+        counted: inout Int,
+        limit: Int
+    ) {
+        switch token {
+        case let .text(value):
+            let (appended, consumed) = truncateVisibleText(value, remaining: limit - counted)
+            result += appended
+            counted += consumed
+        case let .entity(raw, _):
+            guard counted < limit else { return }
+            result += raw
+            counted += 1
+        case let .openTag(raw, name):
+            processOpenTag(raw: raw, name: name, result: &result, tagStack: &tagStack)
+        case let .closeTag(raw, name):
+            processCloseTag(raw: raw, name: name, result: &result, tagStack: &tagStack)
+        case let .voidTag(raw, name):
+            guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { return }
+            result += raw
+        case .unsafeContent:
+            break
+        }
+    }
+
+    static func processOpenTag(
+        raw: String,
+        name: String,
+        result: inout String,
+        tagStack: inout [String]
+    ) {
+        guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { return }
+        result += raw
+        if !HTMLConstants.voidTags.contains(name.lowercased()) {
+            tagStack.append(name)
+        }
+    }
+
+    static func processCloseTag(
+        raw: String,
+        name: String,
+        result: inout String,
+        tagStack: inout [String]
+    ) {
+        guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { return }
+        if let idx = tagStack.lastIndex(of: name) {
+            tagStack.remove(at: idx)
+        }
+        result += raw
+    }
+
+    static func appendClosingTags(to result: inout String, tagStack: [String]) {
+        let tagsToClose = tagStack.reversed()
+            .filter { !HTMLConstants.omitCloseTags.contains($0.lowercased()) }
+        for tag in tagsToClose {
+            result += "</\(tag)>"
+        }
+    }
+
+    static func truncateVisibleText(
+        _ text: String,
+        remaining: Int
+    ) -> (appended: String, consumed: Int) {
+        guard remaining > 0 else { return ("", 0) }
+        var count = 0
+        var endIndex = text.startIndex
+        for idx in text.indices {
+            if count >= remaining { break }
+            endIndex = text.index(after: idx)
+            count += 1
+        }
+        return (String(text[text.startIndex ..< endIndex]), count)
+    }
+
+    static func visibleTextLength(of tokens: [HTMLToken]) -> Int {
+        tokens.reduce(0) { acc, token in
+            switch token {
+            case let .text(value): return acc + value.count
+            case .entity: return acc + 1
+            default: return acc
+            }
+        }
+    }
+
+    static func stripImgTags(_ html: String) -> String {
+        guard let regex = try? Regex(#"<img\s[^>]*>"#).ignoresCase() else {
+            return html
+        }
+        return html.replacing(regex, with: "")
+    }
 }
