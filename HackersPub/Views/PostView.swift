@@ -1,6 +1,6 @@
-import SwiftUI
-import Kingfisher
 @preconcurrency import Apollo
+import Kingfisher
+import SwiftUI
 
 protocol EngagementStatsProtocol {
     var replies: Int { get }
@@ -108,13 +108,19 @@ struct PostView<P: PostProtocol>: View {
         self.post = post
         self.showAuthor = showAuthor
         self.disableNavigation = disableNavigation
-        self._hasShared = State(initialValue: post.viewerHasShared)
-        self._sharesCount = State(initialValue: post.engagementStats.shares)
+        _hasShared = State(initialValue: post.viewerHasShared)
+        _sharesCount = State(initialValue: post.engagementStats.shares)
     }
 
     private func getContent(content: String) -> String {
-        if self.markdownMaxLength != 0 {
-            return content.htmlTruncated(limit: self.markdownMaxLength)
+        if markdownMaxLength != 0 {
+            let options = HTMLTruncateOptions(
+                readMoreText: String(
+                    localized: "truncate.readMore",
+                    defaultValue: "Read more"
+                )
+            )
+            return content.htmlTruncated(limit: markdownMaxLength, options: options)
         }
 
         return content
@@ -192,109 +198,119 @@ struct PostView<P: PostProtocol>: View {
                     }
                 }
 
-            if let sharedPost = post.sharedPost {
-                // Display shared post
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Button {
-                            navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
-                        } label: {
-                            KFImage(URL(string: sharedPost.actor.avatarUrl))
-                                .placeholder {
-                                    Color.gray.opacity(0.2)
-                                }
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 40, height: 40)
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
+                if let sharedPost = post.sharedPost {
+                    // Display shared post
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Button {
+                                navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
+                            } label: {
+                                KFImage(URL(string: sharedPost.actor.avatarUrl))
+                                    .placeholder {
+                                        Color.gray.opacity(0.2)
+                                    }
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(Circle())
+                            }
+                            .buttonStyle(.plain)
 
-                        Button {
-                            navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                if let name = sharedPost.actor.name {
-                                    HTMLTextView(html: name, font: .headline)
+                            Button {
+                                navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    if let name = sharedPost.actor.name {
+                                        HTMLTextView(html: name, font: .headline)
+                                    }
+                                    Text(sharedPost.actor.handle)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
                                 }
-                                Text(sharedPost.actor.handle)
-                                    .font(.subheadline)
+                            }
+                            .buttonStyle(.plain)
+
+                            Spacer()
+                        }
+
+                        if let name = sharedPost.name {
+                            Text(name)
+                                .font(.headline)
+                        }
+
+                        let content = self.getContent(content: sharedPost.content)
+                        HTMLContentView(
+                            html: content,
+                            media: sharedPost.media.map {
+                                MediaItem(
+                                    url: $0.url, thumbnailUrl: $0.thumbnailUrl,
+                                    alt: $0.alt, width: $0.width, height: $0.height
+                                )
+                            },
+                            onTap: !disableNavigation ? {
+                                navigationCoordinator.navigateToPost(id: sharedPost.id)
+                            } : nil
+                        )
+
+                        Text(DateFormatHelper.relativeTime(from: sharedPost.published))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else if post.isArticle {
+                    // Display article summary with navigation link
+                    NavigationLink {
+                        ArticleDetailView(post: post)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if let name = post.name {
+                                Text(name)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                            }
+                            if let summary = post.summary {
+                                Text(summary)
+                                    .font(.body)
                                     .foregroundStyle(.secondary)
+                                    .lineLimit(3)
+                            }
+                            HStack {
+                                Text("Read article")
+                                    .font(.caption)
+                                    .foregroundStyle(.blue)
+                                Image(systemName: "arrow.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.blue)
                             }
                         }
-                        .buttonStyle(.plain)
-
-                        Spacer()
                     }
-
-                    if let name = sharedPost.name {
+                } else {
+                    // Display original post content
+                    if let name = post.name {
                         Text(name)
                             .font(.headline)
                     }
-                    
+
                     let content = self.getContent(content: post.content)
                     HTMLContentView(
                         html: content,
-                        media: sharedPost.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) },
-                        onTap: !disableNavigation ? {
+                        media: post.media.map {
+                            MediaItem(
+                                url: $0.url, thumbnailUrl: $0.thumbnailUrl,
+                                alt: $0.alt, width: $0.width, height: $0.height
+                            )
+                        },
+                        onTap: !disableNavigation && !post.isArticle ? {
                             navigationCoordinator.navigateToPost(id: post.id)
                         } : nil
                     )
+                }
 
-                    Text(DateFormatHelper.relativeTime(from: sharedPost.published))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            } else if post.isArticle {
-                // Display article summary with navigation link
-                NavigationLink {
-                    ArticleDetailView(post: post)
-                } label: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        if let name = post.name {
-                            Text(name)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                        }
-                        if let summary = post.summary {
-                            Text(summary)
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(3)
-                        }
-                        HStack {
-                            Text("Read article")
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                            Image(systemName: "arrow.right")
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                        }
-                    }
-                }
-            } else {
-                // Display original post content
-                if let name = post.name {
-                    Text(name)
-                        .font(.headline)
-                }
-                
-                let content = self.getContent(content: post.content)
-                HTMLContentView(
-                    html: content,
-                    media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) },
-                    onTap: !disableNavigation && !post.isArticle ? {
-                        navigationCoordinator.navigateToPost(id: post.id)
-                    } : nil
-                )
-            }
-
-            Text(DateFormatHelper.relativeTime(from: post.published))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(DateFormatHelper.relativeTime(from: post.published))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 // Action buttons with engagement stats
                 HStack(spacing: 16) {
