@@ -139,6 +139,7 @@ type Actor implements Node {
   instanceHost: String!
   iri: URL!
   isFollowedBy(followerId: ID): Boolean!
+  isViewer: Boolean!
   local: Boolean!
   name: HTML
   noteByUuid(uuid: UUID!): Note
@@ -156,6 +157,7 @@ type Actor implements Node {
   url: URL
   username: String!
   uuid: UUID!
+  viewerFollows: Boolean!
 }
 
 type ActorArticlesConnection {
@@ -328,6 +330,9 @@ type ArticleContent implements Node {
 type ArticleDraft implements Node {
   account: Account!
   content: Markdown!
+
+  """The rendered HTML of the draft's markdown content."""
+  contentHtml: HTML!
   created: DateTime!
   id: ID!
   tags: [String!]!
@@ -387,6 +392,18 @@ type DeleteArticleDraftPayload {
 
 union DeleteArticleDraftResult = DeleteArticleDraftPayload | InvalidInputError | NotAuthenticatedError
 
+input DeletePostInput {
+  clientMutationId: ID
+  id: ID!
+}
+
+type DeletePostPayload {
+  clientMutationId: ID
+  deletedPostId: ID!
+}
+
+union DeletePostResult = DeletePostPayload | InvalidInputError | NotAuthenticatedError | SharedPostDeletionNotAllowedError
+
 """A document in a specific language."""
 type Document {
   html: String!
@@ -413,6 +430,19 @@ type EmojiReactionGroup implements ReactionGroup {
 type EmptySearchQueryError {
   message: String!
 }
+
+input FollowActorInput {
+  actorId: ID!
+  clientMutationId: ID
+}
+
+type FollowActorPayload {
+  clientMutationId: ID
+  followee: Actor!
+  follower: Actor!
+}
+
+union FollowActorResult = FollowActorPayload | InvalidInputError | NotAuthenticatedError
 
 type FollowNotification implements Node & Notification {
   account: Account!
@@ -546,6 +576,8 @@ type Mutation {
   ): SignupResult!
   createNote(input: CreateNoteInput!): CreateNoteResult!
   deleteArticleDraft(input: DeleteArticleDraftInput!): DeleteArticleDraftResult!
+  deletePost(input: DeletePostInput!): DeletePostResult!
+  followActor(input: FollowActorInput!): FollowActorResult!
   getPasskeyAuthenticationOptions(
     """Temporary session ID for passkey authentication."""
     sessionId: UUID!
@@ -603,6 +635,7 @@ type Mutation {
   ): Session
   saveArticleDraft(input: SaveArticleDraftInput!): SaveArticleDraftResult!
   sharePost(input: SharePostInput!): SharePostResult!
+  unfollowActor(input: UnfollowActorInput!): UnfollowActorResult!
   unsharePost(input: UnsharePostInput!): UnsharePostResult!
   updateAccount(input: UpdateAccountInput!): UpdateAccountPayload!
   verifyPasskeyRegistration(accountId: ID!, name: String!, registrationResponse: JSON!): PasskeyRegistrationResult!
@@ -914,6 +947,7 @@ type Query {
   nodes(ids: [ID!]!): [Node]!
   personalTimeline(after: String, before: String, first: Int, last: Int, local: Boolean = false, postType: PostType, withoutShares: Boolean = false): QueryPersonalTimelineConnection!
   publicTimeline(after: String, before: String, first: Int, languages: [Locale!] = [], last: Int, local: Boolean = false, postType: PostType, withoutShares: Boolean = false): QueryPublicTimelineConnection!
+  searchActorsByHandle(limit: Int = 25, prefix: String!): [Actor!]!
   searchGuide(
     """The locale for the search guide."""
     locale: Locale!
@@ -1133,6 +1167,10 @@ type SharePostPayload {
 
 union SharePostResult = InvalidInputError | NotAuthenticatedError | SharePostPayload
 
+type SharedPostDeletionNotAllowedError {
+  inputPath: String!
+}
+
 enum SignupBioError {
   BIO_TOO_LONG
 }
@@ -1188,6 +1226,19 @@ scalar URL
 A field whose value is a generic Universally Unique Identifier: https://en.wikipedia.org/wiki/Universally_unique_identifier.
 """
 scalar UUID
+
+input UnfollowActorInput {
+  actorId: ID!
+  clientMutationId: ID
+}
+
+type UnfollowActorPayload {
+  clientMutationId: ID
+  followee: Actor!
+  follower: Actor!
+}
+
+union UnfollowActorResult = InvalidInputError | NotAuthenticatedError | UnfollowActorPayload
 
 input UnsharePostInput {
   clientMutationId: ID

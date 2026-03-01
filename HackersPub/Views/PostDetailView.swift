@@ -13,9 +13,24 @@ struct PostDetailView: View {
     @State private var repliesCursor: String?
     @State private var isLoadingMoreReplies = false
     @State private var isSharing = false
+    @State private var isReacting = false
+    @State private var showingReactionPicker = false
     @State private var hasShared = false
     @State private var sharesCount = 0
+    @State private var reactionsCount = 0
+    @State private var reactionSheetHeight: CGFloat = 180
+    @State private var reactionGroups: [ReactionGroupSnapshot] = []
+    @State private var reactionErrorMessage: String?
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+
+    private var useReactionPopover: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad || horizontalSizeClass == .regular
+    }
+
+    private var viewerHasReacted: Bool {
+        reactionGroups.contains(where: { $0.viewerHasReacted })
+    }
 
     var body: some View {
         ScrollView {
@@ -290,7 +305,7 @@ struct PostDetailView: View {
                     // Engagement stats
                     HStack(spacing: 24) {
                         StatView(count: post.engagementStats.replies, label: "Replies", icon: "arrowshape.turn.up.left")
-                        StatView(count: post.engagementStats.reactions, label: "Reactions", icon: "heart")
+                        StatView(count: reactionsCount, label: ReactionL10n.title, icon: "heart")
                         StatView(count: sharesCount, label: "Shares", icon: "arrow.2.squarepath")
                         StatView(count: post.engagementStats.quotes, label: "Quotes", icon: "quote.bubble")
                     }
@@ -301,6 +316,21 @@ struct PostDetailView: View {
 
                     // Action buttons
                     HStack(spacing: 16) {
+                        Button {
+                            showingReactionPicker = true
+                        } label: {
+                            if isReacting {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                            } else {
+                                Label(ReactionL10n.react, systemImage: viewerHasReacted ? "heart.fill" : "heart")
+                                    .labelStyle(.iconOnly)
+                                    .foregroundStyle(viewerHasReacted ? Color.red : Color.secondary)
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(isReacting || AuthManager.shared.currentAccount == nil)
+
                         Button {
                             showingReplyView = true
                         } label: {
@@ -347,7 +377,7 @@ struct PostDetailView: View {
                             .padding(.horizontal)
 
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Reactions")
+                            Text(ReactionL10n.title)
                                 .font(.headline)
                                 .padding(.horizontal)
 
@@ -442,6 +472,78 @@ struct PostDetailView: View {
         .sheet(item: $selectedReaction) { reaction in
             ReactorsListView(reaction: reaction)
         }
+        .sheet(
+            isPresented: Binding(
+                get: { showingReactionPicker && !useReactionPopover },
+                set: { isPresented in
+                    if !isPresented {
+                        showingReactionPicker = false
+                    }
+                }
+            )
+        ) {
+            ReactionPickerView(
+                reactionGroups: reactionGroups,
+                isSubmitting: isReacting,
+                onEmojiSelect: { emoji in
+                    Task {
+                        await toggleReaction(emoji: emoji)
+                    }
+                },
+                onClose: {
+                    showingReactionPicker = false
+                }
+            )
+            .trackReactionPickerHeight { contentHeight in
+                let targetHeight = min(max(contentHeight + 24, 160), 340)
+                if abs(reactionSheetHeight - targetHeight) > 1 {
+                    reactionSheetHeight = targetHeight
+                }
+            }
+            .presentationDetents([.height(reactionSheetHeight)])
+        }
+        .popover(
+            isPresented: Binding(
+                get: { showingReactionPicker && useReactionPopover },
+                set: { isPresented in
+                    if !isPresented {
+                        showingReactionPicker = false
+                    }
+                }
+            ),
+            arrowEdge: .bottom
+        ) {
+            ReactionPickerView(
+                reactionGroups: reactionGroups,
+                isSubmitting: isReacting,
+                onEmojiSelect: { emoji in
+                    Task {
+                        await toggleReaction(emoji: emoji)
+                    }
+                },
+                onClose: {
+                    showingReactionPicker = false
+                }
+            )
+            .frame(width: 360)
+        }
+        .alert(
+            ReactionL10n.failedTitle,
+            isPresented: Binding(
+                get: { reactionErrorMessage != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        reactionErrorMessage = nil
+                    }
+                }
+            )
+        ) {
+            Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
+                reactionErrorMessage = nil
+            }
+        } message: {
+            Text(reactionErrorMessage ?? "")
+        }
     }
 
     private func fetchPost() async {
@@ -467,6 +569,8 @@ struct PostDetailView: View {
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
             hasShared = fetchedPost.viewerHasShared
             sharesCount = fetchedPost.engagementStats.shares
+            reactionsCount = fetchedPost.engagementStats.reactions
+            reactionGroups = fetchedPost.reactionGroupsSnapshot
         } catch {
             errorMessage = "Failed to load post: \(error.localizedDescription)"
         }
@@ -515,6 +619,8 @@ struct PostDetailView: View {
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
             hasShared = fetchedPost.viewerHasShared
             sharesCount = fetchedPost.engagementStats.shares
+            reactionsCount = fetchedPost.engagementStats.reactions
+            reactionGroups = fetchedPost.reactionGroupsSnapshot
         } catch {
             errorMessage = "Failed to load post: \(error.localizedDescription)"
         }
@@ -547,6 +653,74 @@ struct PostDetailView: View {
             }
         } catch {
             print("Error toggling share: \(error)")
+        }
+    }
+
+    private func applyReactionLocally(emoji: String, add: Bool) {
+        if let existingIndex = reactionGroups.firstIndex(where: { $0.emoji == emoji }) {
+            var group = reactionGroups[existingIndex]
+            let updatedCount = max(0, group.totalCount + (add ? 1 : -1))
+            if updatedCount == 0 {
+                reactionGroups.remove(at: existingIndex)
+            } else {
+                group.totalCount = updatedCount
+                group.viewerHasReacted = add
+                reactionGroups[existingIndex] = group
+            }
+        } else if add {
+            reactionGroups.append(
+                ReactionGroupSnapshot(
+                    id: "emoji:\(emoji)",
+                    emoji: emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: 1,
+                    viewerHasReacted: true
+                )
+            )
+        }
+        reactionsCount = max(0, reactionsCount + (add ? 1 : -1))
+    }
+
+    private func toggleReaction(emoji: String) async {
+        guard !isReacting else { return }
+        guard AuthManager.shared.currentAccount != nil else {
+            reactionErrorMessage = ReactionL10n.signInRequired
+            return
+        }
+
+        isReacting = true
+        defer { isReacting = false }
+
+        let shouldRemove = reactionGroups.first(where: { $0.emoji == emoji })?.viewerHasReacted == true
+
+        do {
+            if shouldRemove {
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.RemoveReactionFromPostMutation(postId: postId, emoji: emoji)
+                )
+
+                if let payload = response.data?.removeReactionFromPost.asRemoveReactionFromPostPayload, payload.success {
+                    applyReactionLocally(emoji: emoji, add: false)
+                    Task { await refreshPost() }
+                } else {
+                    reactionErrorMessage = ReactionL10n.unableToRemove
+                }
+            } else {
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.AddReactionToPostMutation(postId: postId, emoji: emoji)
+                )
+
+                if let payload = response.data?.addReactionToPost.asAddReactionToPostPayload, payload.reaction != nil {
+                    applyReactionLocally(emoji: emoji, add: true)
+                    Task { await refreshPost() }
+                } else {
+                    reactionErrorMessage = ReactionL10n.unableToAdd
+                }
+            }
+        } catch {
+            reactionErrorMessage = shouldRemove ? ReactionL10n.unableToRemove : ReactionL10n.unableToAdd
+            print("Error toggling reaction: \(error)")
         }
     }
 
@@ -711,11 +885,11 @@ struct ReactorsListView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .navigationTitle("Reacted with \(reaction.emoji)")
+            .navigationTitle(String(format: ReactionL10n.reactedWithFormat, reaction.emoji))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
+                    Button(NSLocalizedString("settings.done", comment: "Done button")) {
                         dismiss()
                     }
                 }

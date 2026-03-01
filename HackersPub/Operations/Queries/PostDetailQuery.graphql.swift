@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PostDetailQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url visibility viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
+        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url visibility viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
       ))
 
     public var id: ID
@@ -682,6 +682,7 @@ public extension HackersPub {
                   .field("edges", [Edge].self),
                   .field("pageInfo", PageInfo.self),
                   .field("totalCount", Int.self),
+                  .field("viewerHasReacted", Bool.self),
                 ] }
                 @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                   PostDetailQuery.Data.Node.AsPost.ReactionGroup.AsEmojiReactionGroup.Reactors.self
@@ -690,6 +691,7 @@ public extension HackersPub {
                 public var edges: [Edge] { __data["edges"] }
                 public var pageInfo: PageInfo { __data["pageInfo"] }
                 public var totalCount: Int { __data["totalCount"] }
+                public var viewerHasReacted: Bool { __data["viewerHasReacted"] }
 
                 /// Node.AsPost.ReactionGroup.AsEmojiReactionGroup.Reactors.Edge
                 ///
@@ -815,6 +817,7 @@ public extension HackersPub {
                   .field("edges", [Edge].self),
                   .field("pageInfo", PageInfo.self),
                   .field("totalCount", Int.self),
+                  .field("viewerHasReacted", Bool.self),
                 ] }
                 @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                   PostDetailQuery.Data.Node.AsPost.ReactionGroup.AsCustomEmojiReactionGroup.Reactors.self
@@ -823,6 +826,7 @@ public extension HackersPub {
                 public var edges: [Edge] { __data["edges"] }
                 public var pageInfo: PageInfo { __data["pageInfo"] }
                 public var totalCount: Int { __data["totalCount"] }
+                public var viewerHasReacted: Bool { __data["viewerHasReacted"] }
 
                 /// Node.AsPost.ReactionGroup.AsCustomEmojiReactionGroup.Reactors.Edge
                 ///
@@ -956,6 +960,7 @@ public extension HackersPub {
                   .field("quotedPost", QuotedPost?.self),
                   .field("mentions", Mentions.self, arguments: ["first": 20]),
                   .field("engagementStats", EngagementStats.self),
+                  .field("reactionGroups", [ReactionGroup].self),
                 ] }
                 @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                   PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.self
@@ -975,6 +980,7 @@ public extension HackersPub {
                 public var quotedPost: QuotedPost? { __data["quotedPost"] }
                 public var mentions: Mentions { __data["mentions"] }
                 public var engagementStats: EngagementStats { __data["engagementStats"] }
+                public var reactionGroups: [ReactionGroup] { __data["reactionGroups"] }
 
                 /// Node.AsPost.Replies.Edge.Node.Actor
                 ///
@@ -1370,6 +1376,136 @@ public extension HackersPub {
                   public var reactions: Int { __data["reactions"] }
                   public var shares: Int { __data["shares"] }
                   public var quotes: Int { __data["quotes"] }
+                }
+
+                /// Node.AsPost.Replies.Edge.Node.ReactionGroup
+                ///
+                /// Parent Type: `ReactionGroup`
+                public struct ReactionGroup: HackersPub.SelectionSet {
+                  @_spi(Unsafe) public let __data: DataDict
+                  @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                  @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Interfaces.ReactionGroup }
+                  @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                    .field("__typename", String.self),
+                    .inlineFragment(AsEmojiReactionGroup.self),
+                    .inlineFragment(AsCustomEmojiReactionGroup.self),
+                  ] }
+                  @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                    PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup.self
+                  ] }
+
+                  public var asEmojiReactionGroup: AsEmojiReactionGroup? { _asInlineFragment() }
+                  public var asCustomEmojiReactionGroup: AsCustomEmojiReactionGroup? { _asInlineFragment() }
+
+                  /// Node.AsPost.Replies.Edge.Node.ReactionGroup.AsEmojiReactionGroup
+                  ///
+                  /// Parent Type: `EmojiReactionGroup`
+                  public struct AsEmojiReactionGroup: HackersPub.InlineFragment {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    public typealias RootEntityType = PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.EmojiReactionGroup }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("emoji", String.self),
+                      .field("reactors", Reactors.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup.self,
+                      PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup.AsEmojiReactionGroup.self
+                    ] }
+
+                    public var emoji: String { __data["emoji"] }
+                    public var reactors: Reactors { __data["reactors"] }
+
+                    /// Node.AsPost.Replies.Edge.Node.ReactionGroup.AsEmojiReactionGroup.Reactors
+                    ///
+                    /// Parent Type: `ReactionGroupReactorsConnection`
+                    public struct Reactors: HackersPub.SelectionSet {
+                      @_spi(Unsafe) public let __data: DataDict
+                      @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                      @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.ReactionGroupReactorsConnection }
+                      @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                        .field("__typename", String.self),
+                        .field("totalCount", Int.self),
+                        .field("viewerHasReacted", Bool.self),
+                      ] }
+                      @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                        PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup.AsEmojiReactionGroup.Reactors.self
+                      ] }
+
+                      public var totalCount: Int { __data["totalCount"] }
+                      public var viewerHasReacted: Bool { __data["viewerHasReacted"] }
+                    }
+                  }
+
+                  /// Node.AsPost.Replies.Edge.Node.ReactionGroup.AsCustomEmojiReactionGroup
+                  ///
+                  /// Parent Type: `CustomEmojiReactionGroup`
+                  public struct AsCustomEmojiReactionGroup: HackersPub.InlineFragment {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    public typealias RootEntityType = PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.CustomEmojiReactionGroup }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("customEmoji", CustomEmoji.self),
+                      .field("reactors", Reactors.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup.self,
+                      PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup.AsCustomEmojiReactionGroup.self
+                    ] }
+
+                    public var customEmoji: CustomEmoji { __data["customEmoji"] }
+                    public var reactors: Reactors { __data["reactors"] }
+
+                    /// Node.AsPost.Replies.Edge.Node.ReactionGroup.AsCustomEmojiReactionGroup.CustomEmoji
+                    ///
+                    /// Parent Type: `CustomEmoji`
+                    public struct CustomEmoji: HackersPub.SelectionSet {
+                      @_spi(Unsafe) public let __data: DataDict
+                      @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                      @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.CustomEmoji }
+                      @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                        .field("__typename", String.self),
+                        .field("id", HackersPub.ID.self),
+                        .field("name", String.self),
+                        .field("imageUrl", String.self),
+                      ] }
+                      @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                        PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup.AsCustomEmojiReactionGroup.CustomEmoji.self
+                      ] }
+
+                      public var id: HackersPub.ID { __data["id"] }
+                      public var name: String { __data["name"] }
+                      public var imageUrl: String { __data["imageUrl"] }
+                    }
+
+                    /// Node.AsPost.Replies.Edge.Node.ReactionGroup.AsCustomEmojiReactionGroup.Reactors
+                    ///
+                    /// Parent Type: `ReactionGroupReactorsConnection`
+                    public struct Reactors: HackersPub.SelectionSet {
+                      @_spi(Unsafe) public let __data: DataDict
+                      @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                      @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.ReactionGroupReactorsConnection }
+                      @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                        .field("__typename", String.self),
+                        .field("totalCount", Int.self),
+                        .field("viewerHasReacted", Bool.self),
+                      ] }
+                      @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                        PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.ReactionGroup.AsCustomEmojiReactionGroup.Reactors.self
+                      ] }
+
+                      public var totalCount: Int { __data["totalCount"] }
+                      public var viewerHasReacted: Bool { __data["viewerHasReacted"] }
+                    }
+                  }
                 }
               }
             }

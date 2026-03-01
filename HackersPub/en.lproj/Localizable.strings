@@ -81,6 +81,16 @@
 "notifications.and" = " and ";
 "notifications.andOthers" = " and %d others";
 
+/* Reactions */
+"reaction.title" = "Reactions";
+"reaction.action.react" = "React";
+"reaction.action.close" = "Close";
+"reaction.error.title" = "Failed to react";
+"reaction.error.signInRequired" = "Sign in is required to react.";
+"reaction.error.unableToAdd" = "Unable to add reaction. Please try again.";
+"reaction.error.unableToRemove" = "Unable to remove reaction. Please try again.";
+"reaction.reactors.titleFormat" = "Reacted with %@";
+
 /* Explore */
 "explore.title" = "Explore";
 "explore.scope.local" = "Hackers' Pub";

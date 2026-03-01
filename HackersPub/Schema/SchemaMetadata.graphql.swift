@@ -37,6 +37,7 @@ public extension HackersPub {
       case "Actor": return HackersPub.Objects.Actor
       case "ActorPostsConnection": return HackersPub.Objects.ActorPostsConnection
       case "ActorPostsConnectionEdge": return HackersPub.Objects.ActorPostsConnectionEdge
+      case "AddReactionToPostPayload": return HackersPub.Objects.AddReactionToPostPayload
       case "Article": return HackersPub.Objects.Article
       case "ArticleContent": return HackersPub.Objects.ArticleContent
       case "ArticleDraft": return HackersPub.Objects.ArticleDraft
@@ -78,6 +79,7 @@ public extension HackersPub {
       case "Reaction": return HackersPub.Objects.Reaction
       case "ReactionGroupReactorsConnection": return HackersPub.Objects.ReactionGroupReactorsConnection
       case "ReactionGroupReactorsConnectionEdge": return HackersPub.Objects.ReactionGroupReactorsConnectionEdge
+      case "RemoveReactionFromPostPayload": return HackersPub.Objects.RemoveReactionFromPostPayload
       case "ReplyNotification": return HackersPub.Objects.ReplyNotification
       case "SearchedObject": return HackersPub.Objects.SearchedObject
       case "Session": return HackersPub.Objects.Session

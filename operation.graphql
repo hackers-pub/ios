@@ -91,6 +91,27 @@ query PublicTimelineQuery($after: String) {
           shares
           quotes
         }
+        reactionGroups {
+          __typename
+          ... on EmojiReactionGroup {
+            emoji
+            reactors {
+              totalCount
+              viewerHasReacted
+            }
+          }
+          ... on CustomEmojiReactionGroup {
+            customEmoji {
+              id
+              name
+              imageUrl
+            }
+            reactors {
+              totalCount
+              viewerHasReacted
+            }
+          }
+        }
         mentions(first: 20) {
           edges {
             node {
@@ -207,6 +228,27 @@ query LocalTimelineQuery($after: String) {
           shares
           quotes
         }
+        reactionGroups {
+          __typename
+          ... on EmojiReactionGroup {
+            emoji
+            reactors {
+              totalCount
+              viewerHasReacted
+            }
+          }
+          ... on CustomEmojiReactionGroup {
+            customEmoji {
+              id
+              name
+              imageUrl
+            }
+            reactors {
+              totalCount
+              viewerHasReacted
+            }
+          }
+        }
       }
     }
     pageInfo {
@@ -316,6 +358,27 @@ query PersonalTimelineQuery($after: String) {
           shares
           quotes
         }
+        reactionGroups {
+          __typename
+          ... on EmojiReactionGroup {
+            emoji
+            reactors {
+              totalCount
+              viewerHasReacted
+            }
+          }
+          ... on CustomEmojiReactionGroup {
+            customEmoji {
+              id
+              name
+              imageUrl
+            }
+            reactors {
+              totalCount
+              viewerHasReacted
+            }
+          }
+        }
       }
     }
     pageInfo {
@@ -416,6 +479,27 @@ query SearchPostQuery($query: String!) {
           reactions
           shares
           quotes
+        }
+        reactionGroups {
+          __typename
+          ... on EmojiReactionGroup {
+            emoji
+            reactors {
+              totalCount
+              viewerHasReacted
+            }
+          }
+          ... on CustomEmojiReactionGroup {
+            customEmoji {
+              id
+              name
+              imageUrl
+            }
+            reactors {
+              totalCount
+              viewerHasReacted
+            }
+          }
         }
         mentions(first: 20) {
           edges {
@@ -538,6 +622,27 @@ query ActorByHandleQuery($handle: String!, $after: String) {
             reactions
             shares
             quotes
+          }
+          reactionGroups {
+            __typename
+            ... on EmojiReactionGroup {
+              emoji
+              reactors {
+                totalCount
+                viewerHasReacted
+              }
+            }
+            ... on CustomEmojiReactionGroup {
+              customEmoji {
+                id
+                name
+                imageUrl
+              }
+              reactors {
+                totalCount
+                viewerHasReacted
+              }
+            }
           }
           mentions(first: 20) {
             edges {
@@ -993,6 +1098,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               endCursor
             }
             totalCount
+            viewerHasReacted
           }
         }
         ... on CustomEmojiReactionGroup {
@@ -1015,6 +1121,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               endCursor
             }
             totalCount
+            viewerHasReacted
           }
         }
       }
@@ -1117,6 +1224,27 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               shares
               quotes
             }
+            reactionGroups {
+              __typename
+              ... on EmojiReactionGroup {
+                emoji
+                reactors {
+                  totalCount
+                  viewerHasReacted
+                }
+              }
+              ... on CustomEmojiReactionGroup {
+                customEmoji {
+                  id
+                  name
+                  imageUrl
+                }
+                reactors {
+                  totalCount
+                  viewerHasReacted
+                }
+              }
+            }
           }
         }
         pageInfo {
@@ -1124,6 +1252,36 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
           endCursor
         }
       }
+    }
+  }
+}
+
+mutation AddReactionToPostMutation($postId: ID!, $emoji: String!) {
+  addReactionToPost(input: { postId: $postId, emoji: $emoji }) {
+    ... on AddReactionToPostPayload {
+      reaction {
+        id
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation RemoveReactionFromPostMutation($postId: ID!, $emoji: String!) {
+  removeReactionFromPost(input: { postId: $postId, emoji: $emoji }) {
+    ... on RemoveReactionFromPostPayload {
+      success
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
     }
   }
 }

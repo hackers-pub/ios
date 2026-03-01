@@ -81,6 +81,16 @@
 "notifications.and" = "님과 ";
 "notifications.andOthers" = "님 외 %d명";
 
+/* Reactions */
+"reaction.title" = "반응";
+"reaction.action.react" = "반응";
+"reaction.action.close" = "닫기";
+"reaction.error.title" = "반응 실패";
+"reaction.error.signInRequired" = "반응하려면 로그인해야 합니다.";
+"reaction.error.unableToAdd" = "반응을 추가할 수 없습니다. 다시 시도해주세요.";
+"reaction.error.unableToRemove" = "반응을 제거할 수 없습니다. 다시 시도해주세요.";
+"reaction.reactors.titleFormat" = "%@로 반응한 사람들";
+
 /* Explore */
 "explore.title" = "탐색";
 "explore.scope.local" = "해커스펍";

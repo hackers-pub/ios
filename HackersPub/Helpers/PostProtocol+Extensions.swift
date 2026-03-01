@@ -349,3 +349,193 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.QuotedPo
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.QuotedPost.Actor: ActorProtocol {}
 
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.QuotedPost.Medium: MediaProtocol {}
+// MARK: - ReactionCapablePostProtocol
+
+extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
