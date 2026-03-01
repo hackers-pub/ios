@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PostDetailQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url visibility viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
+        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url visibility viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
       ))
 
     public var id: ID
@@ -83,6 +83,7 @@ public extension HackersPub {
             .field("media", [Medium].self),
             .field("replyTarget", ReplyTarget?.self),
             .field("sharedPost", SharedPost?.self),
+            .field("quotedPost", QuotedPost?.self),
             .field("mentions", Mentions.self, arguments: ["first": 20]),
             .field("engagementStats", EngagementStats.self),
             .field("reactionGroups", [ReactionGroup].self),
@@ -109,6 +110,7 @@ public extension HackersPub {
           public var media: [Medium] { __data["media"] }
           public var replyTarget: ReplyTarget? { __data["replyTarget"] }
           public var sharedPost: SharedPost? { __data["sharedPost"] }
+          public var quotedPost: QuotedPost? { __data["quotedPost"] }
           public var mentions: Mentions { __data["mentions"] }
           public var engagementStats: EngagementStats { __data["engagementStats"] }
           public var reactionGroups: [ReactionGroup] { __data["reactionGroups"] }
@@ -454,6 +456,93 @@ public extension HackersPub {
               public var reactions: Int { __data["reactions"] }
               public var shares: Int { __data["shares"] }
               public var quotes: Int { __data["quotes"] }
+            }
+          }
+
+          /// Node.AsPost.QuotedPost
+          ///
+          /// Parent Type: `Post`
+          public struct QuotedPost: HackersPub.SelectionSet {
+            @_spi(Unsafe) public let __data: DataDict
+            @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+            @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Interfaces.Post }
+            @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+              .field("__typename", String.self),
+              .field("id", HackersPub.ID.self),
+              .field("name", String?.self),
+              .field("published", HackersPub.DateTime.self),
+              .field("summary", String?.self),
+              .field("content", HackersPub.HTML.self),
+              .field("excerpt", String.self),
+              .field("url", HackersPub.URL?.self),
+              .field("actor", Actor.self),
+              .field("media", [Medium].self),
+            ] }
+            @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+              PostDetailQuery.Data.Node.AsPost.QuotedPost.self
+            ] }
+
+            public var id: HackersPub.ID { __data["id"] }
+            public var name: String? { __data["name"] }
+            public var published: HackersPub.DateTime { __data["published"] }
+            public var summary: String? { __data["summary"] }
+            public var content: HackersPub.HTML { __data["content"] }
+            public var excerpt: String { __data["excerpt"] }
+            public var url: HackersPub.URL? { __data["url"] }
+            public var actor: Actor { __data["actor"] }
+            public var media: [Medium] { __data["media"] }
+
+            /// Node.AsPost.QuotedPost.Actor
+            ///
+            /// Parent Type: `Actor`
+            public struct Actor: HackersPub.SelectionSet {
+              @_spi(Unsafe) public let __data: DataDict
+              @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+              @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+              @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                .field("__typename", String.self),
+                .field("id", HackersPub.ID.self),
+                .field("name", HackersPub.HTML?.self),
+                .field("handle", String.self),
+                .field("avatarUrl", HackersPub.URL.self),
+              ] }
+              @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                PostDetailQuery.Data.Node.AsPost.QuotedPost.Actor.self
+              ] }
+
+              public var id: HackersPub.ID { __data["id"] }
+              public var name: HackersPub.HTML? { __data["name"] }
+              public var handle: String { __data["handle"] }
+              public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+            }
+
+            /// Node.AsPost.QuotedPost.Medium
+            ///
+            /// Parent Type: `PostMedium`
+            public struct Medium: HackersPub.SelectionSet {
+              @_spi(Unsafe) public let __data: DataDict
+              @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+              @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMedium }
+              @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                .field("__typename", String.self),
+                .field("url", HackersPub.URL.self),
+                .field("thumbnailUrl", String?.self),
+                .field("alt", String?.self),
+                .field("height", Int?.self),
+                .field("width", Int?.self),
+              ] }
+              @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                PostDetailQuery.Data.Node.AsPost.QuotedPost.Medium.self
+              ] }
+
+              public var url: HackersPub.URL { __data["url"] }
+              public var thumbnailUrl: String? { __data["thumbnailUrl"] }
+              public var alt: String? { __data["alt"] }
+              public var height: Int? { __data["height"] }
+              public var width: Int? { __data["width"] }
             }
           }
 
@@ -864,6 +953,7 @@ public extension HackersPub {
                   .field("actor", Actor.self),
                   .field("media", [Medium].self),
                   .field("sharedPost", SharedPost?.self),
+                  .field("quotedPost", QuotedPost?.self),
                   .field("mentions", Mentions.self, arguments: ["first": 20]),
                   .field("engagementStats", EngagementStats.self),
                 ] }
@@ -882,6 +972,7 @@ public extension HackersPub {
                 public var actor: Actor { __data["actor"] }
                 public var media: [Medium] { __data["media"] }
                 public var sharedPost: SharedPost? { __data["sharedPost"] }
+                public var quotedPost: QuotedPost? { __data["quotedPost"] }
                 public var mentions: Mentions { __data["mentions"] }
                 public var engagementStats: EngagementStats { __data["engagementStats"] }
 
@@ -1109,6 +1200,93 @@ public extension HackersPub {
                     public var reactions: Int { __data["reactions"] }
                     public var shares: Int { __data["shares"] }
                     public var quotes: Int { __data["quotes"] }
+                  }
+                }
+
+                /// Node.AsPost.Replies.Edge.Node.QuotedPost
+                ///
+                /// Parent Type: `Post`
+                public struct QuotedPost: HackersPub.SelectionSet {
+                  @_spi(Unsafe) public let __data: DataDict
+                  @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                  @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Interfaces.Post }
+                  @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                    .field("__typename", String.self),
+                    .field("id", HackersPub.ID.self),
+                    .field("name", String?.self),
+                    .field("published", HackersPub.DateTime.self),
+                    .field("summary", String?.self),
+                    .field("content", HackersPub.HTML.self),
+                    .field("excerpt", String.self),
+                    .field("url", HackersPub.URL?.self),
+                    .field("actor", Actor.self),
+                    .field("media", [Medium].self),
+                  ] }
+                  @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                    PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.QuotedPost.self
+                  ] }
+
+                  public var id: HackersPub.ID { __data["id"] }
+                  public var name: String? { __data["name"] }
+                  public var published: HackersPub.DateTime { __data["published"] }
+                  public var summary: String? { __data["summary"] }
+                  public var content: HackersPub.HTML { __data["content"] }
+                  public var excerpt: String { __data["excerpt"] }
+                  public var url: HackersPub.URL? { __data["url"] }
+                  public var actor: Actor { __data["actor"] }
+                  public var media: [Medium] { __data["media"] }
+
+                  /// Node.AsPost.Replies.Edge.Node.QuotedPost.Actor
+                  ///
+                  /// Parent Type: `Actor`
+                  public struct Actor: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("id", HackersPub.ID.self),
+                      .field("name", HackersPub.HTML?.self),
+                      .field("handle", String.self),
+                      .field("avatarUrl", HackersPub.URL.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.QuotedPost.Actor.self
+                    ] }
+
+                    public var id: HackersPub.ID { __data["id"] }
+                    public var name: HackersPub.HTML? { __data["name"] }
+                    public var handle: String { __data["handle"] }
+                    public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+                  }
+
+                  /// Node.AsPost.Replies.Edge.Node.QuotedPost.Medium
+                  ///
+                  /// Parent Type: `PostMedium`
+                  public struct Medium: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMedium }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("url", HackersPub.URL.self),
+                      .field("thumbnailUrl", String?.self),
+                      .field("alt", String?.self),
+                      .field("height", Int?.self),
+                      .field("width", Int?.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.QuotedPost.Medium.self
+                    ] }
+
+                    public var url: HackersPub.URL { __data["url"] }
+                    public var thumbnailUrl: String? { __data["thumbnailUrl"] }
+                    public var alt: String? { __data["alt"] }
+                    public var height: Int? { __data["height"] }
+                    public var width: Int? { __data["width"] }
                   }
                 }
 

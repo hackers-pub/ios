@@ -62,6 +62,29 @@ query PublicTimelineQuery($after: String) {
             }
           }
         }
+        quotedPost {
+          __typename
+          id
+          name
+          published
+          summary
+          content
+          excerpt
+          url
+          actor {
+            id
+            name
+            handle
+            avatarUrl
+          }
+          media {
+            url
+            thumbnailUrl
+            alt
+            height
+            width
+          }
+        }
         engagementStats {
           replies
           reactions
@@ -146,6 +169,29 @@ query LocalTimelineQuery($after: String) {
             reactions
             shares
             quotes
+          }
+        }
+        quotedPost {
+          __typename
+          id
+          name
+          published
+          summary
+          content
+          excerpt
+          url
+          actor {
+            id
+            name
+            handle
+            avatarUrl
+          }
+          media {
+            url
+            thumbnailUrl
+            alt
+            height
+            width
           }
         }
         mentions(first: 20) {
@@ -234,6 +280,29 @@ query PersonalTimelineQuery($after: String) {
             quotes
           }
         }
+        quotedPost {
+          __typename
+          id
+          name
+          published
+          summary
+          content
+          excerpt
+          url
+          actor {
+            id
+            name
+            handle
+            avatarUrl
+          }
+          media {
+            url
+            thumbnailUrl
+            alt
+            height
+            width
+          }
+        }
         mentions(first: 20) {
           edges {
             node {
@@ -317,6 +386,29 @@ query SearchPostQuery($query: String!) {
                 handle
               }
             }
+          }
+        }
+        quotedPost {
+          __typename
+          id
+          name
+          published
+          summary
+          content
+          excerpt
+          url
+          actor {
+            id
+            name
+            handle
+            avatarUrl
+          }
+          media {
+            url
+            thumbnailUrl
+            alt
+            height
+            width
           }
         }
         engagementStats {
@@ -416,6 +508,29 @@ query ActorByHandleQuery($handle: String!, $after: String) {
                   handle
                 }
               }
+            }
+          }
+          quotedPost {
+            __typename
+            id
+            name
+            published
+            summary
+            content
+            excerpt
+            url
+            actor {
+              id
+              name
+              handle
+              avatarUrl
+            }
+            media {
+              url
+              thumbnailUrl
+              alt
+              height
+              width
             }
           }
           engagementStats {
@@ -824,6 +939,29 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
           quotes
         }
       }
+      quotedPost {
+        __typename
+        id
+        name
+        published
+        summary
+        content
+        excerpt
+        url
+        actor {
+          id
+          name
+          handle
+          avatarUrl
+        }
+        media {
+          url
+          thumbnailUrl
+          alt
+          height
+          width
+        }
+      }
       mentions(first: 20) {
         edges {
           node {
@@ -941,6 +1079,29 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
                 reactions
                 shares
                 quotes
+              }
+            }
+            quotedPost {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              excerpt
+              url
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
               }
             }
             mentions(first: 20) {

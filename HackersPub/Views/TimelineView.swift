@@ -6,6 +6,7 @@ typealias LocalPost = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Nod
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost
     typealias EngagementStatsType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.EngagementStats
 
     var isArticle: Bool {
@@ -24,8 +25,10 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.Medium: M
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
     typealias EngagementStatsType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.EngagementStats
     var sharedPost: HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
+    var quotedPost: HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
@@ -41,8 +44,15 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPos
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.Medium: MediaProtocol {}
 
+extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost: QuotedPostProtocol {}
+
+extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost.Actor: ActorProtocol {}
+
+extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost.Medium: MediaProtocol {}
+
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost
     typealias EngagementStatsType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.EngagementStats
 
     var isArticle: Bool {
@@ -61,8 +71,10 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.Medium: Me
 
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
     typealias EngagementStatsType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.EngagementStats
     var sharedPost: HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
+    var quotedPost: HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
@@ -78,10 +90,17 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
 
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.Medium: MediaProtocol {}
 
+extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost: QuotedPostProtocol {}
+
+extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost.Actor: ActorProtocol {}
+
+extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost.Medium: MediaProtocol {}
+
 typealias PersonalPost = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.QuotedPost
     typealias EngagementStatsType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.EngagementStats
 
     var isArticle: Bool {
@@ -100,8 +119,10 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Mediu
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost
     typealias EngagementStatsType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.EngagementStats
     var sharedPost: HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost? { nil }
+    var quotedPost: HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
         // Temporarily disabled - just show all posts as regular posts
@@ -116,6 +137,12 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Share
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.Actor: ActorProtocol {}
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.Medium: MediaProtocol {}
+
+extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.QuotedPost: QuotedPostProtocol {}
+
+extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.QuotedPost.Actor: ActorProtocol {}
+
+extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.QuotedPost.Medium: MediaProtocol {}
 
 struct TimelineView: View {
     @Binding var showingComposeView: Bool

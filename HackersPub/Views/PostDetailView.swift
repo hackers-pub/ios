@@ -257,6 +257,18 @@ struct PostDetailView: View {
                         )
                         .padding(.horizontal)
 
+                        if let quotedPost = post.quotedPost {
+                            QuotedPostCard(
+                                quotedPost: quotedPost,
+                                disableNavigation: false,
+                                showFullDateTime: true,
+                                onTap: {
+                                    navigationCoordinator.navigateToPost(id: quotedPost.id)
+                                }
+                            )
+                            .padding(.horizontal)
+                        }
+
                         // Published date and visibility
                         HStack {
                             Text(DateFormatHelper.fullDateTime(from: post.published))

@@ -9,22 +9,28 @@ protocol EngagementStatsProtocol {
     var quotes: Int { get }
 }
 
-protocol PostProtocol {
+protocol QuotedPostProtocol {
     associatedtype ActorType: ActorProtocol
     associatedtype MediaType: MediaProtocol
-    associatedtype SharedPostType: PostProtocol
-    associatedtype EngagementStatsType: EngagementStatsProtocol
 
     var id: String { get }
     var name: String? { get }
     var published: String { get }
-    var summary: String? { get }
     var content: String { get }
-    var excerpt: String { get }
-    var url: String? { get }
     var actor: ActorType { get }
     var media: [MediaType] { get }
+}
+
+protocol PostProtocol: QuotedPostProtocol {
+    associatedtype SharedPostType: PostProtocol
+    associatedtype QuotedPostType: QuotedPostProtocol
+    associatedtype EngagementStatsType: EngagementStatsProtocol
+
+    var summary: String? { get }
+    var excerpt: String { get }
+    var url: String? { get }
     var sharedPost: SharedPostType? { get }
+    var quotedPost: QuotedPostType? { get }
     var engagementStats: EngagementStatsType { get }
     var viewerHasShared: Bool { get }
 
@@ -86,6 +92,103 @@ struct RepostIndicator<Actor: ActorProtocol>: View {
                 .font(.caption)
         }
         .foregroundStyle(.secondary)
+    }
+}
+
+struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
+    let quotedPost: QuotedPost
+    let disableNavigation: Bool
+    let showFullDateTime: Bool
+    let onTap: (() -> Void)?
+
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
+
+    init(
+        quotedPost: QuotedPost,
+        disableNavigation: Bool = false,
+        showFullDateTime: Bool = false,
+        onTap: (() -> Void)? = nil
+    ) {
+        self.quotedPost = quotedPost
+        self.disableNavigation = disableNavigation
+        self.showFullDateTime = showFullDateTime
+        self.onTap = onTap
+    }
+
+    private var publishedText: String {
+        if showFullDateTime {
+            return DateFormatHelper.fullDateTime(from: quotedPost.published)
+        }
+        return DateFormatHelper.relativeTime(from: quotedPost.published)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Button {
+                    navigationCoordinator.navigateToProfile(handle: quotedPost.actor.handle)
+                } label: {
+                    KFImage(URL(string: quotedPost.actor.avatarUrl))
+                        .placeholder {
+                            Color.gray.opacity(0.2)
+                        }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 32, height: 32)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    navigationCoordinator.navigateToProfile(handle: quotedPost.actor.handle)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let name = quotedPost.actor.name {
+                            HTMLTextView(html: name, font: .subheadline)
+                                .fontWeight(.semibold)
+                        }
+                        Text(quotedPost.actor.handle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+
+            if let name = quotedPost.name {
+                Text(name)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+
+            HTMLContentView(
+                html: quotedPost.content,
+                media: quotedPost.media.map {
+                    MediaItem(
+                        url: $0.url,
+                        thumbnailUrl: $0.thumbnailUrl,
+                        alt: $0.alt,
+                        width: $0.width,
+                        height: $0.height
+                    )
+                },
+                onTap: !disableNavigation ? onTap : nil
+            )
+
+            Text(publishedText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .contentShape(RoundedRectangle(cornerRadius: 8))
+        .onTapGesture {
+            guard !disableNavigation else { return }
+            onTap?()
+        }
     }
 }
 
@@ -306,6 +409,16 @@ struct PostView<P: PostProtocol>: View {
                             navigationCoordinator.navigateToPost(id: post.id)
                         } : nil
                     )
+
+                    if let quotedPost = post.quotedPost {
+                        QuotedPostCard(
+                            quotedPost: quotedPost,
+                            disableNavigation: disableNavigation,
+                            onTap: {
+                                navigationCoordinator.navigateToPost(id: quotedPost.id)
+                            }
+                        )
+                    }
                 }
 
                 Text(DateFormatHelper.relativeTime(from: post.published))
