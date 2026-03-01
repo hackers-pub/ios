@@ -126,8 +126,6 @@ struct TimelineView: View {
     @State private var shouldRefresh = false
     @State private var showingSettings = false
     @State private var scrollPosition: String?
-    @State private var hasGap = false
-    @State private var newPostsCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
 
@@ -144,7 +142,7 @@ struct TimelineView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
-                                ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
+                                ForEach(posts, id: \.id) { post in
                                     PostView(post: post, showAuthor: true)
                                         .padding()
                                         .id(post.id)
@@ -157,24 +155,6 @@ struct TimelineView: View {
                                         }
 
                                     Divider()
-
-                                    // Show gap button after last new post
-                                    if hasGap && index == newPostsCount - 1 {
-                                        Button {
-                                            Task {
-                                                await loadGap()
-                                            }
-                                        } label: {
-                                            HStack {
-                                                Spacer()
-                                                Label("Load newer posts", systemImage: "arrow.up.circle")
-                                                    .foregroundStyle(.secondary)
-                                                Spacer()
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                        .padding()
-                                    }
                                 }
 
                                 if isLoading && !posts.isEmpty {
@@ -260,7 +240,6 @@ struct TimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            newPostsCount = 0
         } catch {
             print("Error fetching posts: \(error)")
         }
@@ -290,48 +269,11 @@ struct TimelineView: View {
         do {
             let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil), cachePolicy: .networkOnly)
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-
-            // Find new posts that aren't in the current list
-            let existingIds = Set(posts.map { $0.id })
-            let newPosts = fetchedPosts.filter { !existingIds.contains($0.id) }
-
-            if !newPosts.isEmpty {
-                // Check if there's a gap (fetched posts don't include our first post)
-                if let firstCurrentPost = posts.first,
-                   !fetchedPosts.contains(where: { $0.id == firstCurrentPost.id }) {
-                    hasGap = true
-                    newPostsCount = newPosts.count
-                } else {
-                    hasGap = false
-                    newPostsCount = 0
-                }
-
-                // Prepend new posts
-                posts = newPosts + posts
-            } else {
-                hasGap = false
-                newPostsCount = 0
-            }
-        } catch {
-            print("Error refreshing posts: \(error)")
-        }
-    }
-
-    private func loadGap() async {
-        hasGap = false
-        newPostsCount = 0
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            try await apolloClient.clearCache()
-            let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil))
-            let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {
-            print("Error loading gap: \(error)")
+            print("Error refreshing posts: \(error)")
         }
     }
 }
@@ -345,8 +287,6 @@ struct PersonalTimelineView: View {
     @State private var shouldRefresh = false
     @State private var showingSettings = false
     @State private var scrollPosition: String?
-    @State private var hasGap = false
-    @State private var newPostsCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
@@ -362,7 +302,7 @@ struct PersonalTimelineView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
-                                ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
+                                ForEach(posts, id: \.id) { post in
                                     PostView(post: post, showAuthor: true)
                                         .padding()
                                         .id(post.id)
@@ -375,24 +315,6 @@ struct PersonalTimelineView: View {
                                         }
 
                                     Divider()
-
-                                    // Show gap button after last new post
-                                    if hasGap && index == newPostsCount - 1 {
-                                        Button {
-                                            Task {
-                                                await loadGap()
-                                            }
-                                        } label: {
-                                            HStack {
-                                                Spacer()
-                                                Label("Load newer posts", systemImage: "arrow.up.circle")
-                                                    .foregroundStyle(.secondary)
-                                                Spacer()
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                        .padding()
-                                    }
                                 }
 
                                 if isLoading && !posts.isEmpty {
@@ -476,7 +398,6 @@ struct PersonalTimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
-            newPostsCount = 0
         } catch {
             print("Error fetching posts: \(error)")
         }
@@ -506,48 +427,11 @@ struct PersonalTimelineView: View {
         do {
             let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil), cachePolicy: .networkOnly)
             let fetchedPosts = response.data?.personalTimeline.edges.map { $0.node } ?? []
-
-            // Find new posts that aren't in the current list
-            let existingIds = Set(posts.map { $0.id })
-            let newPosts = fetchedPosts.filter { !existingIds.contains($0.id) }
-
-            if !newPosts.isEmpty {
-                // Check if there's a gap (fetched posts don't include our first post)
-                if let firstCurrentPost = posts.first,
-                   !fetchedPosts.contains(where: { $0.id == firstCurrentPost.id }) {
-                    hasGap = true
-                    newPostsCount = newPosts.count
-                } else {
-                    hasGap = false
-                    newPostsCount = 0
-                }
-
-                // Prepend new posts
-                posts = newPosts + posts
-            } else {
-                hasGap = false
-                newPostsCount = 0
-            }
-        } catch {
-            print("Error refreshing posts: \(error)")
-        }
-    }
-
-    private func loadGap() async {
-        hasGap = false
-        newPostsCount = 0
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            try await apolloClient.clearCache()
-            let response = try await apolloClient.fetch(query: HackersPub.PersonalTimelineQuery(after: nil))
-            let fetchedPosts = response.data?.personalTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
         } catch {
-            print("Error loading gap: \(error)")
+            print("Error refreshing posts: \(error)")
         }
     }
 }
@@ -561,8 +445,6 @@ struct LocalTimelineView: View {
     @State private var shouldRefresh = false
     @State private var showingSettings = false
     @State private var scrollPosition: String?
-    @State private var hasGap = false
-    @State private var newPostsCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
 
@@ -579,7 +461,7 @@ struct LocalTimelineView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
-                                ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
+                                ForEach(posts, id: \.id) { post in
                                     PostView(post: post, showAuthor: true)
                                         .padding()
                                         .id(post.id)
@@ -592,24 +474,6 @@ struct LocalTimelineView: View {
                                         }
 
                                     Divider()
-
-                                    // Show gap button after last new post
-                                    if hasGap && index == newPostsCount - 1 {
-                                        Button {
-                                            Task {
-                                                await loadGap()
-                                            }
-                                        } label: {
-                                            HStack {
-                                                Spacer()
-                                                Label("Load newer posts", systemImage: "arrow.up.circle")
-                                                    .foregroundStyle(.secondary)
-                                                Spacer()
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                        .padding()
-                                    }
                                 }
 
                                 if isLoading && !posts.isEmpty {
@@ -695,7 +559,6 @@ struct LocalTimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            newPostsCount = 0
         } catch {
             print("Error fetching posts: \(error)")
         }
@@ -725,48 +588,11 @@ struct LocalTimelineView: View {
         do {
             let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil), cachePolicy: .networkOnly)
             let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-
-            // Find new posts that aren't in the current list
-            let existingIds = Set(posts.map { $0.id })
-            let newPosts = fetchedPosts.filter { !existingIds.contains($0.id) }
-
-            if !newPosts.isEmpty {
-                // Check if there's a gap (fetched posts don't include our first post)
-                if let firstCurrentPost = posts.first,
-                   !fetchedPosts.contains(where: { $0.id == firstCurrentPost.id }) {
-                    hasGap = true
-                    newPostsCount = newPosts.count
-                } else {
-                    hasGap = false
-                    newPostsCount = 0
-                }
-
-                // Prepend new posts
-                posts = newPosts + posts
-            } else {
-                hasGap = false
-                newPostsCount = 0
-            }
-        } catch {
-            print("Error refreshing posts: \(error)")
-        }
-    }
-
-    private func loadGap() async {
-        hasGap = false
-        newPostsCount = 0
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            try await apolloClient.clearCache()
-            let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil))
-            let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {
-            print("Error loading gap: \(error)")
+            print("Error refreshing posts: \(error)")
         }
     }
 }
