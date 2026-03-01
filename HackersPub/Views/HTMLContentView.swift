@@ -1,18 +1,5 @@
-import SwiftUI
 import Kingfisher
-
-actor HTMLCache {
-    static let shared = HTMLCache()
-    private var cache: [String: AttributedString] = [:]
-
-    func get(_ key: String) -> AttributedString? {
-        cache[key]
-    }
-
-    func set(_ key: String, value: AttributedString) {
-        cache[key] = value
-    }
-}
+import SwiftUI
 
 struct MediaItem: Identifiable {
     let id = UUID()
@@ -30,6 +17,7 @@ struct HTMLContentView: View {
     @State private var selectedMedia: MediaItem?
     @State private var webViewHeight: CGFloat = 0
     @State private var isLoading: Bool = true
+    @State private var isVisible: Bool = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -37,7 +25,8 @@ struct HTMLContentView: View {
         guard let firstMedia = media.first,
               let width = firstMedia.width,
               let height = firstMedia.height,
-              width > 0 else {
+              width > 0
+        else {
             return 300
         }
         let aspectRatio = CGFloat(height) / CGFloat(width)
@@ -46,7 +35,7 @@ struct HTMLContentView: View {
         return min(estimatedWidth * aspectRatio, 500)
     }
 
-    // Estimate minimum height based on HTML content length
+    /// Estimate minimum height based on HTML content length
     private var estimatedMinHeight: CGFloat {
         let characterCount = html.count
         // Rough estimation: ~40 characters per line, ~20pt line height
@@ -59,7 +48,7 @@ struct HTMLContentView: View {
             // Display text content with smooth transition
             ZStack(alignment: .topLeading) {
                 // Placeholder skeleton while loading
-                if isLoading && webViewHeight == 0 {
+                if isLoading, webViewHeight == 0 {
                     VStack(alignment: .leading, spacing: 8) {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(Color.gray.opacity(0.2))
@@ -81,33 +70,35 @@ struct HTMLContentView: View {
                     .shimmering()
                 }
 
-                // Actual HTML content
-                HTMLWebView(
-                    html: html,
-                    height: $webViewHeight,
-                    onTap: onTap,
-                    navigationCoordinator: navigationCoordinator
-                )
-                .frame(height: webViewHeight > 0 ? webViewHeight : estimatedMinHeight)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .opacity(webViewHeight > 0 ? 1 : 0)
-                .onChange(of: webViewHeight) { oldValue, newValue in
-                    if newValue > 0 {
-                        withAnimation(.easeOut(duration: 0.25)) {
+                // Only mount the web view once the cell has scrolled into view
+                if isVisible {
+                    HTMLWebView(
+                        html: html,
+                        height: $webViewHeight,
+                        onTap: onTap,
+                        navigationCoordinator: navigationCoordinator
+                    )
+                    .frame(height: webViewHeight > 0 ? webViewHeight : estimatedMinHeight)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .opacity(webViewHeight > 0 ? 1 : 0)
+                    .onChange(of: webViewHeight) { _, newValue in
+                        if newValue > 0, isLoading {
                             isLoading = false
                         }
                     }
                 }
-                .onAppear {
-                    isLoading = true
-                }
+            }
+            // Gate heavy web-view creation on actual visibility
+            .onAppear {
+                isVisible = true
             }
 
             // Display images in carousel if present
             if !media.isEmpty {
                 TabView {
                     ForEach(media) { item in
-                        if let thumbnailURL = item.thumbnailUrl.flatMap({ URL(string: $0) }) ?? URL(string: item.url) {
+                        let resolved = item.thumbnailUrl.flatMap { URL(string: $0) } ?? URL(string: item.url)
+                        if let thumbnailURL = resolved {
                             KFImage(thumbnailURL)
                                 .placeholder {
                                     ZStack {
@@ -136,11 +127,10 @@ struct HTMLContentView: View {
     }
 }
 
-// Shimmer effect for skeleton loading
+/// Shimmer effect for skeleton loading
 extension View {
-    @ViewBuilder
     func shimmering() -> some View {
-        self.modifier(ShimmerModifier())
+        modifier(ShimmerModifier())
     }
 }
 
@@ -153,11 +143,7 @@ struct ShimmerModifier: ViewModifier {
                 Rectangle()
                     .fill(
                         LinearGradient(
-                            gradient: Gradient(colors: [
-                                .clear,
-                                Color.white.opacity(0.3),
-                                .clear
-                            ]),
+                            colors: [.clear, Color.white.opacity(0.3), .clear],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -168,7 +154,7 @@ struct ShimmerModifier: ViewModifier {
             .onAppear {
                 withAnimation(
                     .linear(duration: 1.0)
-                    .repeatForever(autoreverses: false)
+                        .repeatForever(autoreverses: false)
                 ) {
                     phase = 400
                 }
