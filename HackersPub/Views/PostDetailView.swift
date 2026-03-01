@@ -426,8 +426,8 @@ struct PostDetailView: View {
                             .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
                         }
 
-                        if let urlString = post.url, let url = URL(string: urlString) {
-                            ShareLink(item: url) {
+                        if let shareURL = post.resolvedShareURL {
+                            ShareLink(item: shareURL) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                                     .labelStyle(.iconOnly)
                             }

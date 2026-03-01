@@ -11,6 +11,7 @@ query PublicTimelineQuery($after: String) {
         content
         excerpt
         url
+        iri
         viewerHasShared
         actor {
           id
@@ -34,6 +35,7 @@ query PublicTimelineQuery($after: String) {
           content
           excerpt
           url
+          iri
           viewerHasShared
           actor {
             id
@@ -71,6 +73,7 @@ query PublicTimelineQuery($after: String) {
           content
           excerpt
           url
+          iri
           actor {
             id
             name
@@ -141,6 +144,7 @@ query LocalTimelineQuery($after: String) {
         content
         excerpt
         url
+        iri
         viewerHasShared
         actor {
           id
@@ -164,6 +168,7 @@ query LocalTimelineQuery($after: String) {
           content
           excerpt
           url
+          iri
           viewerHasShared
           actor {
             id
@@ -201,6 +206,7 @@ query LocalTimelineQuery($after: String) {
           content
           excerpt
           url
+          iri
           actor {
             id
             name
@@ -271,6 +277,7 @@ query PersonalTimelineQuery($after: String) {
         content
         excerpt
         url
+        iri
         viewerHasShared
         actor {
           id
@@ -294,6 +301,7 @@ query PersonalTimelineQuery($after: String) {
           content
           excerpt
           url
+          iri
           viewerHasShared
           actor {
             id
@@ -331,6 +339,7 @@ query PersonalTimelineQuery($after: String) {
           content
           excerpt
           url
+          iri
           actor {
             id
             name
@@ -400,6 +409,7 @@ query SearchPostQuery($query: String!) {
         content
         excerpt
         url
+        iri
         viewerHasShared
         actor {
           id
@@ -423,6 +433,7 @@ query SearchPostQuery($query: String!) {
           content
           excerpt
           url
+          iri
           viewerHasShared
           actor {
             id
@@ -460,6 +471,7 @@ query SearchPostQuery($query: String!) {
           content
           excerpt
           url
+          iri
           actor {
             id
             name
@@ -543,6 +555,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
           content
           excerpt
           url
+          iri
           viewerHasShared
           actor {
             id
@@ -566,6 +579,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
             content
             excerpt
             url
+            iri
             viewerHasShared
             actor {
               id
@@ -603,6 +617,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
             content
             excerpt
             url
+            iri
             actor {
               id
               name
@@ -755,6 +770,7 @@ query NotificationsQuery($after: String) {
               content
               excerpt
               url
+              iri
               media {
                 url
                 thumbnailUrl
@@ -793,6 +809,7 @@ query NotificationsQuery($after: String) {
               content
               excerpt
               url
+              iri
               media {
                 url
                 thumbnailUrl
@@ -831,6 +848,7 @@ query NotificationsQuery($after: String) {
               content
               excerpt
               url
+              iri
               media {
                 url
                 thumbnailUrl
@@ -875,6 +893,7 @@ query NotificationsQuery($after: String) {
               content
               excerpt
               url
+              iri
               media {
                 url
                 thumbnailUrl
@@ -913,6 +932,7 @@ query NotificationsQuery($after: String) {
               content
               excerpt
               url
+              iri
               media {
                 url
                 thumbnailUrl
@@ -962,6 +982,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
       content
       excerpt
       url
+      iri
       visibility
       viewerHasShared
       actor {
@@ -986,6 +1007,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         content
         excerpt
         url
+        iri
         viewerHasShared
         actor {
           id
@@ -1016,6 +1038,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         content
         excerpt
         url
+        iri
         viewerHasShared
         actor {
           id
@@ -1053,6 +1076,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         content
         excerpt
         url
+        iri
         actor {
           id
           name
@@ -1137,6 +1161,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
             content
             excerpt
             url
+            iri
             viewerHasShared
             actor {
               id
@@ -1160,6 +1185,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               content
               excerpt
               url
+              iri
               viewerHasShared
               actor {
                 id
@@ -1197,6 +1223,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               content
               excerpt
               url
+              iri
               actor {
                 id
                 name
@@ -1296,6 +1323,7 @@ query PostQuotesQuery($id: ID!, $after: String) {
             content
             excerpt
             url
+            iri
             viewerHasShared
             actor {
               id
@@ -1319,6 +1347,7 @@ query PostQuotesQuery($id: ID!, $after: String) {
               content
               excerpt
               url
+              iri
               viewerHasShared
               actor {
                 id
@@ -1356,6 +1385,7 @@ query PostQuotesQuery($id: ID!, $after: String) {
               content
               excerpt
               url
+              iri
               actor {
                 id
                 name

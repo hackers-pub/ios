@@ -29,6 +29,7 @@ protocol PostProtocol: QuotedPostProtocol {
     var summary: String? { get }
     var excerpt: String { get }
     var url: String? { get }
+    var iri: String { get }
     var sharedPost: SharedPostType? { get }
     var quotedPost: QuotedPostType? { get }
     var engagementStats: EngagementStatsType { get }
@@ -36,6 +37,21 @@ protocol PostProtocol: QuotedPostProtocol {
 
     var mentionedHandles: [String] { get }
     var isArticle: Bool { get }
+}
+
+extension PostProtocol {
+    var resolvedShareURL: URL? {
+        if let url {
+            let trimmedURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedURL.isEmpty, let resolvedURL = URL(string: trimmedURL) {
+                return resolvedURL
+            }
+        }
+
+        let trimmedIri = iri.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedIri.isEmpty else { return nil }
+        return URL(string: trimmedIri)
+    }
 }
 
 protocol ActorProtocol {
@@ -970,8 +986,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
                     }
 
-                    if let urlString = post.url, let url = URL(string: urlString) {
-                        ShareLink(item: url) {
+                    if let shareURL = post.resolvedShareURL {
+                        ShareLink(item: shareURL) {
                             Label("Share", systemImage: "square.and.arrow.up")
                                 .labelStyle(.iconOnly)
                         }

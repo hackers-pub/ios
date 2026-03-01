@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "NotificationsQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query NotificationsQuery($after: String) { viewer { __typename id notifications(first: 20, after: $after) { __typename edges { __typename cursor node { __typename id uuid created actors(first: 5) { __typename edges { __typename node { __typename id name handle avatarUrl } } } ... on FollowNotification { id } ... on MentionNotification { post { __typename id name published summary content excerpt url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ReplyNotification { post { __typename id name published summary content excerpt url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on QuoteNotification { post { __typename id name published summary content excerpt url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ReactNotification { emoji customEmoji { __typename id name imageUrl } post { __typename id name published summary content excerpt url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ShareNotification { post { __typename id name published summary content excerpt url media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } } } pageInfo { __typename hasNextPage endCursor } } } }"#
+        #"query NotificationsQuery($after: String) { viewer { __typename id notifications(first: 20, after: $after) { __typename edges { __typename cursor node { __typename id uuid created actors(first: 5) { __typename edges { __typename node { __typename id name handle avatarUrl } } } ... on FollowNotification { id } ... on MentionNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ReplyNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on QuoteNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ReactNotification { emoji customEmoji { __typename id name imageUrl } post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ShareNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } } } pageInfo { __typename hasNextPage endCursor } } } }"#
       ))
 
     public var after: GraphQLNullable<String>
@@ -260,6 +260,7 @@ public extension HackersPub {
                     .field("content", HackersPub.HTML.self),
                     .field("excerpt", String.self),
                     .field("url", HackersPub.URL?.self),
+                    .field("iri", HackersPub.URL.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
                     .field("engagementStats", EngagementStats.self),
@@ -276,6 +277,7 @@ public extension HackersPub {
                   public var content: HackersPub.HTML { __data["content"] }
                   public var excerpt: String { __data["excerpt"] }
                   public var url: HackersPub.URL? { __data["url"] }
+                  public var iri: HackersPub.URL { __data["iri"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
                   public var engagementStats: EngagementStats { __data["engagementStats"] }
@@ -457,6 +459,7 @@ public extension HackersPub {
                     .field("content", HackersPub.HTML.self),
                     .field("excerpt", String.self),
                     .field("url", HackersPub.URL?.self),
+                    .field("iri", HackersPub.URL.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
                     .field("engagementStats", EngagementStats.self),
@@ -473,6 +476,7 @@ public extension HackersPub {
                   public var content: HackersPub.HTML { __data["content"] }
                   public var excerpt: String { __data["excerpt"] }
                   public var url: HackersPub.URL? { __data["url"] }
+                  public var iri: HackersPub.URL { __data["iri"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
                   public var engagementStats: EngagementStats { __data["engagementStats"] }
@@ -654,6 +658,7 @@ public extension HackersPub {
                     .field("content", HackersPub.HTML.self),
                     .field("excerpt", String.self),
                     .field("url", HackersPub.URL?.self),
+                    .field("iri", HackersPub.URL.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
                     .field("engagementStats", EngagementStats.self),
@@ -670,6 +675,7 @@ public extension HackersPub {
                   public var content: HackersPub.HTML { __data["content"] }
                   public var excerpt: String { __data["excerpt"] }
                   public var url: HackersPub.URL? { __data["url"] }
+                  public var iri: HackersPub.URL { __data["iri"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
                   public var engagementStats: EngagementStats { __data["engagementStats"] }
@@ -878,6 +884,7 @@ public extension HackersPub {
                     .field("content", HackersPub.HTML.self),
                     .field("excerpt", String.self),
                     .field("url", HackersPub.URL?.self),
+                    .field("iri", HackersPub.URL.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
                     .field("engagementStats", EngagementStats.self),
@@ -894,6 +901,7 @@ public extension HackersPub {
                   public var content: HackersPub.HTML { __data["content"] }
                   public var excerpt: String { __data["excerpt"] }
                   public var url: HackersPub.URL? { __data["url"] }
+                  public var iri: HackersPub.URL { __data["iri"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
                   public var engagementStats: EngagementStats { __data["engagementStats"] }
@@ -1075,6 +1083,7 @@ public extension HackersPub {
                     .field("content", HackersPub.HTML.self),
                     .field("excerpt", String.self),
                     .field("url", HackersPub.URL?.self),
+                    .field("iri", HackersPub.URL.self),
                     .field("media", [Medium].self),
                     .field("actor", Actor.self),
                     .field("engagementStats", EngagementStats.self),
@@ -1091,6 +1100,7 @@ public extension HackersPub {
                   public var content: HackersPub.HTML { __data["content"] }
                   public var excerpt: String { __data["excerpt"] }
                   public var url: HackersPub.URL? { __data["url"] }
+                  public var iri: HackersPub.URL { __data["iri"] }
                   public var media: [Medium] { __data["media"] }
                   public var actor: Actor { __data["actor"] }
                   public var engagementStats: EngagementStats { __data["engagementStats"] }
