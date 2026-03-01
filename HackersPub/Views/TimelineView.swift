@@ -147,12 +147,12 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Quote
 struct TimelineView: View {
     @Binding var showingComposeView: Bool
     @State private var posts: [Post] = []
+    @State private var hasLoadedInitial = false
     @State private var isLoading = false
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
-    @State private var scrollPosition: String?
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
 
@@ -166,35 +166,32 @@ struct TimelineView: View {
                 if isLoading && posts.isEmpty {
                     ProgressView()
                 } else {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(posts, id: \.id) { post in
-                                    PostView(post: post, showAuthor: true, enableSneakPeek: true)
-                                        .padding()
-                                        .id(post.id)
-                                        .onAppear {
-                                            if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                                Task {
-                                                    await loadMore()
-                                                }
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(posts, id: \.id) { post in
+                                PostView(post: post, showAuthor: true, enableSneakPeek: true)
+                                    .padding()
+                                    .id(post.id)
+                                    .onAppear {
+                                        if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                            Task {
+                                                await loadMore()
                                             }
                                         }
-
-                                    Divider()
-                                }
-
-                                if isLoading && !posts.isEmpty {
-                                    HStack {
-                                        Spacer()
-                                        ProgressView()
-                                        Spacer()
                                     }
-                                    .padding()
+
+                                Divider()
+                            }
+
+                            if isLoading && !posts.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
                                 }
+                                .padding()
                             }
                         }
-                        .scrollPosition(id: $scrollPosition)
                     }
                 }
             }
@@ -203,6 +200,8 @@ struct TimelineView: View {
                 await refreshPosts()
             }
             .task {
+                guard !hasLoadedInitial else { return }
+                hasLoadedInitial = true
                 await fetchPosts()
             }
             .onChange(of: shouldRefresh) { _, newValue in
@@ -267,9 +266,7 @@ struct TimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {
-            print("Error fetching posts: \(error)")
-        }
+        } catch {}
     }
 
     private func loadMore() async {
@@ -284,9 +281,7 @@ struct TimelineView: View {
             posts.append(contentsOf: newPosts)
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {
-            print("Error loading more posts: \(error)")
-        }
+        } catch {}
     }
 
     private func refreshPosts() async {
@@ -299,21 +294,19 @@ struct TimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {
-            print("Error refreshing posts: \(error)")
-        }
+        } catch {}
     }
 }
 
 struct PersonalTimelineView: View {
     @Binding var showingComposeView: Bool
     @State private var posts: [PersonalPost] = []
+    @State private var hasLoadedInitial = false
     @State private var isLoading = false
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
-    @State private var scrollPosition: String?
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
@@ -326,35 +319,32 @@ struct PersonalTimelineView: View {
                 if isLoading && posts.isEmpty {
                     ProgressView()
                 } else {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(posts, id: \.id) { post in
-                                    PostView(post: post, showAuthor: true, enableSneakPeek: true)
-                                        .padding()
-                                        .id(post.id)
-                                        .onAppear {
-                                            if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                                Task {
-                                                    await loadMore()
-                                                }
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(posts, id: \.id) { post in
+                                PostView(post: post, showAuthor: true, enableSneakPeek: true)
+                                    .padding()
+                                    .id(post.id)
+                                    .onAppear {
+                                        if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                            Task {
+                                                await loadMore()
                                             }
                                         }
-
-                                    Divider()
-                                }
-
-                                if isLoading && !posts.isEmpty {
-                                    HStack {
-                                        Spacer()
-                                        ProgressView()
-                                        Spacer()
                                     }
-                                    .padding()
+
+                                Divider()
+                            }
+
+                            if isLoading && !posts.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
                                 }
+                                .padding()
                             }
                         }
-                        .scrollPosition(id: $scrollPosition)
                     }
                 }
             }
@@ -363,6 +353,8 @@ struct PersonalTimelineView: View {
                 await refreshPosts()
             }
             .task {
+                guard !hasLoadedInitial else { return }
+                hasLoadedInitial = true
                 await fetchPosts()
             }
             .onChange(of: shouldRefresh) { _, newValue in
@@ -425,9 +417,7 @@ struct PersonalTimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
-        } catch {
-            print("Error fetching posts: \(error)")
-        }
+        } catch {}
     }
 
     private func loadMore() async {
@@ -442,9 +432,7 @@ struct PersonalTimelineView: View {
             posts.append(contentsOf: newPosts)
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
-        } catch {
-            print("Error loading more posts: \(error)")
-        }
+        } catch {}
     }
 
     private func refreshPosts() async {
@@ -457,21 +445,19 @@ struct PersonalTimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
-        } catch {
-            print("Error refreshing posts: \(error)")
-        }
+        } catch {}
     }
 }
 
 struct LocalTimelineView: View {
     @Binding var showingComposeView: Bool
     @State private var posts: [LocalPost] = []
+    @State private var hasLoadedInitial = false
     @State private var isLoading = false
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
-    @State private var scrollPosition: String?
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
 
@@ -485,35 +471,32 @@ struct LocalTimelineView: View {
                 if isLoading && posts.isEmpty {
                     ProgressView()
                 } else {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(posts, id: \.id) { post in
-                                    PostView(post: post, showAuthor: true, enableSneakPeek: true)
-                                        .padding()
-                                        .id(post.id)
-                                        .onAppear {
-                                            if post.id == posts.last?.id && hasNextPage && !isLoading {
-                                                Task {
-                                                    await loadMore()
-                                                }
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(posts, id: \.id) { post in
+                                PostView(post: post, showAuthor: true, enableSneakPeek: true)
+                                    .padding()
+                                    .id(post.id)
+                                    .onAppear {
+                                        if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                            Task {
+                                                await loadMore()
                                             }
                                         }
-
-                                    Divider()
-                                }
-
-                                if isLoading && !posts.isEmpty {
-                                    HStack {
-                                        Spacer()
-                                        ProgressView()
-                                        Spacer()
                                     }
-                                    .padding()
+
+                                Divider()
+                            }
+
+                            if isLoading && !posts.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
                                 }
+                                .padding()
                             }
                         }
-                        .scrollPosition(id: $scrollPosition)
                     }
                 }
             }
@@ -522,6 +505,8 @@ struct LocalTimelineView: View {
                 await refreshPosts()
             }
             .task {
+                guard !hasLoadedInitial else { return }
+                hasLoadedInitial = true
                 await fetchPosts()
             }
             .onChange(of: shouldRefresh) { _, newValue in
@@ -586,9 +571,7 @@ struct LocalTimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {
-            print("Error fetching posts: \(error)")
-        }
+        } catch {}
     }
 
     private func loadMore() async {
@@ -603,9 +586,7 @@ struct LocalTimelineView: View {
             posts.append(contentsOf: newPosts)
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {
-            print("Error loading more posts: \(error)")
-        }
+        } catch {}
     }
 
     private func refreshPosts() async {
@@ -618,9 +599,7 @@ struct LocalTimelineView: View {
             posts = fetchedPosts
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {
-            print("Error refreshing posts: \(error)")
-        }
+        } catch {}
     }
 }
 

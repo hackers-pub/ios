@@ -15,12 +15,12 @@ extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.Acto
 
 struct NotificationsView: View {
     @State private var notifications: [NotificationItem] = []
+    @State private var hasLoadedInitial = false
     @State private var isLoading = true
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
-    @State private var scrollPosition: String?
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
@@ -35,35 +35,32 @@ struct NotificationsView: View {
                         description: Text(NSLocalizedString("notifications.empty.description", comment: "No notifications description"))
                     )
                 } else {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(notifications, id: \.id) { notification in
-                                    NotificationRowView(notification: notification)
-                                        .padding()
-                                        .id(notification.id)
-                                        .onAppear {
-                                            if notification.id == notifications.last?.id && hasNextPage && !isLoading {
-                                                Task {
-                                                    await loadMore()
-                                                }
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(notifications, id: \.id) { notification in
+                                NotificationRowView(notification: notification)
+                                    .padding()
+                                    .id(notification.id)
+                                    .onAppear {
+                                        if notification.id == notifications.last?.id && hasNextPage && !isLoading {
+                                            Task {
+                                                await loadMore()
                                             }
                                         }
-
-                                    Divider()
-                                }
-
-                                if isLoading && !notifications.isEmpty {
-                                    HStack {
-                                        Spacer()
-                                        ProgressView()
-                                        Spacer()
                                     }
-                                    .padding()
+
+                                Divider()
+                            }
+
+                            if isLoading && !notifications.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
                                 }
+                                .padding()
                             }
                         }
-                        .scrollPosition(id: $scrollPosition)
                     }
                 }
             }
@@ -72,6 +69,8 @@ struct NotificationsView: View {
                 await refreshNotifications()
             }
             .task {
+                guard !hasLoadedInitial else { return }
+                hasLoadedInitial = true
                 await fetchNotifications()
             }
             .onChange(of: shouldRefresh) { _, newValue in
@@ -110,7 +109,6 @@ struct NotificationsView: View {
     }
 
     private func fetchNotifications() async {
-        print("🔔 NotificationsView: Starting to fetch notifications...")
         // Don't show loading initially if we have cached data
         if notifications.isEmpty {
             isLoading = true
@@ -118,27 +116,15 @@ struct NotificationsView: View {
         defer { isLoading = false }
 
         do {
-            print("🔔 NotificationsView: Calling apolloClient.fetch...")
             // Fetch will use cache first, then network - Apollo's default behavior
             let response = try await apolloClient.fetch(query: HackersPub.NotificationsQuery(after: nil))
-            print("🔔 NotificationsView: Got response, data exists: \(response.data != nil)")
-
-            if let errors = response.errors, !errors.isEmpty {
-                print("⚠️ NotificationsView: GraphQL errors present:")
-                for error in errors {
-                    print("   - \(error.message ?? "Unknown error")")
-                }
-            }
 
             let fetchedNotifications = response.data?.viewer?.notifications.edges.map { $0.node } ?? []
-            print("🔔 NotificationsView: Fetched notifications count: \(fetchedNotifications.count)")
 
             notifications = fetchedNotifications
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
-        } catch {
-            print("❌ NotificationsView: Error fetching notifications: \(error)")
-        }
+        } catch {}
     }
 
     private func loadMore() async {
@@ -153,13 +139,10 @@ struct NotificationsView: View {
             notifications.append(contentsOf: newNotifications)
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
-        } catch {
-            print("❌ NotificationsView: Error loading more notifications: \(error)")
-        }
+        } catch {}
     }
 
     private func refreshNotifications() async {
-        print("🔔 NotificationsView: Refreshing notifications...")
         isLoading = true
         defer { isLoading = false }
 
@@ -169,9 +152,7 @@ struct NotificationsView: View {
             notifications = fetchedNotifications
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
-        } catch {
-            print("❌ NotificationsView: Error refreshing notifications: \(error)")
-        }
+        } catch {}
     }
 }
 
@@ -394,11 +375,25 @@ struct NotificationRowView: View {
 
     @ViewBuilder
     private func postPreview<P: PostProtocol>(_ post: P) -> some View {
+        let previewText = plainTextPreview(from: post.content)
         VStack(alignment: .leading) {
-            HTMLTextView(html: post.content, font: .caption)
+            Text(previewText)
+                .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(3)
         }
         .padding(.leading, 32)
+    }
+
+    private func plainTextPreview(from html: String) -> String {
+        var text = html.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        text = text.replacingOccurrences(of: "&nbsp;", with: " ")
+        text = text.replacingOccurrences(of: "&amp;", with: "&")
+        text = text.replacingOccurrences(of: "&lt;", with: "<")
+        text = text.replacingOccurrences(of: "&gt;", with: ">")
+        text = text.replacingOccurrences(of: "&quot;", with: "\"")
+        text = text.replacingOccurrences(of: "&#39;", with: "'")
+        text = text.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

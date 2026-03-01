@@ -1,5 +1,23 @@
 import SwiftUI
 
+private final class HTMLAttributedStringCache {
+    static let shared = HTMLAttributedStringCache()
+
+    private let cache = NSCache<NSString, NSAttributedString>()
+
+    private init() {
+        cache.countLimit = 500
+    }
+
+    func value(for key: String) -> NSAttributedString? {
+        cache.object(forKey: key as NSString)
+    }
+
+    func set(_ value: NSAttributedString, for key: String) {
+        cache.setObject(value, forKey: key as NSString)
+    }
+}
+
 struct HTMLTextView: View {
     let html: String
     let font: Font
@@ -22,29 +40,21 @@ struct HTMLTextView: View {
                 Text("")
             }
         }
-        .task(id: html) {
-            await parseHTML()
+        .task(id: renderConfigurationKey) {
+            await parseHTML(cacheKey: renderConfigurationKey)
         }
-        .onChange(of: dynamicTypeSize) { _, _ in
-            Task {
-                await parseHTML()
-            }
-        }
-        .onChange(of: fontSettings.selectedFontName) { _, _ in
-            Task {
-                await parseHTML()
-            }
-        }
-        .onChange(of: fontSettings.fontSizeMultiplier) { _, _ in
-            Task {
-                await parseHTML()
-            }
-        }
-        .onChange(of: fontSettings.useSystemDynamicType) { _, _ in
-            Task {
-                await parseHTML()
-            }
-        }
+    }
+
+    private var renderConfigurationKey: String {
+        var hasher = Hasher()
+        hasher.combine(html)
+        hasher.combine(textStyle.rawValue)
+        hasher.combine(fontSettings.selectedFontName)
+        hasher.combine(fontSettings.fontSizeMultiplier)
+        hasher.combine(fontSettings.useSystemDynamicType)
+        hasher.combine(dynamicTypeSize)
+        hasher.combine(color.description)
+        return String(hasher.finalize())
     }
 
     private var textStyle: UIFont.TextStyle {
@@ -75,7 +85,27 @@ struct HTMLTextView: View {
         }
     }
 
-    private func parseHTML() async {
+    private func parseHTML(cacheKey: String) async {
+        if let cached = HTMLAttributedStringCache.shared.value(for: cacheKey) {
+            attributedText = AttributedString(cached)
+            return
+        }
+
+        let weight = Self.defaultWeight(for: textStyle)
+        let uiFont = fontSettings.uiFont(for: textStyle, weight: weight)
+        let uiColor = UIColor(color)
+
+        if !Self.requiresHTMLParsing(html) {
+            let plain = NSMutableAttributedString(string: html)
+            let fullRange = NSRange(location: 0, length: plain.length)
+            plain.addAttribute(.font, value: uiFont, range: fullRange)
+            plain.addAttribute(.foregroundColor, value: uiColor, range: fullRange)
+            let cachedValue = NSAttributedString(attributedString: plain)
+            HTMLAttributedStringCache.shared.set(cachedValue, for: cacheKey)
+            attributedText = AttributedString(cachedValue)
+            return
+        }
+
         guard let data = html.data(using: .utf8) else { return }
 
         do {
@@ -95,17 +125,20 @@ struct HTMLTextView: View {
 
             // Apply user-selected font and size from FontSettingsManager,
             // preserving the semantic bold/semibold weight for heading styles.
-            let weight = Self.defaultWeight(for: textStyle)
-            let uiFont = fontSettings.uiFont(for: textStyle, weight: weight)
             mutableAttributed.addAttribute(.font, value: uiFont, range: fullRange)
 
-            let uiColor = UIColor(color)
             mutableAttributed.addAttribute(.foregroundColor, value: uiColor, range: fullRange)
 
-            attributedText = AttributedString(mutableAttributed)
+            let cachedValue = NSAttributedString(attributedString: mutableAttributed)
+            HTMLAttributedStringCache.shared.set(cachedValue, for: cacheKey)
+            attributedText = AttributedString(cachedValue)
         } catch {
             // Fallback to plain text
             attributedText = AttributedString(html)
         }
+    }
+
+    private static func requiresHTMLParsing(_ text: String) -> Bool {
+        text.contains("<") || text.contains("&")
     }
 }
