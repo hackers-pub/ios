@@ -66,6 +66,7 @@ struct LocalTimelineContent: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @Environment(AuthManager.self) private var authManager
 
     var body: some View {
         Group {
@@ -124,11 +125,13 @@ struct LocalTimelineContent: View {
                 }
             }
 
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingComposeView = true
-                } label: {
-                    Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
+            if authManager.isAuthenticated {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingComposeView = true
+                    } label: {
+                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
+                    }
                 }
             }
         }
@@ -221,6 +224,7 @@ struct GlobalTimelineContent: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @Environment(AuthManager.self) private var authManager
 
     var body: some View {
         Group {
@@ -279,7 +283,7 @@ struct GlobalTimelineContent: View {
                 }
             }
 
-            if showingComposeView != false || showingComposeView == false {
+            if authManager.isAuthenticated {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingComposeView = true

@@ -129,6 +129,7 @@ struct TimelineView: View {
     @State private var hasGap = false
     @State private var newPostsCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @Environment(AuthManager.self) private var authManager
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
         self._showingComposeView = showingComposeView
@@ -214,7 +215,7 @@ struct TimelineView: View {
                     }
                 }
 
-                if showingComposeView != false || showingComposeView == false {
+                if authManager.isAuthenticated {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             showingComposeView = true
@@ -549,6 +550,7 @@ struct LocalTimelineView: View {
     @State private var hasGap = false
     @State private var newPostsCount = 0
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @Environment(AuthManager.self) private var authManager
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
         self._showingComposeView = showingComposeView
@@ -634,11 +636,13 @@ struct LocalTimelineView: View {
                     }
                 }
 
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingComposeView = true
-                    } label: {
-                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
+                if authManager.isAuthenticated {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showingComposeView = true
+                        } label: {
+                            Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
+                        }
                     }
                 }
             }
@@ -788,4 +792,3 @@ struct ActorProfileViewWrapper: View {
         }
     }
 }
-
