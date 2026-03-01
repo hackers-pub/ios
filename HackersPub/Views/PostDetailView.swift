@@ -8,6 +8,8 @@ struct PostDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var selectedReaction: ReactionGroupInfo?
+    @State private var showingSharesSheet = false
+    @State private var showingQuotesSheet = false
     @State private var showingReplyView = false
     @State private var hasMoreReplies = false
     @State private var repliesCursor: String?
@@ -21,6 +23,18 @@ struct PostDetailView: View {
     @State private var reactionSheetHeight: CGFloat = 180
     @State private var reactionGroups: [ReactionGroupSnapshot] = []
     @State private var reactionErrorMessage: String?
+    @State private var shareActors: [ShareActorInfo] = []
+    @State private var isLoadingShares = false
+    @State private var sharesErrorMessage: String?
+    @State private var hasMoreShares = false
+    @State private var sharesCursor: String?
+    @State private var isLoadingMoreShares = false
+    @State private var quotes: [HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node] = []
+    @State private var isLoadingQuotes = false
+    @State private var quotesErrorMessage: String?
+    @State private var hasMoreQuotes = false
+    @State private var quotesCursor: String?
+    @State private var isLoadingMoreQuotes = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
@@ -306,8 +320,25 @@ struct PostDetailView: View {
                     HStack(spacing: 24) {
                         StatView(count: post.engagementStats.replies, label: "Replies", icon: "arrowshape.turn.up.left")
                         StatView(count: reactionsCount, label: ReactionL10n.title, icon: "heart")
-                        StatView(count: sharesCount, label: "Shares", icon: "arrow.2.squarepath")
-                        StatView(count: post.engagementStats.quotes, label: "Quotes", icon: "quote.bubble")
+                        Button {
+                            showingSharesSheet = true
+                            Task {
+                                await fetchShares()
+                            }
+                        } label: {
+                            StatView(count: sharesCount, label: "Shares", icon: "arrow.2.squarepath")
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            showingQuotesSheet = true
+                            Task {
+                                await fetchQuotes()
+                            }
+                        } label: {
+                            StatView(count: post.engagementStats.quotes, label: "Quotes", icon: "quote.bubble")
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal)
 
@@ -472,6 +503,60 @@ struct PostDetailView: View {
         .sheet(item: $selectedReaction) { reaction in
             ReactorsListView(reaction: reaction)
         }
+        .sheet(isPresented: $showingSharesSheet) {
+            SharesListSheetView(
+                title: "Shares",
+                actors: shareActors,
+                isLoading: isLoadingShares,
+                isLoadingMore: isLoadingMoreShares,
+                errorMessage: sharesErrorMessage,
+                emptyTitle: "No shares yet",
+                hasMore: hasMoreShares,
+                loadMoreTitle: "Load more shares",
+                onRetry: {
+                    Task {
+                        await fetchShares()
+                    }
+                },
+                onLoadMore: {
+                    Task {
+                        await loadMoreShares()
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showingQuotesSheet) {
+            NavigationStack {
+                QuotesListSheetView(
+                    items: quotes,
+                    isLoading: isLoadingQuotes,
+                    errorMessage: quotesErrorMessage,
+                    emptyTitle: "No quotes yet",
+                    hasMore: hasMoreQuotes,
+                    isLoadingMore: isLoadingMoreQuotes,
+                    loadMoreTitle: "Load more quotes",
+                    onRetry: {
+                        Task {
+                            await fetchQuotes()
+                        }
+                    },
+                    onLoadMore: {
+                        Task {
+                            await loadMoreQuotes()
+                        }
+                    }
+                )
+                .navigationTitle("Quotes")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(NSLocalizedString("settings.done", comment: "Done button")) {
+                            showingQuotesSheet = false
+                        }
+                    }
+                }
+            }
+        }
         .sheet(
             isPresented: Binding(
                 get: { showingReactionPicker && !useReactionPopover },
@@ -623,6 +708,136 @@ struct PostDetailView: View {
             reactionGroups = fetchedPost.reactionGroupsSnapshot
         } catch {
             errorMessage = "Failed to load post: \(error.localizedDescription)"
+        }
+    }
+
+    private func fetchShares() async {
+        guard !isLoadingShares else { return }
+
+        isLoadingShares = true
+        sharesErrorMessage = nil
+        defer { isLoadingShares = false }
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.PostSharesQuery(id: postId, after: nil))
+
+            if let errors = response.errors, !errors.isEmpty {
+                sharesErrorMessage = errors.first?.message ?? "Unknown error"
+                return
+            }
+
+            guard let shares = response.data?.node?.asPost?.shares else {
+                shareActors = []
+                hasMoreShares = false
+                sharesCursor = nil
+                return
+            }
+
+            shareActors = shares.edges.map { edge in
+                ShareActorInfo(
+                    id: edge.node.actor.id,
+                    name: edge.node.actor.name,
+                    handle: edge.node.actor.handle,
+                    avatarUrl: edge.node.actor.avatarUrl
+                )
+            }
+            hasMoreShares = shares.pageInfo.hasNextPage
+            sharesCursor = shares.pageInfo.endCursor
+        } catch {
+            sharesErrorMessage = "Failed to load shares: \(error.localizedDescription)"
+        }
+    }
+
+    private func loadMoreShares() async {
+        guard let cursor = sharesCursor, hasMoreShares, !isLoadingMoreShares else { return }
+
+        isLoadingMoreShares = true
+        defer { isLoadingMoreShares = false }
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.PostSharesQuery(id: postId, after: .some(cursor)))
+
+            if let errors = response.errors, !errors.isEmpty {
+                sharesErrorMessage = errors.first?.message ?? "Unknown error"
+                return
+            }
+
+            guard let shares = response.data?.node?.asPost?.shares else {
+                return
+            }
+
+            let incoming = shares.edges.map { edge in
+                ShareActorInfo(
+                    id: edge.node.actor.id,
+                    name: edge.node.actor.name,
+                    handle: edge.node.actor.handle,
+                    avatarUrl: edge.node.actor.avatarUrl
+                )
+            }
+            for actor in incoming where !shareActors.contains(where: { $0.id == actor.id }) {
+                shareActors.append(actor)
+            }
+
+            hasMoreShares = shares.pageInfo.hasNextPage
+            sharesCursor = shares.pageInfo.endCursor
+        } catch {
+            sharesErrorMessage = "Failed to load more shares: \(error.localizedDescription)"
+        }
+    }
+
+    private func fetchQuotes() async {
+        guard !isLoadingQuotes else { return }
+
+        isLoadingQuotes = true
+        quotesErrorMessage = nil
+        defer { isLoadingQuotes = false }
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.PostQuotesQuery(id: postId, after: nil))
+
+            if let errors = response.errors, !errors.isEmpty {
+                quotesErrorMessage = errors.first?.message ?? "Unknown error"
+                return
+            }
+
+            guard let quotesConnection = response.data?.node?.asPost?.quotes else {
+                quotes = []
+                hasMoreQuotes = false
+                quotesCursor = nil
+                return
+            }
+
+            quotes = quotesConnection.edges.map { $0.node }
+            hasMoreQuotes = quotesConnection.pageInfo.hasNextPage
+            quotesCursor = quotesConnection.pageInfo.endCursor
+        } catch {
+            quotesErrorMessage = "Failed to load quotes: \(error.localizedDescription)"
+        }
+    }
+
+    private func loadMoreQuotes() async {
+        guard let cursor = quotesCursor, hasMoreQuotes, !isLoadingMoreQuotes else { return }
+
+        isLoadingMoreQuotes = true
+        defer { isLoadingMoreQuotes = false }
+
+        do {
+            let response = try await apolloClient.fetch(query: HackersPub.PostQuotesQuery(id: postId, after: .some(cursor)))
+
+            if let errors = response.errors, !errors.isEmpty {
+                quotesErrorMessage = errors.first?.message ?? "Unknown error"
+                return
+            }
+
+            guard let quotesConnection = response.data?.node?.asPost?.quotes else {
+                return
+            }
+
+            quotes.append(contentsOf: quotesConnection.edges.map { $0.node })
+            hasMoreQuotes = quotesConnection.pageInfo.hasNextPage
+            quotesCursor = quotesConnection.pageInfo.endCursor
+        } catch {
+            quotesErrorMessage = "Failed to load more quotes: \(error.localizedDescription)"
         }
     }
 

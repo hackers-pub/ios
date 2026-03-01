@@ -1256,6 +1256,165 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
   }
 }
 
+query PostSharesQuery($id: ID!, $after: String) {
+  node(id: $id) {
+    ... on Post {
+      shares(first: 20, after: $after) {
+        edges {
+          cursor
+          node {
+            id
+            actor {
+              id
+              name
+              handle
+              avatarUrl
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}
+
+query PostQuotesQuery($id: ID!, $after: String) {
+  node(id: $id) {
+    ... on Post {
+      quotes(first: 20, after: $after) {
+        edges {
+          cursor
+          node {
+            __typename
+            id
+            name
+            published
+            summary
+            content
+            excerpt
+            url
+            viewerHasShared
+            actor {
+              id
+              name
+              handle
+              avatarUrl
+            }
+            media {
+              url
+              thumbnailUrl
+              alt
+              height
+              width
+            }
+            sharedPost {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              excerpt
+              url
+              viewerHasShared
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
+              }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
+              }
+            }
+            quotedPost {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              excerpt
+              url
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+            }
+            mentions(first: 20) {
+              edges {
+                node {
+                  handle
+                }
+              }
+            }
+            engagementStats {
+              replies
+              reactions
+              shares
+              quotes
+            }
+            reactionGroups {
+              __typename
+              ... on EmojiReactionGroup {
+                emoji
+                reactors(first: 20) {
+                  totalCount
+                  viewerHasReacted
+                }
+              }
+              ... on CustomEmojiReactionGroup {
+                customEmoji {
+                  id
+                  name
+                  imageUrl
+                }
+                reactors(first: 20) {
+                  totalCount
+                  viewerHasReacted
+                }
+              }
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}
+
 mutation AddReactionToPostMutation($postId: ID!, $emoji: String!) {
   addReactionToPost(input: { postId: $postId, emoji: $emoji }) {
     ... on AddReactionToPostPayload {

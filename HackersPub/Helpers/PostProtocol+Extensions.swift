@@ -52,6 +52,8 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost.EngagementStats: Engagemen
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.SharedPost.EngagementStats: EngagementStatsProtocol {}
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.EngagementStats: EngagementStatsProtocol {}
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
 
 // MARK: - SearchPost Extensions
 
@@ -349,6 +351,52 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.QuotedPo
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.QuotedPost.Actor: ActorProtocol {}
 
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node.QuotedPost.Medium: MediaProtocol {}
+
+// MARK: - PostQuotes Extensions
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node: PostProtocol {
+    typealias SharedPostType = HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.QuotedPost
+    typealias EngagementStatsType = HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.EngagementStats
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
+}
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.Actor: ActorProtocol {}
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.Medium: MediaProtocol {}
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.SharedPost: PostProtocol {
+    typealias SharedPostType = HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.SharedPost
+    typealias EngagementStatsType = HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.SharedPost.EngagementStats
+    var sharedPost: SharedPostType? { nil }
+    var quotedPost: QuotedPostType? { nil }
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
+}
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.SharedPost.Actor: ActorProtocol {}
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.SharedPost.Medium: MediaProtocol {}
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.QuotedPost: QuotedPostProtocol {}
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.QuotedPost.Actor: ActorProtocol {}
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node.QuotedPost.Medium: MediaProtocol {}
 // MARK: - ReactionCapablePostProtocol
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node: ReactionCapablePostProtocol {
@@ -514,6 +562,33 @@ extension HackersPub.PostDetailQuery.Data.Node.AsPost: ReactionCapablePostProtoc
 }
 
 extension HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node: ReactionCapablePostProtocol {
     var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
         reactionGroups.compactMap { group in
             if let emojiGroup = group.asEmojiReactionGroup {

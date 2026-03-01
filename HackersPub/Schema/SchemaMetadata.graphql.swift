@@ -64,8 +64,12 @@ public extension HackersPub {
       case "PostMedium": return HackersPub.Objects.PostMedium
       case "PostMentionsConnection": return HackersPub.Objects.PostMentionsConnection
       case "PostMentionsConnectionEdge": return HackersPub.Objects.PostMentionsConnectionEdge
+      case "PostQuotesConnection": return HackersPub.Objects.PostQuotesConnection
+      case "PostQuotesConnectionEdge": return HackersPub.Objects.PostQuotesConnectionEdge
       case "PostRepliesConnection": return HackersPub.Objects.PostRepliesConnection
       case "PostRepliesConnectionEdge": return HackersPub.Objects.PostRepliesConnectionEdge
+      case "PostSharesConnection": return HackersPub.Objects.PostSharesConnection
+      case "PostSharesConnectionEdge": return HackersPub.Objects.PostSharesConnectionEdge
       case "Query": return HackersPub.Objects.Query
       case "QueryPersonalTimelineConnection": return HackersPub.Objects.QueryPersonalTimelineConnection
       case "QueryPersonalTimelineConnectionEdge": return HackersPub.Objects.QueryPersonalTimelineConnectionEdge
