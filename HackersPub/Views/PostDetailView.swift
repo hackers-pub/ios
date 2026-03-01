@@ -410,9 +410,6 @@ struct PostDetailView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
 
-                    Divider()
-                        .padding(.horizontal)
-
                     // Reactions section
                     if !post.reactionGroups.isEmpty {
                         Divider()
