@@ -230,10 +230,14 @@ struct SettingsView: View {
             .navigationTitle(NSLocalizedString("nav.settings", comment: "Settings navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("settings.done", comment: "Done button")) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         dismiss()
                     }
+                    label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel(NSLocalizedString("settings.done", comment: "Done button"))
                 }
             }
             .alert(NSLocalizedString("settings.clearCacheAlert.title", comment: "Clear cache alert title"), isPresented: $showingClearCacheAlert) {

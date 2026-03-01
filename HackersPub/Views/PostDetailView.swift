@@ -8,6 +8,7 @@ struct PostDetailView: View {
         case reactors(ReactionGroupInfo)
         case shares
         case quotes
+        case reactionPicker
 
         var id: String {
             switch self {
@@ -19,6 +20,8 @@ struct PostDetailView: View {
                 return "shares"
             case .quotes:
                 return "quotes"
+            case .reactionPicker:
+                return "reactionPicker"
             }
         }
     }
@@ -368,7 +371,12 @@ struct PostDetailView: View {
                     // Action buttons
                     HStack(spacing: 16) {
                         Button {
-                            showingReactionPicker = true
+                            if useReactionPopover {
+                                showingReactionPicker = true
+                            } else {
+                                refreshPostOnSheetDismiss = false
+                                activeSheet = .reactionPicker
+                            }
                         } label: {
                             if isReacting {
                                 ProgressView()
@@ -567,42 +575,45 @@ struct PostDetailView: View {
                             Task {
                                 await loadMoreQuotes()
                             }
+                        },
+                        onPostSelected: { selectedId in
+                            openQuotedPost(id: selectedId)
                         }
                     )
                     .navigationTitle("Quotes")
                     .navigationBarTitleDisplayMode(.inline)
-                }
-            }
-        }
-        .sheet(
-            isPresented: Binding(
-                get: { showingReactionPicker && !useReactionPopover },
-                set: { isPresented in
-                    if !isPresented {
-                        showingReactionPicker = false
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                activeSheet = nil
+                            } label: {
+                                Image(systemName: "xmark")
+                            }
+                            .accessibilityLabel(NSLocalizedString("reaction.action.close", comment: "Close"))
+                        }
                     }
                 }
-            )
-        ) {
-            ReactionPickerView(
-                reactionGroups: reactionGroups,
-                isSubmitting: isReacting,
-                onEmojiSelect: { emoji in
-                    Task {
-                        await toggleReaction(emoji: emoji)
+            case .reactionPicker:
+                ReactionPickerView(
+                    reactionGroups: reactionGroups,
+                    isSubmitting: isReacting,
+                    onEmojiSelect: { emoji in
+                        Task {
+                            await toggleReaction(emoji: emoji)
+                        }
+                    },
+                    onClose: {
+                        activeSheet = nil
                     }
-                },
-                onClose: {
-                    showingReactionPicker = false
+                )
+                .trackReactionPickerHeight { contentHeight in
+                    let targetHeight = min(max(contentHeight + 24, 160), 340)
+                    if abs(reactionSheetHeight - targetHeight) > 1 {
+                        reactionSheetHeight = targetHeight
+                    }
                 }
-            )
-            .trackReactionPickerHeight { contentHeight in
-                let targetHeight = min(max(contentHeight + 24, 160), 340)
-                if abs(reactionSheetHeight - targetHeight) > 1 {
-                    reactionSheetHeight = targetHeight
-                }
+                .presentationDetents([.height(reactionSheetHeight)])
             }
-            .presentationDetents([.height(reactionSheetHeight)])
         }
         .popover(
             isPresented: Binding(
@@ -855,6 +866,13 @@ struct PostDetailView: View {
             quotesCursor = quotesConnection.pageInfo.endCursor
         } catch {
             quotesErrorMessage = "Failed to load more quotes: \(error.localizedDescription)"
+        }
+    }
+
+    private func openQuotedPost(id: String) {
+        activeSheet = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            navigationCoordinator.navigateToPost(id: id)
         }
     }
 
@@ -1120,10 +1138,13 @@ struct ReactorsListView: View {
             .navigationTitle(String(format: ReactionL10n.reactedWithFormat, reaction.emoji))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("settings.done", comment: "Done button")) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
                     }
+                    .accessibilityLabel(ReactionL10n.close)
                 }
             }
         }

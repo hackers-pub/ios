@@ -176,10 +176,14 @@ struct ComposeView: View {
             .navigationTitle(replyToPostId != nil ? NSLocalizedString("nav.reply", comment: "Reply navigation title") : NSLocalizedString("nav.newPost", comment: "New post navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("compose.cancel", comment: "Cancel button")) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         dismiss()
                     }
+                    label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel(NSLocalizedString("compose.cancel", comment: "Cancel button"))
                     .disabled(isPosting)
                 }
 

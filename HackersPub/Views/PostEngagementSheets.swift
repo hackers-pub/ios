@@ -138,10 +138,13 @@ struct SharesListSheetView: View {
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("settings.done", comment: "Done button")) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
                     }
+                    .accessibilityLabel(NSLocalizedString("reaction.action.close", comment: "Close"))
                 }
             }
         }
@@ -159,6 +162,7 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
     let loadMoreTitle: String
     let onRetry: (() -> Void)?
     let onLoadMore: (() -> Void)?
+    let onPostSelected: ((String) -> Void)?
     let loadingView: (() -> AnyView)?
     let loadingMoreView: (() -> AnyView)?
 
@@ -173,6 +177,7 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
         loadMoreTitle: String = "Load more",
         onRetry: (() -> Void)? = nil,
         onLoadMore: (() -> Void)? = nil,
+        onPostSelected: ((String) -> Void)? = nil,
         loadingView: (() -> AnyView)? = nil,
         loadingMoreView: (() -> AnyView)? = nil
     ) {
@@ -186,6 +191,7 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
         self.loadMoreTitle = loadMoreTitle
         self.onRetry = onRetry
         self.onLoadMore = onLoadMore
+        self.onPostSelected = onPostSelected
         self.loadingView = loadingView
         self.loadingMoreView = loadingMoreView
     }
@@ -236,9 +242,18 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
                     .padding()
                 } else {
                     ForEach(items, id: \.id) { item in
-                        PostView(post: item, showAuthor: true, disableNavigation: false)
+                        PostView(post: item, showAuthor: true, disableNavigation: true)
+                            .allowsHitTesting(false)
                             .padding(.horizontal)
                             .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .overlay {
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        onPostSelected?(item.id)
+                                    }
+                            }
 
                         Divider()
                             .padding(.horizontal)
