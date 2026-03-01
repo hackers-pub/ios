@@ -69,6 +69,76 @@ protocol MediaProtocol {
     var height: Int? { get }
 }
 
+private func withPreviewEnvironment<V: View>(
+    _ view: V,
+    authManager: AuthManager,
+    navigationCoordinator: NavigationCoordinator
+) -> some View {
+    view
+        .environment(authManager)
+        .environment(navigationCoordinator)
+        .environmentObject(FontSettingsManager.shared)
+}
+
+private struct PostSneakPeekModifier: ViewModifier {
+    let postId: String?
+    @Environment(AuthManager.self) private var authManager
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let postId {
+            content.contextMenu(menuItems: {
+            }, preview: {
+                withPreviewEnvironment(
+                    PostDetailView(postId: postId),
+                    authManager: authManager,
+                    navigationCoordinator: navigationCoordinator
+                )
+            })
+        } else {
+            content
+        }
+    }
+}
+
+private struct ProfileSneakPeekModifier: ViewModifier {
+    let handle: String?
+    @Environment(AuthManager.self) private var authManager
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let handle {
+            content.contextMenu(menuItems: {
+                Button {
+                    navigationCoordinator.navigateToProfile(handle: handle)
+                } label: {
+                    Label("Open Profile", systemImage: "person.crop.circle")
+                }
+            }, preview: {
+                withPreviewEnvironment(
+                    ActorProfileViewWrapper(handle: handle).frame(width: 340, height: 560),
+                    authManager: authManager,
+                    navigationCoordinator: navigationCoordinator
+                )
+            })
+        } else {
+            content
+        }
+    }
+}
+
+private extension View {
+    func postSneakPeek(postId: String?) -> some View {
+        modifier(PostSneakPeekModifier(postId: postId))
+    }
+
+    func profileSneakPeek(handle: String?) -> some View {
+        modifier(ProfileSneakPeekModifier(handle: handle))
+    }
+}
+
 struct EngagementToolbarButton: View {
     let icon: String
     let count: Int
@@ -136,6 +206,7 @@ struct EngagementToolbarButton: View {
 
 struct RepostIndicator<Actor: ActorProtocol>: View {
     let actor: Actor
+    let enableProfileSneakPeek: Bool
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
@@ -143,9 +214,7 @@ struct RepostIndicator<Actor: ActorProtocol>: View {
             Image(systemName: "arrow.2.squarepath")
                 .font(.caption)
 
-            Button {
-                navigationCoordinator.navigateToProfile(handle: actor.handle)
-            } label: {
+            HStack(spacing: 6) {
                 KFImage(URL(string: actor.avatarUrl))
                     .placeholder {
                         Color.gray.opacity(0.2)
@@ -154,24 +223,26 @@ struct RepostIndicator<Actor: ActorProtocol>: View {
                     .scaledToFill()
                     .frame(width: 16, height: 16)
                     .clipShape(Circle())
-            }
-            .buttonStyle(.plain)
 
-            Button {
-                navigationCoordinator.navigateToProfile(handle: actor.handle)
-            } label: {
-                if let name = actor.name {
-                    HTMLTextView(html: name, font: .caption)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                } else {
-                    Text(actor.handle)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                Group {
+                    if let name = actor.name {
+                        HTMLTextView(html: name, font: .caption)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    } else {
+                        Text(actor.handle)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
                 }
             }
-            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .accessibilityAddTraits(.isButton)
+            .onTapGesture {
+                navigationCoordinator.navigateToProfile(handle: actor.handle)
+            }
+            .profileSneakPeek(handle: enableProfileSneakPeek ? actor.handle : nil)
 
             Text("reposted")
                 .font(.caption)
@@ -180,22 +251,79 @@ struct RepostIndicator<Actor: ActorProtocol>: View {
     }
 }
 
+private struct ActorHeaderIdentity<Actor: ActorProtocol>: View {
+    let actor: Actor
+    let avatarSize: CGFloat
+    let nameFont: Font
+    let nameWeight: Font.Weight?
+    let handleFont: Font
+    let sneakPeekHandle: String?
+
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
+
+    var body: some View {
+        HStack(spacing: 8) {
+            KFImage(URL(string: actor.avatarUrl))
+                .placeholder {
+                    Color.gray.opacity(0.2)
+                }
+                .resizable()
+                .scaledToFill()
+                .frame(width: avatarSize, height: avatarSize)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                if let name = actor.name {
+                    let nameView = HTMLTextView(html: name, font: nameFont)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if let nameWeight {
+                        nameView.fontWeight(nameWeight)
+                    } else {
+                        nameView
+                    }
+                }
+                Text(actor.handle)
+                    .font(handleFont)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 8)
+        }
+        .contentShape(Rectangle())
+        .accessibilityAddTraits(.isButton)
+        .onTapGesture {
+            navigationCoordinator.navigateToProfile(handle: actor.handle)
+        }
+        .profileSneakPeek(handle: sneakPeekHandle)
+    }
+}
+
 struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
     let quotedPost: QuotedPost
     let disableNavigation: Bool
+    let suppressContentLongPress: Bool
+    let sneakPeekPostId: String?
+    let enableProfileSneakPeek: Bool
     let showFullDateTime: Bool
     let onTap: (() -> Void)?
-
-    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(
         quotedPost: QuotedPost,
         disableNavigation: Bool = false,
+        suppressContentLongPress: Bool = false,
+        sneakPeekPostId: String? = nil,
+        enableProfileSneakPeek: Bool = false,
         showFullDateTime: Bool = false,
         onTap: (() -> Void)? = nil
     ) {
         self.quotedPost = quotedPost
         self.disableNavigation = disableNavigation
+        self.suppressContentLongPress = suppressContentLongPress
+        self.sneakPeekPostId = sneakPeekPostId
+        self.enableProfileSneakPeek = enableProfileSneakPeek
         self.showFullDateTime = showFullDateTime
         self.onTap = onTap
     }
@@ -210,40 +338,14 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Button {
-                    navigationCoordinator.navigateToProfile(handle: quotedPost.actor.handle)
-                } label: {
-                    KFImage(URL(string: quotedPost.actor.avatarUrl))
-                        .placeholder {
-                            Color.gray.opacity(0.2)
-                        }
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 32, height: 32)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    navigationCoordinator.navigateToProfile(handle: quotedPost.actor.handle)
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        if let name = quotedPost.actor.name {
-                            HTMLTextView(html: name, font: .subheadline)
-                                .fontWeight(.semibold)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                        Text(quotedPost.actor.handle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.trailing, 8)
-                }
-                .buttonStyle(.plain)
+                ActorHeaderIdentity(
+                    actor: quotedPost.actor,
+                    avatarSize: 32,
+                    nameFont: .subheadline,
+                    nameWeight: .semibold,
+                    handleFont: .caption,
+                    sneakPeekHandle: enableProfileSneakPeek ? quotedPost.actor.handle : nil
+                )
 
                 Spacer()
             }
@@ -265,7 +367,9 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
                         height: $0.height
                     )
                 },
-                onTap: !disableNavigation ? onTap : nil
+                onTap: !disableNavigation ? onTap : nil,
+                suppressLongPressInteractions: suppressContentLongPress,
+                sneakPeekPostId: sneakPeekPostId
             )
 
             Text(publishedText)
@@ -310,6 +414,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     let post: P
     let showAuthor: Bool
     let disableNavigation: Bool
+    let enableSneakPeek: Bool
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -349,10 +454,16 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         }
     }
 
-    init(post: P, showAuthor: Bool = true, disableNavigation: Bool = false) {
+    init(
+        post: P,
+        showAuthor: Bool = true,
+        disableNavigation: Bool = false,
+        enableSneakPeek: Bool = false
+    ) {
         self.post = post
         self.showAuthor = showAuthor
         self.disableNavigation = disableNavigation
+        self.enableSneakPeek = enableSneakPeek
         _hasShared = State(initialValue: post.viewerHasShared)
         _sharesCount = State(initialValue: post.engagementStats.shares)
         _reactionsCount = State(initialValue: post.engagementStats.reactions)
@@ -371,6 +482,35 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         guard let viewerHandle = authManager.currentAccount?.handle else { return false }
         let isViewerAuthor = viewerHandle.caseInsensitiveCompare(post.actor.handle) == .orderedSame
         return isViewerAuthor && post.sharedPost == nil
+    }
+
+    private var mainSneakPeekPostId: String? {
+        guard sneakPeekEnabled, !post.isArticle else { return nil }
+        return post.id
+    }
+
+    private var sneakPeekEnabled: Bool {
+        enableSneakPeek && !disableNavigation
+    }
+
+    private func sneakPeekHandle(_ handle: String) -> String? {
+        sneakPeekEnabled ? handle : nil
+    }
+
+    private func sneakPeekPostId(_ postId: String) -> String? {
+        sneakPeekEnabled ? postId : nil
+    }
+
+    private func mediaItems<M: MediaProtocol>(from media: [M]) -> [MediaItem] {
+        media.map {
+            MediaItem(
+                url: $0.url,
+                thumbnailUrl: $0.thumbnailUrl,
+                alt: $0.alt,
+                width: $0.width,
+                height: $0.height
+            )
+        }
     }
 
     private func getContent(content: String) -> String {
@@ -744,44 +884,19 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             VStack(alignment: .leading, spacing: 8) {
                 // Show repost indicator
                 if showAuthor && post.sharedPost != nil {
-                    RepostIndicator(actor: post.actor)
+                    RepostIndicator(actor: post.actor, enableProfileSneakPeek: sneakPeekEnabled)
                 }
 
                 if showAuthor && post.sharedPost == nil {
                     HStack(spacing: 8) {
-                        Button {
-                            navigationCoordinator.navigateToProfile(handle: post.actor.handle)
-                        } label: {
-                            KFImage(URL(string: post.actor.avatarUrl))
-                                .placeholder {
-                                    Color.gray.opacity(0.2)
-                                }
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 40, height: 40)
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            navigationCoordinator.navigateToProfile(handle: post.actor.handle)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                if let name = post.actor.name {
-                                    HTMLTextView(html: name, font: .headline)
-                                        .lineLimit(1)
-                                        .truncationMode(.tail)
-                                }
-                                Text(post.actor.handle)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.trailing, 8)
-                        }
-                        .buttonStyle(.plain)
+                        ActorHeaderIdentity(
+                            actor: post.actor,
+                            avatarSize: 40,
+                            nameFont: .headline,
+                            nameWeight: nil,
+                            handleFont: .subheadline,
+                            sneakPeekHandle: sneakPeekHandle(post.actor.handle)
+                        )
 
                         Spacer()
                     }
@@ -791,39 +906,14 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     // Display shared post
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
-                            Button {
-                                navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
-                            } label: {
-                                KFImage(URL(string: sharedPost.actor.avatarUrl))
-                                    .placeholder {
-                                        Color.gray.opacity(0.2)
-                                    }
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 40, height: 40)
-                                    .clipShape(Circle())
-                            }
-                            .buttonStyle(.plain)
-
-                            Button {
-                                navigationCoordinator.navigateToProfile(handle: sharedPost.actor.handle)
-                            } label: {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    if let name = sharedPost.actor.name {
-                                        HTMLTextView(html: name, font: .headline)
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
-                                    }
-                                    Text(sharedPost.actor.handle)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                        .truncationMode(.tail)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.trailing, 8)
-                            }
-                            .buttonStyle(.plain)
+                            ActorHeaderIdentity(
+                                actor: sharedPost.actor,
+                                avatarSize: 40,
+                                nameFont: .headline,
+                                nameWeight: nil,
+                                handleFont: .subheadline,
+                                sneakPeekHandle: sneakPeekHandle(sharedPost.actor.handle)
+                            )
 
                             Spacer()
                         }
@@ -836,15 +926,12 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         let content = self.getContent(content: sharedPost.content)
                         HTMLContentView(
                             html: content,
-                            media: sharedPost.media.map {
-                                MediaItem(
-                                    url: $0.url, thumbnailUrl: $0.thumbnailUrl,
-                                    alt: $0.alt, width: $0.width, height: $0.height
-                                )
-                            },
+                            media: mediaItems(from: sharedPost.media),
                             onTap: !disableNavigation ? {
                                 navigationCoordinator.navigateToPost(id: sharedPost.id)
-                            } : nil
+                            } : nil,
+                            suppressLongPressInteractions: sneakPeekEnabled,
+                            sneakPeekPostId: sneakPeekPostId(sharedPost.id)
                         )
 
                         Text(DateFormatHelper.relativeTime(from: sharedPost.published))
@@ -854,6 +941,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     .padding()
                     .background(Color.gray.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .postSneakPeek(postId: sneakPeekPostId(sharedPost.id))
                 } else if post.isArticle {
                     // Display article summary with navigation link
                     NavigationLink {
@@ -891,25 +979,26 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     let content = self.getContent(content: post.content)
                     HTMLContentView(
                         html: content,
-                        media: post.media.map {
-                            MediaItem(
-                                url: $0.url, thumbnailUrl: $0.thumbnailUrl,
-                                alt: $0.alt, width: $0.width, height: $0.height
-                            )
-                        },
+                        media: mediaItems(from: post.media),
                         onTap: !disableNavigation && !post.isArticle ? {
                             navigationCoordinator.navigateToPost(id: post.id)
-                        } : nil
+                        } : nil,
+                        suppressLongPressInteractions: sneakPeekEnabled,
+                        sneakPeekPostId: mainSneakPeekPostId
                     )
 
                     if let quotedPost = post.quotedPost {
                         QuotedPostCard(
                             quotedPost: quotedPost,
                             disableNavigation: disableNavigation,
+                            suppressContentLongPress: sneakPeekEnabled,
+                            sneakPeekPostId: sneakPeekPostId(quotedPost.id),
+                            enableProfileSneakPeek: sneakPeekEnabled,
                             onTap: {
                                 navigationCoordinator.navigateToPost(id: quotedPost.id)
                             }
                         )
+                        .postSneakPeek(postId: sneakPeekPostId(quotedPost.id))
                     }
                 }
 
@@ -999,7 +1088,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             .contentShape(Rectangle())
             .background(
                 Group {
-                    if !disableNavigation && !post.isArticle {
+                    if !disableNavigation && !post.isArticle && !enableSneakPeek {
                         NavigationLink(destination: PostDetailView(postId: post.id)) {
                             Color.clear
                         }
@@ -1008,6 +1097,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     }
                 }
             )
+            .postSneakPeek(postId: mainSneakPeekPostId)
         }
         .onChange(of: post.id) {
             hasShared = post.viewerHasShared

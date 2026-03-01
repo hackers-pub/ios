@@ -478,7 +478,7 @@ struct ActorProfileView: View {
                 if !posts.isEmpty {
                     LazyVStack(spacing: 0) {
                         ForEach(posts, id: \.id) { post in
-                            PostView(post: post, showAuthor: true, disableNavigation: false)
+                            PostView(post: post, showAuthor: true, disableNavigation: false, enableSneakPeek: true)
                                 .padding()
                                 .onAppear {
                                     if post.id == posts.last?.id && hasNextPage && !isLoading {

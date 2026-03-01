@@ -89,10 +89,20 @@ final class HTMLHeightCache: @unchecked Sendable {
     }
 #else
     struct HTMLWebView: UIViewRepresentable {
+        private enum InteractionTiming {
+            static let pressToTapThresholdMs = 450
+            static let suppressClickAfterContextMenuMs = 800
+            static let ignoreTapAfterMenuOpen: TimeInterval = 0.75
+            static let ignoreTapAfterMenuEnd: TimeInterval = 0.25
+        }
+
         let html: String
         @Binding var height: CGFloat
         var onTap: (() -> Void)?
+        var authManager: AuthManager?
         var navigationCoordinator: NavigationCoordinator?
+        var suppressLongPressInteractions: Bool = false
+        var sneakPeekPostId: String?
         @Environment(\.dynamicTypeSize) private var dynamicTypeSize
         @ObservedObject private var fontSettings = FontSettingsManager.shared
 
@@ -120,8 +130,23 @@ final class HTMLHeightCache: @unchecked Sendable {
             style.textContent = 'body { overflow: hidden; } ::-webkit-scrollbar { display: none; }';
             document.getElementsByTagName('head')[0].appendChild(style);
 
+            var pressStartTimestamp = 0;
+            var ignoreClickUntil = 0;
+            function markPressStart() {
+                pressStartTimestamp = Date.now();
+            }
+            document.addEventListener('touchstart', markPressStart, true);
+            document.addEventListener('pointerdown', markPressStart, true);
+            document.addEventListener('mousedown', markPressStart, true);
+
             // Detect taps on non-link elements
             document.addEventListener('click', function(e) {
+                if (Date.now() < ignoreClickUntil) {
+                    return;
+                }
+                if (pressStartTimestamp > 0 && Date.now() - pressStartTimestamp > \(InteractionTiming.pressToTapThresholdMs)) {
+                    return;
+                }
                 // Check if the click is on a link or inside a link
                 let target = e.target;
                 while (target) {
@@ -134,6 +159,15 @@ final class HTMLHeightCache: @unchecked Sendable {
                 window.webkit.messageHandlers.tapHandler.postMessage('tap');
                 e.preventDefault();
             }, true);
+            \(suppressLongPressInteractions ? """
+            document.addEventListener('contextmenu', function(e) {
+                ignoreClickUntil = Date.now() + \(InteractionTiming.suppressClickAfterContextMenuMs);
+                e.preventDefault();
+            }, true);
+            document.addEventListener('selectstart', function(e) {
+                e.preventDefault();
+            }, true);
+            """ : "")
             """
             let script = WKUserScript(
                 source: source,
@@ -148,6 +182,7 @@ final class HTMLHeightCache: @unchecked Sendable {
         func updateUIView(_ webView: WKWebView, context: Context) {
             // Update coordinator reference
             context.coordinator.parent = self
+            context.coordinator.attachContextMenuInteractionIfNeeded(to: webView)
 
             // Build a content key that captures every variable affecting the rendered output
             let contentKey = HTMLContentKey(
@@ -177,7 +212,17 @@ final class HTMLHeightCache: @unchecked Sendable {
 
             // Generate CSS once per settings change, not per cell
             let fontSize = fontSettings.scaledSize(for: .body)
-            let css = HTMLStyles.generateCSS(fontSize: fontSize, fontFamily: fontSettings.cssFontFamily)
+            var css = HTMLStyles.generateCSS(fontSize: fontSize, fontFamily: fontSettings.cssFontFamily)
+            if suppressLongPressInteractions {
+                css += """
+                
+                body, body * {
+                    -webkit-user-select: none !important;
+                    user-select: none !important;
+                    -webkit-touch-callout: none !important;
+                }
+                """
+            }
             let styledHTML = HTMLStyles.wrapHTML(html, css: css)
 
             // Capture the content key for this navigation so didFinish can verify it.
@@ -191,18 +236,22 @@ final class HTMLHeightCache: @unchecked Sendable {
 
         // MARK: - Coordinator
 
-        class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, UIContextMenuInteractionDelegate {
             var parent: HTMLWebView
             var lastContentKey: HTMLContentKey?
             /// Content key captured at navigation start, used to verify
             /// that the finished navigation still matches the current content.
             var pendingContentKey: HTMLContentKey?
+            var contextMenuInteraction: UIContextMenuInteraction?
+            private weak var contextMenuHostView: UIView?
+            private var ignoreTapUntil: Date = .distantPast
 
             init(_ parent: HTMLWebView) {
                 self.parent = parent
             }
 
             func webView(_ webView: WKWebView, didFinish _: WKNavigation!) {
+                attachContextMenuInteractionIfNeeded(to: webView)
                 // Verify the finished navigation matches the most recently requested content.
                 // If a newer load was initiated while this one was in-flight, discard the result
                 // to prevent caching a height under the wrong content key.
@@ -250,8 +299,84 @@ final class HTMLHeightCache: @unchecked Sendable {
                 didReceive message: WKScriptMessage
             ) {
                 if message.name == "tapHandler" {
+                    guard Date() >= ignoreTapUntil else { return }
                     parent.onTap?()
                 }
+            }
+
+            func contextMenuInteraction(
+                _: UIContextMenuInteraction,
+                configurationForMenuAtLocation _: CGPoint
+            ) -> UIContextMenuConfiguration? {
+                guard parent.sneakPeekPostId != nil else { return nil }
+                ignoreTapUntil = Date().addingTimeInterval(InteractionTiming.ignoreTapAfterMenuOpen)
+
+                return UIContextMenuConfiguration(
+                    identifier: nil,
+                    previewProvider: { [weak self] in
+                        guard let self, let postId = self.parent.sneakPeekPostId else { return nil }
+                        return self.makePostPreviewController(postId: postId)
+                    },
+                    actionProvider: { _ in
+                        UIMenu(children: [])
+                    }
+                )
+            }
+
+            func contextMenuInteraction(
+                _: UIContextMenuInteraction,
+                willEndFor _: UIContextMenuConfiguration,
+                animator _: UIContextMenuInteractionAnimating?
+            ) {
+                ignoreTapUntil = Date().addingTimeInterval(InteractionTiming.ignoreTapAfterMenuEnd)
+            }
+
+            private func makePostPreviewController(postId: String) -> UIViewController {
+                let basePreview = AnyView(
+                    PostDetailView(postId: postId)
+                        .environmentObject(FontSettingsManager.shared)
+                )
+                let finalPreview = injectPreviewEnvironment(into: basePreview)
+
+                let controller = UIHostingController(rootView: finalPreview)
+                controller.view.backgroundColor = .systemBackground
+                return controller
+            }
+
+            private func injectPreviewEnvironment(into view: AnyView) -> AnyView {
+                var result = view
+                if let authManager = parent.authManager {
+                    result = AnyView(result.environment(authManager))
+                }
+                if let navigationCoordinator = parent.navigationCoordinator {
+                    result = AnyView(result.environment(navigationCoordinator))
+                }
+                return result
+            }
+
+            func attachContextMenuInteractionIfNeeded(to webView: WKWebView) {
+                guard parent.sneakPeekPostId != nil else {
+                    if let interaction = contextMenuInteraction {
+                        contextMenuHostView?.removeInteraction(interaction)
+                    }
+                    contextMenuHostView = nil
+                    return
+                }
+
+                let contentView = webView.scrollView.subviews.first { subview in
+                    NSStringFromClass(type(of: subview)).contains("WKContent")
+                }
+                let targetView = contentView ?? webView.scrollView
+
+                if contextMenuHostView === targetView {
+                    return
+                }
+
+                let interaction = contextMenuInteraction ?? UIContextMenuInteraction(delegate: self)
+                contextMenuHostView?.removeInteraction(interaction)
+                targetView.addInteraction(interaction)
+                contextMenuInteraction = interaction
+                contextMenuHostView = targetView
             }
         }
     }

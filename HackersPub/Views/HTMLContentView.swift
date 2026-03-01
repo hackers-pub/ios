@@ -14,12 +14,14 @@ struct HTMLContentView: View {
     let html: String
     let media: [MediaItem]
     var onTap: (() -> Void)?
+    var suppressLongPressInteractions: Bool = false
+    var sneakPeekPostId: String?
     @State private var selectedMedia: MediaItem?
     @State private var webViewHeight: CGFloat = 0
     @State private var isLoading: Bool = true
     @State private var isVisible: Bool = false
+    @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var carouselHeight: CGFloat {
         guard let firstMedia = media.first,
@@ -76,7 +78,10 @@ struct HTMLContentView: View {
                         html: html,
                         height: $webViewHeight,
                         onTap: onTap,
-                        navigationCoordinator: navigationCoordinator
+                        authManager: authManager,
+                        navigationCoordinator: navigationCoordinator,
+                        suppressLongPressInteractions: suppressLongPressInteractions,
+                        sneakPeekPostId: sneakPeekPostId
                     )
                     .frame(height: webViewHeight > 0 ? webViewHeight : estimatedMinHeight)
                     .frame(maxWidth: .infinity, alignment: .leading)

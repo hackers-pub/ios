@@ -76,7 +76,7 @@ struct LocalTimelineContent: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(posts, id: \.id) { post in
-                            PostView(post: post)
+                            PostView(post: post, enableSneakPeek: true)
                                 .padding()
                                 .onAppear {
                                     if post.id == posts.last?.id && hasNextPage && !isLoading {
@@ -240,7 +240,7 @@ struct GlobalTimelineContent: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(posts, id: \.id) { post in
-                            PostView(post: post)
+                            PostView(post: post, enableSneakPeek: true)
                                 .padding()
                                 .onAppear {
                                     if post.id == posts.last?.id && hasNextPage && !isLoading {

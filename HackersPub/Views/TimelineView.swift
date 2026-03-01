@@ -170,7 +170,7 @@ struct TimelineView: View {
                         ScrollView {
                             LazyVStack(spacing: 0) {
                                 ForEach(posts, id: \.id) { post in
-                                    PostView(post: post, showAuthor: true)
+                                    PostView(post: post, showAuthor: true, enableSneakPeek: true)
                                         .padding()
                                         .id(post.id)
                                         .onAppear {
@@ -330,7 +330,7 @@ struct PersonalTimelineView: View {
                         ScrollView {
                             LazyVStack(spacing: 0) {
                                 ForEach(posts, id: \.id) { post in
-                                    PostView(post: post, showAuthor: true)
+                                    PostView(post: post, showAuthor: true, enableSneakPeek: true)
                                         .padding()
                                         .id(post.id)
                                         .onAppear {
@@ -489,7 +489,7 @@ struct LocalTimelineView: View {
                         ScrollView {
                             LazyVStack(spacing: 0) {
                                 ForEach(posts, id: \.id) { post in
-                                    PostView(post: post, showAuthor: true)
+                                    PostView(post: post, showAuthor: true, enableSneakPeek: true)
                                         .padding()
                                         .id(post.id)
                                         .onAppear {
