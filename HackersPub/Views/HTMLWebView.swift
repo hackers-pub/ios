@@ -99,6 +99,15 @@ final class HTMLHeightCache: @unchecked Sendable {
             static let linkPressFallbackWindow: TimeInterval = 4.0
         }
 
+        private enum SneakPeekPreviewLayout {
+            static let height: CGFloat = 560
+
+            static var width: CGFloat {
+                let screenWidth = UIScreen.main.bounds.width
+                return min(380, max(280, screenWidth - 24))
+            }
+        }
+
         let html: String
         @Binding var height: CGFloat
         var onTap: (() -> Void)?
@@ -608,13 +617,16 @@ final class HTMLHeightCache: @unchecked Sendable {
             private func makePostPreviewController(postId: String) -> UIViewController {
                 let basePreview = AnyView(
                     PostDetailView(postId: postId)
-                        .frame(width: 340, height: 560)
+                        .frame(width: SneakPeekPreviewLayout.width, height: SneakPeekPreviewLayout.height)
+                        .ignoresSafeArea()
                         .environmentObject(FontSettingsManager.shared)
                 )
                 let finalPreview = injectPreviewEnvironment(into: basePreview)
 
                 let controller = UIHostingController(rootView: finalPreview)
                 controller.view.backgroundColor = .systemBackground
+                controller.view.insetsLayoutMarginsFromSafeArea = false
+                controller.view.directionalLayoutMargins = .zero
                 return controller
             }
 

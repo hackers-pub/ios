@@ -70,6 +70,15 @@ protocol MediaProtocol {
     var height: Int? { get }
 }
 
+private enum SneakPeekPreviewLayout {
+    static let height: CGFloat = 560
+
+    static var width: CGFloat {
+        let screenWidth = UIScreen.main.bounds.width
+        return min(380, max(280, screenWidth - 24))
+    }
+}
+
 private func withPreviewEnvironment<V: View>(
     _ view: V,
     authManager: AuthManager,
@@ -179,13 +188,16 @@ struct PostSneakPeekModifier: ViewModifier {
             previewProvider: {
                 let preview = withPreviewEnvironment(
                     PostDetailView(postId: postId)
-                        .frame(width: 340, height: 560),
+                        .frame(width: SneakPeekPreviewLayout.width, height: SneakPeekPreviewLayout.height)
+                        .ignoresSafeArea(),
                     authManager: authManager,
                     navigationCoordinator: navigationCoordinator,
                     externalURLRouter: externalURLRouter
                 )
                 let controller = UIHostingController(rootView: preview)
                 controller.view.backgroundColor = .systemBackground
+                controller.view.insetsLayoutMarginsFromSafeArea = false
+                controller.view.directionalLayoutMargins = .zero
                 return controller
             },
             actionProvider: { _ in
@@ -377,13 +389,16 @@ private struct ProfileSneakPeekModifier: ViewModifier {
             previewProvider: {
                 let preview = withPreviewEnvironment(
                     ActorProfileViewWrapper(handle: handle)
-                        .frame(width: 340, height: 560),
+                        .frame(width: SneakPeekPreviewLayout.width, height: SneakPeekPreviewLayout.height)
+                        .ignoresSafeArea(),
                     authManager: authManager,
                     navigationCoordinator: navigationCoordinator,
                     externalURLRouter: externalURLRouter
                 )
                 let controller = UIHostingController(rootView: preview)
                 controller.view.backgroundColor = .systemBackground
+                controller.view.insetsLayoutMarginsFromSafeArea = false
+                controller.view.directionalLayoutMargins = .zero
                 return controller
             },
             actionProvider: { _ in
