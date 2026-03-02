@@ -167,7 +167,7 @@ struct TimelineView: View {
                     ProgressView()
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 0) {
+                        VStack(spacing: 0) {
                             ForEach(posts, id: \.id) { post in
                                 PostView(post: post, showAuthor: true, enableSneakPeek: true)
                                     .padding()
@@ -192,13 +192,16 @@ struct TimelineView: View {
                                 .padding()
                             }
                         }
+                        .padding(.top, 8)
                     }
+                    .id(posts.first?.id ?? "timeline-empty")
                     .refreshable {
                         await refreshPosts()
                     }
                 }
             }
             .navigationTitle(NSLocalizedString("timeline.fediverse", comment: "Fediverse navigation title"))
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 guard !hasLoadedInitial else { return }
                 hasLoadedInitial = true
@@ -319,7 +322,7 @@ struct PersonalTimelineView: View {
                     ProgressView()
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 0) {
+                        VStack(spacing: 0) {
                             ForEach(posts, id: \.id) { post in
                                 PostView(post: post, showAuthor: true, enableSneakPeek: true)
                                     .padding()
@@ -344,13 +347,16 @@ struct PersonalTimelineView: View {
                                 .padding()
                             }
                         }
+                        .padding(.top, 8)
                     }
+                    .id(posts.first?.id ?? "personal-timeline-empty")
                     .refreshable {
                         await refreshPosts()
                     }
                 }
             }
             .navigationTitle(NSLocalizedString("nav.timeline", comment: "Timeline navigation title"))
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 guard !hasLoadedInitial else { return }
                 hasLoadedInitial = true
@@ -470,7 +476,7 @@ struct LocalTimelineView: View {
                     ProgressView()
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 0) {
+                        VStack(spacing: 0) {
                             ForEach(posts, id: \.id) { post in
                                 PostView(post: post, showAuthor: true, enableSneakPeek: true)
                                     .padding()
@@ -495,13 +501,16 @@ struct LocalTimelineView: View {
                                 .padding()
                             }
                         }
+                        .padding(.top, 8)
                     }
+                    .id(posts.first?.id ?? "local-timeline-empty")
                     .refreshable {
                         await refreshPosts()
                     }
                 }
             }
             .navigationTitle(NSLocalizedString("timeline.hackersPub", comment: "Hackers' Pub navigation title"))
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 guard !hasLoadedInitial else { return }
                 hasLoadedInitial = true

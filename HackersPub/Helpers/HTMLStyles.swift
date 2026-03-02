@@ -5,14 +5,21 @@ enum HTMLStyles {
     // Generate CSS with dynamic font sizes based on user's text size preference
     static func generateCSS(fontSize: CGFloat, fontFamily: String = FontSettingsManager.shared.cssFontFamily) -> String {
         """
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
         body {
             font-family: \(fontFamily);
             font-size: \(fontSize)px;
             line-height: 1.5;
-            margin: 0;
-            padding: 2px 0;
+            padding: 4px 0 2px;
             color: light-dark(#000000, #ffffff);
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
+        body > :first-child { margin-top: 0 !important; }
+        body > :last-child { margin-bottom: 0 !important; }
         h1, h2, h3, h4, h5, h6 {
             margin-top: 0.5em;
             margin-bottom: 0.25em;
@@ -76,14 +83,21 @@ enum HTMLStyles {
 
     static func generateComposePreviewCSS(fontSize: CGFloat, fontFamily: String = FontSettingsManager.shared.cssFontFamily) -> String {
         """
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
         body {
             font-family: \(fontFamily);
             font-size: \(fontSize)px;
             line-height: 1.5;
-            margin: 0;
             padding: 16px;
             color: light-dark(#000000, #ffffff);
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
+        body > :first-child { margin-top: 0 !important; }
+        body > :last-child { margin-bottom: 0 !important; }
         h1, h2, h3, h4, h5, h6 {
             margin-top: 1em;
             margin-bottom: 0.5em;

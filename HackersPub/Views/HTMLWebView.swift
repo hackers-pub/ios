@@ -424,6 +424,7 @@ final class HTMLHeightCache: @unchecked Sendable {
                     DispatchQueue.main.async {
                         // Re-check after the async gap to avoid stale writes.
                         guard let currentKey = self.lastContentKey, currentKey == key else { return }
+                        self.enforceTopViewport(on: webView)
                         HTMLHeightCache.shared.setHeight(measuredHeight, for: key)
                         if abs(self.parent.height - measuredHeight) > 0.5 {
                             self.parent.height = measuredHeight
@@ -502,6 +503,9 @@ final class HTMLHeightCache: @unchecked Sendable {
 
                     DispatchQueue.main.async {
                         guard self.lastContentKey == key else { return }
+                        if let webView = self.webView {
+                            self.enforceTopViewport(on: webView)
+                        }
                         HTMLHeightCache.shared.setHeight(measuredHeight, for: key)
                         if abs(self.parent.height - measuredHeight) > 0.5 {
                             self.parent.height = measuredHeight
