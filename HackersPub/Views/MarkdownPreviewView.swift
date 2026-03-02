@@ -86,6 +86,7 @@ struct FontSettingsSnapshot: Equatable {
         @Binding var isLoading: Bool
         @ObservedObject private var fontSettings = FontSettingsManager.shared
         @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+        @Environment(ExternalURLRouter.self) private var externalURLRouter
 
         func makeUIView(context: Context) -> WKWebView {
             let webView = WKWebView()
@@ -98,6 +99,7 @@ struct FontSettingsSnapshot: Equatable {
         func updateUIView(_ webView: WKWebView, context: Context) {
             // Update the coordinator's binding reference
             context.coordinator.isLoading = $isLoading
+            context.coordinator.externalURLRouter = externalURLRouter
 
             // Check if HTML or font settings have changed
             let currentFontSettings = FontSettingsSnapshot(from: fontSettings)
@@ -122,6 +124,7 @@ struct FontSettingsSnapshot: Equatable {
             var lastHTML: String = ""
             var lastFontSettings: FontSettingsSnapshot?
             var lastDynamicTypeSize: DynamicTypeSize?
+            var externalURLRouter: ExternalURLRouter?
 
             init(isLoading: Binding<Bool>) {
                 self.isLoading = isLoading
@@ -143,7 +146,7 @@ struct FontSettingsSnapshot: Equatable {
             func webView(_: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
                 if navigationAction.navigationType == .linkActivated {
                     if let url = navigationAction.request.url {
-                        UIApplication.shared.open(url)
+                        (externalURLRouter ?? .shared).open(url)
                         decisionHandler(.cancel)
                         return
                     }

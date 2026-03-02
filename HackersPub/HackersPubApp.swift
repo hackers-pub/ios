@@ -13,6 +13,7 @@ struct HackersPubApp: App {
     @State private var authManager = AuthManager.shared
     @State private var navigationCoordinator = NavigationCoordinator()
     @State private var fontSettings = FontSettingsManager.shared
+    @State private var externalURLRouter = ExternalURLRouter.shared
 
     init() {
         setupImageCache()
@@ -23,9 +24,18 @@ struct HackersPubApp: App {
             ContentView()
                 .environment(authManager)
                 .environment(navigationCoordinator)
+                .environment(externalURLRouter)
                 .environmentObject(fontSettings)
                 .onOpenURL { url in
                     handleURL(url)
+                }
+                .sheet(
+                    item: Binding(
+                        get: { externalURLRouter.destination },
+                        set: { externalURLRouter.destination = $0 }
+                    )
+                ) { destination in
+                    InAppBrowserSheetView(url: destination.url)
                 }
         }
     }

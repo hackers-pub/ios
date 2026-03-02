@@ -11,6 +11,7 @@
 		C7A30E862E95488A00EF5F6F /* ApolloSQLite in Frameworks */ = {isa = PBXBuildFile; productRef = C7A30E852E95488A00EF5F6F /* ApolloSQLite */; };
 		C7A39C4D2E927CD100EF77C6 /* ApolloAPI in Frameworks */ = {isa = PBXBuildFile; productRef = C7A39C4C2E927CD100EF77C6 /* ApolloAPI */; };
 		C7FBAF3A2E92547900B9BE8B /* Apollo in Frameworks */ = {isa = PBXBuildFile; productRef = C7FBAF392E92547900B9BE8B /* Apollo */; };
+		E1A1B1C12E96AAAA00BEEF01 /* SafariView in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1B1C22E96AAAA00BEEF01 /* SafariView */; };
 		FF91B48D2E938A89009F5CBD /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = FF91B48C2E938A89009F5CBD /* Kingfisher */; };
 /* End PBXBuildFile section */
 
@@ -78,6 +79,7 @@
 				C7A30E862E95488A00EF5F6F /* ApolloSQLite in Frameworks */,
 				C7A39C4D2E927CD100EF77C6 /* ApolloAPI in Frameworks */,
 				C7FBAF3A2E92547900B9BE8B /* Apollo in Frameworks */,
+				E1A1B1C12E96AAAA00BEEF01 /* SafariView in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -143,6 +145,7 @@
 				C7177A652E9293AD00FF0221 /* Markdown */,
 				FF91B48C2E938A89009F5CBD /* Kingfisher */,
 				C7A30E852E95488A00EF5F6F /* ApolloSQLite */,
+				E1A1B1C22E96AAAA00BEEF01 /* SafariView */,
 			);
 			productName = HackersPub;
 			productReference = C758C0F22E86A71600F672CE /* HackersPub.app */;
@@ -231,6 +234,7 @@
 				C7FBAF382E92547900B9BE8B /* XCRemoteSwiftPackageReference "apollo-ios" */,
 				C7177A642E9293AD00FF0221 /* XCRemoteSwiftPackageReference "swift-markdown" */,
 				FF91B48B2E938A89009F5CBD /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				E1A1B1C32E96AAAA00BEEF01 /* XCRemoteSwiftPackageReference "SafariView" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C758C0F32E86A71600F672CE /* Products */;
@@ -684,6 +688,14 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		E1A1B1C32E96AAAA00BEEF01 /* XCRemoteSwiftPackageReference "SafariView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/bestler/SafariView";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 		FF91B48B2E938A89009F5CBD /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher";
@@ -714,6 +726,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C7FBAF382E92547900B9BE8B /* XCRemoteSwiftPackageReference "apollo-ios" */;
 			productName = Apollo;
+		};
+		E1A1B1C22E96AAAA00BEEF01 /* SafariView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1A1B1C32E96AAAA00BEEF01 /* XCRemoteSwiftPackageReference "SafariView" */;
+			productName = SafariView;
 		};
 		FF91B48C2E938A89009F5CBD /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;

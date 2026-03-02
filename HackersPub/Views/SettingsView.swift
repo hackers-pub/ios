@@ -29,6 +29,7 @@ struct SettingsView: View {
     @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
     @AppStorage("engagement.confirmBeforeShare") private var confirmBeforeShare = false
     @AppStorage("engagement.confirmBeforeDelete") private var confirmBeforeDelete = true
+    @AppStorage(ExternalURLRouter.useInAppBrowserKey) private var useInAppBrowser = true
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
@@ -177,6 +178,19 @@ struct SettingsView: View {
                     Text(NSLocalizedString("settings.engagement", comment: "Engagement section header"))
                 } footer: {
                     Text(NSLocalizedString("settings.engagement.footer", comment: "Engagement section footer"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Toggle(
+                        NSLocalizedString("settings.links.useInAppBrowser", comment: "Use in-app browser toggle"),
+                        isOn: $useInAppBrowser
+                    )
+                } header: {
+                    Text(NSLocalizedString("settings.links", comment: "Links section header"))
+                } footer: {
+                    Text(NSLocalizedString("settings.links.footer", comment: "Links section footer"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

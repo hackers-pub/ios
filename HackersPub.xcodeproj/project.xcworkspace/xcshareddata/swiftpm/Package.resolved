@@ -1,5 +1,5 @@
 {
-  "originHash" : "12b926542e4eea53020d4792847144d13e3a633033fc11896b04f588305e5450",
+  "originHash" : "deb303446ef02959b51b7512b1988f252e5d130db0191d813c3ff329cf5ad77a",
   "pins" : [
     {
       "identity" : "apollo-ios",
@@ -17,6 +17,15 @@
       "state" : {
         "revision" : "dd3c422ec3088404d6f7e8c905a8318b3de12d6f",
         "version" : "8.6.0"
+      }
+    },
+    {
+      "identity" : "safariview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/bestler/SafariView",
+      "state" : {
+        "revision" : "edd3fcafe7dcf2118772d8fae6415b5400de7953",
+        "version" : "1.0.0"
       }
     },
     {
