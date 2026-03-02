@@ -3,7 +3,7 @@ import UIKit
 
 @MainActor
 enum ShareSheetPresenter {
-    static func present(items: [Any], from view: UIView?) {
+    static func present(items: [Any], from view: UIView? = nil) {
         guard !items.isEmpty else { return }
         let activityViewController = UIActivityViewController(activityItems: items, applicationActivities: nil)
         if let popover = activityViewController.popoverPresentationController {
@@ -11,10 +11,19 @@ enum ShareSheetPresenter {
             popover.sourceRect = view?.bounds ?? .zero
         }
 
-        guard let presenter = topViewController(startingAt: view?.window?.rootViewController) else {
+        let rootViewController = view?.window?.rootViewController ?? activeRootViewController()
+        guard let presenter = topViewController(startingAt: rootViewController) else {
             return
         }
         presenter.present(activityViewController, animated: true)
+    }
+
+    private static func activeRootViewController() -> UIViewController? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .rootViewController
     }
 
     private static func topViewController(startingAt root: UIViewController?) -> UIViewController? {

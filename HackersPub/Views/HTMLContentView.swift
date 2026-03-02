@@ -1,5 +1,6 @@
 import Kingfisher
 import SwiftUI
+import UIKit
 
 struct MediaItem: Identifiable {
     let id = UUID()
@@ -24,6 +25,8 @@ struct HTMLContentView: View {
     @State private var isVisible: Bool = false
     @State private var mediaActionMessage: String?
     @State private var isSavingImage = false
+    @State private var latestPressedLinkURL: URL?
+    @State private var latestPressedLinkAt: Date = .distantPast
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(ExternalURLRouter.self) private var externalURLRouter
@@ -52,6 +55,16 @@ struct HTMLContentView: View {
         }
         let aspectRatio = CGFloat(height) / CGFloat(width)
         return min(max(260, 320 * aspectRatio), 540)
+    }
+
+    private var shouldPreferLinkSneakPeek: Bool {
+        guard latestPressedLinkURL != nil else { return false }
+        return Date().timeIntervalSince(latestPressedLinkAt) <= 2.0
+    }
+
+    private var webContentSneakPeekPostId: String? {
+        guard !shouldPreferLinkSneakPeek else { return nil }
+        return sneakPeekPostId
     }
 
     /// Estimate minimum height based on HTML content length
@@ -101,8 +114,13 @@ struct HTMLContentView: View {
                         suppressLongPressInteractions: suppressLongPressInteractions,
                         sneakPeekPostId: sneakPeekPostId,
                         sneakPeekActorHandle: sneakPeekActorHandle,
-                        sneakPeekShareURL: sneakPeekShareURL
+                        sneakPeekShareURL: sneakPeekShareURL,
+                        onLinkPressStateChange: { pressedURL in
+                            latestPressedLinkURL = pressedURL
+                            latestPressedLinkAt = Date()
+                        }
                     )
+                    .id(sneakPeekPostId ?? html)
                     .frame(height: webViewHeight > 0 ? webViewHeight : estimatedMinHeight)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .opacity(webViewHeight > 0 ? 1 : 0)
@@ -113,11 +131,16 @@ struct HTMLContentView: View {
                     }
                 }
             }
+            .id(sneakPeekPostId ?? html)
             // Gate heavy web-view creation on actual visibility
             .onAppear {
                 isVisible = true
             }
-
+            .postSneakPeek(
+                postId: webContentSneakPeekPostId,
+                actorHandle: sneakPeekActorHandle,
+                shareURL: sneakPeekShareURL
+            )
             // Display images in carousel if present
             if !media.isEmpty {
                 TabView {
@@ -138,32 +161,14 @@ struct HTMLContentView: View {
                                 .onTapGesture {
                                     selectedMedia = item
                                 }
-                                .contextMenu {
-                                    Button {
-                                        saveImage(item)
-                                    } label: {
-                                        if isSavingImage {
-                                            Label(NSLocalizedString("image.action.downloading", comment: "Downloading image"), systemImage: "arrow.down.circle")
-                                        } else {
-                                            Label(NSLocalizedString("image.action.download", comment: "Download image"), systemImage: "arrow.down.circle")
-                                        }
+                                .uiContextMenu(
+                                    makeConfiguration: {
+                                        makeMediaContextMenuConfiguration(for: item)
+                                    },
+                                    onCommit: {
+                                        selectedMedia = item
                                     }
-                                    .disabled(isSavingImage)
-
-                                    if let mediaURL = URL(string: item.url) {
-                                        ShareLink(item: mediaURL) {
-                                            Label(NSLocalizedString("image.action.share", comment: "Share image"), systemImage: "square.and.arrow.up")
-                                        }
-                                    }
-                                } preview: {
-                                    FullScreenImageView(
-                                        mediaItem: item,
-                                        allMedia: media,
-                                        showsToolbar: false,
-                                        showsAltText: false
-                                    )
-                                        .frame(width: 320, height: previewHeight(for: item))
-                                }
+                                )
                         }
                     }
                 }
@@ -173,7 +178,13 @@ struct HTMLContentView: View {
             }
         }
         .fullScreenCover(item: $selectedMedia) { item in
-            FullScreenImageView(mediaItem: item, allMedia: media)
+            FullScreenImageView(
+                mediaItem: item,
+                allMedia: media,
+                onClose: {
+                    selectedMedia = nil
+                }
+            )
         }
         .alert(
             NSLocalizedString("image.action.alertTitle", comment: "Image action result title"),
@@ -207,6 +218,58 @@ struct HTMLContentView: View {
                 mediaActionMessage = error.localizedDescription
             }
         }
+    }
+
+    private func makeMediaContextMenuConfiguration(for item: MediaItem) -> UIContextMenuConfiguration {
+        UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: {
+                let preview = FullScreenImageView(
+                    mediaItem: item,
+                    allMedia: media,
+                    showsToolbar: false,
+                    showsAltText: false
+                )
+                .frame(width: 320, height: previewHeight(for: item))
+
+                let controller = UIHostingController(rootView: preview)
+                controller.view.backgroundColor = .systemBackground
+                return controller
+            },
+            actionProvider: { _ in
+                makeMediaContextMenu(for: item)
+            }
+        )
+    }
+
+    private func makeMediaContextMenu(for item: MediaItem) -> UIMenu {
+        let downloadTitle = isSavingImage
+            ? NSLocalizedString("image.action.downloading", comment: "Downloading image")
+            : NSLocalizedString("image.action.download", comment: "Download image")
+        let downloadAttributes: UIMenuElement.Attributes = isSavingImage ? [.disabled] : []
+
+        var elements: [UIMenuElement] = [
+            UIAction(
+                title: downloadTitle,
+                image: UIImage(systemName: "arrow.down.circle"),
+                attributes: downloadAttributes
+            ) { _ in
+                saveImage(item)
+            }
+        ]
+
+        if let mediaURL = URL(string: item.url) {
+            elements.append(
+                UIAction(
+                    title: NSLocalizedString("image.action.share", comment: "Share image"),
+                    image: UIImage(systemName: "square.and.arrow.up")
+                ) { _ in
+                    ShareSheetPresenter.present(items: [mediaURL])
+                }
+            )
+        }
+
+        return UIMenu(children: elements)
     }
 }
 
@@ -250,6 +313,7 @@ struct FullScreenImageView: View {
     let allMedia: [MediaItem]
     let showsToolbar: Bool
     let showsAltText: Bool
+    let onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @State private var currentIndex: Int
     @State private var actionMessage: String?
@@ -259,12 +323,14 @@ struct FullScreenImageView: View {
         mediaItem: MediaItem,
         allMedia: [MediaItem],
         showsToolbar: Bool = true,
-        showsAltText: Bool = true
+        showsAltText: Bool = true,
+        onClose: (() -> Void)? = nil
     ) {
         self.mediaItem = mediaItem
         self.allMedia = allMedia
         self.showsToolbar = showsToolbar
         self.showsAltText = showsAltText
+        self.onClose = onClose
         let index = allMedia.firstIndex(where: { $0.id == mediaItem.id }) ?? 0
         _currentIndex = State(initialValue: index)
     }
@@ -316,6 +382,7 @@ struct FullScreenImageView: View {
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Button {
+                                onClose?()
                                 dismiss()
                             } label: {
                                 Image(systemName: "xmark")

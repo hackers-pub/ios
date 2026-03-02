@@ -1,5 +1,6 @@
 import Foundation
 import Photos
+import UniformTypeIdentifiers
 import UIKit
 
 enum ImageDownloadServiceError: LocalizedError {
@@ -20,6 +21,11 @@ enum ImageDownloadServiceError: LocalizedError {
 }
 
 enum ImageDownloadService {
+    private struct PhotoResource {
+        let data: Data
+        let uniformTypeIdentifier: String
+    }
+
     static func downloadToPhotoLibrary(from urlString: String) async throws {
         guard let url = URL(string: urlString) else {
             throw ImageDownloadServiceError.invalidURL
@@ -29,6 +35,7 @@ enum ImageDownloadService {
         guard let image = UIImage(data: data) else {
             throw ImageDownloadServiceError.invalidImageData
         }
+        let resource = try makePhotoResource(from: image)
 
         let isAuthorized = await requestPhotoLibraryPermissionIfNeeded()
         guard isAuthorized else {
@@ -36,7 +43,10 @@ enum ImageDownloadService {
         }
 
         try await PHPhotoLibrary.shared().performChanges {
-            PHAssetChangeRequest.creationRequestForAsset(from: image)
+            let creationRequest = PHAssetCreationRequest.forAsset()
+            let resourceOptions = PHAssetResourceCreationOptions()
+            resourceOptions.uniformTypeIdentifier = resource.uniformTypeIdentifier
+            creationRequest.addResource(with: .photo, data: resource.data, options: resourceOptions)
         }
     }
 
@@ -49,6 +59,29 @@ enum ImageDownloadService {
         case .notDetermined:
             let newStatus = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
             return newStatus == .authorized || newStatus == .limited
+        default:
+            return false
+        }
+    }
+
+    private static func makePhotoResource(from image: UIImage) throws -> PhotoResource {
+        if imageHasAlpha(image), let pngData = image.pngData() {
+            return PhotoResource(data: pngData, uniformTypeIdentifier: UTType.png.identifier)
+        }
+
+        if let jpegData = image.jpegData(compressionQuality: 1.0) {
+            return PhotoResource(data: jpegData, uniformTypeIdentifier: UTType.jpeg.identifier)
+        }
+
+        throw ImageDownloadServiceError.invalidImageData
+    }
+
+    private static func imageHasAlpha(_ image: UIImage) -> Bool {
+        guard let alphaInfo = image.cgImage?.alphaInfo else { return false }
+
+        switch alphaInfo {
+        case .first, .last, .premultipliedFirst, .premultipliedLast:
+            return true
         default:
             return false
         }

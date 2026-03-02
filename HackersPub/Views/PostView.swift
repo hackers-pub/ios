@@ -1,6 +1,7 @@
 @preconcurrency import Apollo
 import Kingfisher
 import SwiftUI
+import UIKit
 
 protocol EngagementStatsProtocol {
     var replies: Int { get }
@@ -82,7 +83,7 @@ private func withPreviewEnvironment<V: View>(
         .environmentObject(FontSettingsManager.shared)
 }
 
-private struct PostSneakPeekModifier: ViewModifier {
+struct PostSneakPeekModifier: ViewModifier {
     let postId: String?
     let actorHandle: String?
     let shareURL: URL?
@@ -100,68 +101,14 @@ private struct PostSneakPeekModifier: ViewModifier {
                 .task(id: actorHandle) {
                     await loadRelationship()
                 }
-                .contextMenu(menuItems: {
-                    if let shareURL {
-                        ShareLink(item: shareURL) {
-                            Label(NSLocalizedString("sneakpeek.action.sharePost", comment: "Share post"), systemImage: "square.and.arrow.up")
-                        }
+                .uiContextMenu(
+                    makeConfiguration: {
+                        makePostContextMenuConfiguration(postId: postId)
+                    },
+                    onCommit: {
+                        navigationCoordinator.navigateToPost(id: postId)
                     }
-
-                    if let actorHandle {
-                        Menu {
-                            if authManager.isAuthenticated,
-                               let relationship,
-                               !relationship.isViewer
-                            {
-                                Button {
-                                    performRelationshipAction(
-                                        relationship.viewerFollows ? .unfollow : .follow,
-                                        handle: actorHandle
-                                    )
-                                } label: {
-                                    Label(
-                                        relationship.viewerFollows
-                                            ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
-                                            : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
-                                        systemImage: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"
-                                    )
-                                }
-                                .disabled(isApplyingRelationshipAction)
-
-                                Button(role: relationship.viewerBlocks ? nil : .destructive) {
-                                    performRelationshipAction(
-                                        relationship.viewerBlocks ? .unblock : .block,
-                                        handle: actorHandle
-                                    )
-                                } label: {
-                                    Label(
-                                        relationship.viewerBlocks
-                                            ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
-                                            : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
-                                        systemImage: relationship.viewerBlocks ? "nosign" : "hand.raised"
-                                    )
-                                }
-                                .disabled(isApplyingRelationshipAction)
-                            }
-
-                            if let profileURL = actorProfileURL(handle: actorHandle) {
-                                ShareLink(item: profileURL) {
-                                    Label(NSLocalizedString("sneakpeek.action.shareProfileLink", comment: "Share profile link"), systemImage: "link")
-                                }
-                            }
-                        } label: {
-                            Label(NSLocalizedString("sneakpeek.menu.user", comment: "User menu"), systemImage: "person.crop.circle")
-                        }
-                    }
-                }, preview: {
-                    withPreviewEnvironment(
-                        PostDetailView(postId: postId)
-                            .frame(width: 340, height: 560),
-                        authManager: authManager,
-                        navigationCoordinator: navigationCoordinator,
-                        externalURLRouter: externalURLRouter
-                    )
-                })
+                )
                 .alert(
                     NSLocalizedString("actorRelation.error.title", comment: "Actor relation action error title"),
                     isPresented: Binding(
@@ -225,6 +172,115 @@ private struct PostSneakPeekModifier: ViewModifier {
             }
         }
     }
+
+    private func makePostContextMenuConfiguration(postId: String) -> UIContextMenuConfiguration {
+        UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: {
+                let preview = withPreviewEnvironment(
+                    PostDetailView(postId: postId)
+                        .frame(width: 340, height: 560),
+                    authManager: authManager,
+                    navigationCoordinator: navigationCoordinator,
+                    externalURLRouter: externalURLRouter
+                )
+                let controller = UIHostingController(rootView: preview)
+                controller.view.backgroundColor = .systemBackground
+                return controller
+            },
+            actionProvider: { _ in
+                makePostContextMenu()
+            }
+        )
+    }
+
+    private func makePostContextMenu() -> UIMenu {
+        var children: [UIMenuElement] = []
+
+        if let shareURL {
+            let shareAction = UIAction(
+                title: NSLocalizedString("sneakpeek.action.sharePost", comment: "Share post"),
+                image: UIImage(systemName: "square.and.arrow.up")
+            ) { _ in
+                ShareSheetPresenter.present(items: [shareURL])
+            }
+            children.append(shareAction)
+        }
+
+        if let actorHandle, let userMenu = makeUserMenu(handle: actorHandle) {
+            children.append(userMenu)
+        }
+
+        return UIMenu(children: children)
+    }
+
+    private func makeUserMenu(handle: String) -> UIMenu? {
+        var userChildren: [UIMenuElement] = []
+
+        if authManager.isAuthenticated,
+           let relationship,
+           !relationship.isViewer
+        {
+            var followAttributes: UIMenuElement.Attributes = []
+            if isApplyingRelationshipAction {
+                followAttributes.insert(.disabled)
+            }
+
+            let followAction = UIAction(
+                title: relationship.viewerFollows
+                    ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
+                    : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
+                image: UIImage(systemName: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"),
+                attributes: followAttributes
+            ) { _ in
+                performRelationshipAction(
+                    relationship.viewerFollows ? .unfollow : .follow,
+                    handle: handle
+                )
+            }
+            userChildren.append(followAction)
+
+            var blockAttributes: UIMenuElement.Attributes = []
+            if isApplyingRelationshipAction {
+                blockAttributes.insert(.disabled)
+            }
+            if !relationship.viewerBlocks {
+                blockAttributes.insert(.destructive)
+            }
+
+            let blockAction = UIAction(
+                title: relationship.viewerBlocks
+                    ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
+                    : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
+                image: UIImage(systemName: relationship.viewerBlocks ? "nosign" : "hand.raised"),
+                attributes: blockAttributes
+            ) { _ in
+                performRelationshipAction(
+                    relationship.viewerBlocks ? .unblock : .block,
+                    handle: handle
+                )
+            }
+            userChildren.append(blockAction)
+        }
+
+        if let profileURL = actorProfileURL(handle: handle) {
+            let shareProfileAction = UIAction(
+                title: NSLocalizedString("sneakpeek.action.shareProfileLink", comment: "Share profile link"),
+                image: UIImage(systemName: "link")
+            ) { _ in
+                ShareSheetPresenter.present(items: [profileURL])
+            }
+            userChildren.append(shareProfileAction)
+        }
+
+        guard !userChildren.isEmpty else { return nil }
+
+        return UIMenu(
+            title: NSLocalizedString("sneakpeek.menu.user", comment: "User menu"),
+            image: UIImage(systemName: "person.crop.circle"),
+            children: userChildren
+        )
+    }
 }
 
 private struct ProfileSneakPeekModifier: ViewModifier {
@@ -243,55 +299,14 @@ private struct ProfileSneakPeekModifier: ViewModifier {
                 .task(id: handle) {
                     await loadRelationship()
                 }
-                .contextMenu(menuItems: {
-                    if authManager.isAuthenticated,
-                       let relationship,
-                       !relationship.isViewer
-                    {
-                        Button {
-                            performRelationshipAction(
-                                relationship.viewerFollows ? .unfollow : .follow,
-                                handle: handle
-                            )
-                        } label: {
-                            Label(
-                                relationship.viewerFollows
-                                    ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
-                                    : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
-                                systemImage: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"
-                            )
-                        }
-                        .disabled(isApplyingRelationshipAction)
-
-                        Button(role: relationship.viewerBlocks ? nil : .destructive) {
-                            performRelationshipAction(
-                                relationship.viewerBlocks ? .unblock : .block,
-                                handle: handle
-                            )
-                        } label: {
-                            Label(
-                                relationship.viewerBlocks
-                                    ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
-                                    : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
-                                systemImage: relationship.viewerBlocks ? "nosign" : "hand.raised"
-                            )
-                        }
-                        .disabled(isApplyingRelationshipAction)
+                .uiContextMenu(
+                    makeConfiguration: {
+                        makeProfileContextMenuConfiguration(handle: handle)
+                    },
+                    onCommit: {
+                        navigationCoordinator.navigateToProfile(handle: handle)
                     }
-
-                    if let profileURL = actorProfileURL(handle: handle) {
-                        ShareLink(item: profileURL) {
-                            Label(NSLocalizedString("sneakpeek.action.shareProfileLink", comment: "Share profile link"), systemImage: "link")
-                        }
-                    }
-                }, preview: {
-                    withPreviewEnvironment(
-                        ActorProfileViewWrapper(handle: handle).frame(width: 340, height: 560),
-                        authManager: authManager,
-                        navigationCoordinator: navigationCoordinator,
-                        externalURLRouter: externalURLRouter
-                    )
-                })
+                )
                 .alert(
                     NSLocalizedString("actorRelation.error.title", comment: "Actor relation action error title"),
                     isPresented: Binding(
@@ -355,9 +370,92 @@ private struct ProfileSneakPeekModifier: ViewModifier {
             }
         }
     }
+
+    private func makeProfileContextMenuConfiguration(handle: String) -> UIContextMenuConfiguration {
+        UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: {
+                let preview = withPreviewEnvironment(
+                    ActorProfileViewWrapper(handle: handle)
+                        .frame(width: 340, height: 560),
+                    authManager: authManager,
+                    navigationCoordinator: navigationCoordinator,
+                    externalURLRouter: externalURLRouter
+                )
+                let controller = UIHostingController(rootView: preview)
+                controller.view.backgroundColor = .systemBackground
+                return controller
+            },
+            actionProvider: { _ in
+                UIMenu(children: makeProfileContextActions(handle: handle))
+            }
+        )
+    }
+
+    private func makeProfileContextActions(handle: String) -> [UIMenuElement] {
+        var actions: [UIMenuElement] = []
+
+        if authManager.isAuthenticated,
+           let relationship,
+           !relationship.isViewer
+        {
+            var followAttributes: UIMenuElement.Attributes = []
+            if isApplyingRelationshipAction {
+                followAttributes.insert(.disabled)
+            }
+
+            let followAction = UIAction(
+                title: relationship.viewerFollows
+                    ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
+                    : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
+                image: UIImage(systemName: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"),
+                attributes: followAttributes
+            ) { _ in
+                performRelationshipAction(
+                    relationship.viewerFollows ? .unfollow : .follow,
+                    handle: handle
+                )
+            }
+            actions.append(followAction)
+
+            var blockAttributes: UIMenuElement.Attributes = []
+            if isApplyingRelationshipAction {
+                blockAttributes.insert(.disabled)
+            }
+            if !relationship.viewerBlocks {
+                blockAttributes.insert(.destructive)
+            }
+
+            let blockAction = UIAction(
+                title: relationship.viewerBlocks
+                    ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
+                    : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
+                image: UIImage(systemName: relationship.viewerBlocks ? "nosign" : "hand.raised"),
+                attributes: blockAttributes
+            ) { _ in
+                performRelationshipAction(
+                    relationship.viewerBlocks ? .unblock : .block,
+                    handle: handle
+                )
+            }
+            actions.append(blockAction)
+        }
+
+        if let profileURL = actorProfileURL(handle: handle) {
+            let shareProfileAction = UIAction(
+                title: NSLocalizedString("sneakpeek.action.shareProfileLink", comment: "Share profile link"),
+                image: UIImage(systemName: "link")
+            ) { _ in
+                ShareSheetPresenter.present(items: [profileURL])
+            }
+            actions.append(shareProfileAction)
+        }
+
+        return actions
+    }
 }
 
-private extension View {
+extension View {
     func postSneakPeek(postId: String?, actorHandle: String?, shareURL: URL? = nil) -> some View {
         modifier(PostSneakPeekModifier(postId: postId, actorHandle: actorHandle, shareURL: shareURL))
     }
@@ -1118,141 +1216,147 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     var body: some View {
         Group {
             VStack(alignment: .leading, spacing: 8) {
-                // Show repost indicator
-                if showAuthor && post.sharedPost != nil {
-                    RepostIndicator(actor: post.actor, enableProfileSneakPeek: sneakPeekEnabled)
-                }
-
-                if showAuthor && post.sharedPost == nil {
-                    HStack(spacing: 8) {
-                        ActorHeaderIdentity(
-                            actor: post.actor,
-                            avatarSize: 40,
-                            nameFont: .headline,
-                            nameWeight: nil,
-                            handleFont: .subheadline,
-                            sneakPeekHandle: sneakPeekHandle(post.actor.handle)
-                        )
-
-                        Spacer()
+                VStack(alignment: .leading, spacing: 8) {
+                    // Show repost indicator
+                    if showAuthor && post.sharedPost != nil {
+                        RepostIndicator(actor: post.actor, enableProfileSneakPeek: sneakPeekEnabled)
                     }
-                }
 
-                if let sharedPost = post.sharedPost {
-                    // Display shared post
-                    VStack(alignment: .leading, spacing: 8) {
+                    if showAuthor && post.sharedPost == nil {
                         HStack(spacing: 8) {
                             ActorHeaderIdentity(
-                                actor: sharedPost.actor,
+                                actor: post.actor,
                                 avatarSize: 40,
                                 nameFont: .headline,
                                 nameWeight: nil,
                                 handleFont: .subheadline,
-                                sneakPeekHandle: sneakPeekHandle(sharedPost.actor.handle)
+                                sneakPeekHandle: sneakPeekHandle(post.actor.handle)
                             )
 
                             Spacer()
                         }
+                    }
 
-                        if let name = sharedPost.name {
+                    if let sharedPost = post.sharedPost {
+                        // Display shared post
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 8) {
+                                ActorHeaderIdentity(
+                                    actor: sharedPost.actor,
+                                    avatarSize: 40,
+                                    nameFont: .headline,
+                                    nameWeight: nil,
+                                    handleFont: .subheadline,
+                                    sneakPeekHandle: sneakPeekHandle(sharedPost.actor.handle)
+                                )
+
+                                Spacer()
+                            }
+
+                            if let name = sharedPost.name {
+                                Text(name)
+                                    .font(.headline)
+                            }
+
+                            let content = self.getContent(content: sharedPost.content)
+                            HTMLContentView(
+                                html: content,
+                                media: mediaItems(from: sharedPost.media),
+                                onTap: !disableNavigation ? {
+                                    navigationCoordinator.navigateToPost(id: sharedPost.id)
+                                } : nil,
+                                suppressLongPressInteractions: sneakPeekEnabled,
+                                sneakPeekPostId: sneakPeekPostId(sharedPost.id),
+                                sneakPeekActorHandle: sneakPeekHandle(sharedPost.actor.handle),
+                                sneakPeekShareURL: sharedPost.resolvedShareURL
+                            )
+
+                            Text(DateFormatHelper.relativeTime(from: sharedPost.published))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    } else if post.isArticle {
+                        // Display article summary with navigation link
+                        NavigationLink {
+                            ArticleDetailView(post: post)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 8) {
+                                if let name = post.name {
+                                    Text(name)
+                                        .font(.headline)
+                                        .foregroundStyle(.primary)
+                                }
+                                if let summary = post.summary {
+                                    Text(summary)
+                                        .font(.body)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(3)
+                                }
+                                HStack {
+                                    Text("Read article")
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
+                                    Image(systemName: "arrow.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                    } else {
+                        // Display original post content
+                        if let name = post.name {
                             Text(name)
                                 .font(.headline)
                         }
 
-                        let content = self.getContent(content: sharedPost.content)
+                        let content = self.getContent(content: post.content)
                         HTMLContentView(
                             html: content,
-                            media: mediaItems(from: sharedPost.media),
-                            onTap: !disableNavigation ? {
-                                navigationCoordinator.navigateToPost(id: sharedPost.id)
+                            media: mediaItems(from: post.media),
+                            onTap: !disableNavigation && !post.isArticle ? {
+                                navigationCoordinator.navigateToPost(id: post.id)
                             } : nil,
                             suppressLongPressInteractions: sneakPeekEnabled,
-                            sneakPeekPostId: sneakPeekPostId(sharedPost.id),
-                            sneakPeekActorHandle: sneakPeekHandle(sharedPost.actor.handle),
-                            sneakPeekShareURL: sharedPost.resolvedShareURL
+                            sneakPeekPostId: mainSneakPeekPostId,
+                            sneakPeekActorHandle: sneakPeekHandle(post.actor.handle),
+                            sneakPeekShareURL: post.resolvedShareURL
                         )
 
-                        Text(DateFormatHelper.relativeTime(from: sharedPost.published))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .postSneakPeek(
-                        postId: sneakPeekPostId(sharedPost.id),
-                        actorHandle: sneakPeekHandle(sharedPost.actor.handle),
-                        shareURL: sharedPost.resolvedShareURL
-                    )
-                } else if post.isArticle {
-                    // Display article summary with navigation link
-                    NavigationLink {
-                        ArticleDetailView(post: post)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 8) {
-                            if let name = post.name {
-                                Text(name)
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                            }
-                            if let summary = post.summary {
-                                Text(summary)
-                                    .font(.body)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(3)
-                            }
-                            HStack {
-                                Text("Read article")
-                                    .font(.caption)
-                                    .foregroundStyle(.blue)
-                                Image(systemName: "arrow.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.blue)
-                            }
+                        if let quotedPost = post.quotedPost {
+                            QuotedPostCard(
+                                quotedPost: quotedPost,
+                                disableNavigation: disableNavigation,
+                                suppressContentLongPress: sneakPeekEnabled,
+                                sneakPeekPostId: sneakPeekPostId(quotedPost.id),
+                                sneakPeekActorHandle: sneakPeekHandle(quotedPost.actor.handle),
+                                enableProfileSneakPeek: sneakPeekEnabled,
+                                onTap: {
+                                    navigationCoordinator.navigateToPost(id: quotedPost.id)
+                                }
+                            )
                         }
                     }
-                } else {
-                    // Display original post content
-                    if let name = post.name {
-                        Text(name)
-                            .font(.headline)
-                    }
 
-                    let content = self.getContent(content: post.content)
-                    HTMLContentView(
-                        html: content,
-                        media: mediaItems(from: post.media),
-                        onTap: !disableNavigation && !post.isArticle ? {
-                            navigationCoordinator.navigateToPost(id: post.id)
-                        } : nil,
-                        suppressLongPressInteractions: sneakPeekEnabled,
-                        sneakPeekPostId: mainSneakPeekPostId,
-                        sneakPeekActorHandle: sneakPeekHandle(post.actor.handle),
-                        sneakPeekShareURL: post.resolvedShareURL
-                    )
-
-                    if let quotedPost = post.quotedPost {
-                        QuotedPostCard(
-                            quotedPost: quotedPost,
-                            disableNavigation: disableNavigation,
-                            suppressContentLongPress: sneakPeekEnabled,
-                            sneakPeekPostId: sneakPeekPostId(quotedPost.id),
-                            sneakPeekActorHandle: sneakPeekHandle(quotedPost.actor.handle),
-                            enableProfileSneakPeek: sneakPeekEnabled,
-                            onTap: {
-                                navigationCoordinator.navigateToPost(id: quotedPost.id)
-                            }
-                        )
-                        .postSneakPeek(
-                            postId: sneakPeekPostId(quotedPost.id),
-                            actorHandle: sneakPeekHandle(quotedPost.actor.handle)
-                        )
-                    }
+                    Text(DateFormatHelper.relativeTime(from: post.published))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-
-                Text(DateFormatHelper.relativeTime(from: post.published))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .background(
+                    Group {
+                        if !disableNavigation && !post.isArticle && !enableSneakPeek {
+                            NavigationLink(destination: PostDetailView(postId: post.id)) {
+                                Color.clear
+                            }
+                            .opacity(0)
+                            .buttonStyle(.plain)
+                        }
+                    }
+                )
 
                 HStack(spacing: 16) {
                     EngagementToolbarButton(
@@ -1333,24 +1437,6 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                 }
                 .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .background(
-                Group {
-                    if !disableNavigation && !post.isArticle && !enableSneakPeek {
-                        NavigationLink(destination: PostDetailView(postId: post.id)) {
-                            Color.clear
-                        }
-                        .opacity(0)
-                        .buttonStyle(.plain)
-                    }
-                }
-            )
-            .postSneakPeek(
-                postId: mainSneakPeekPostId,
-                actorHandle: sneakPeekHandle(post.actor.handle),
-                shareURL: post.resolvedShareURL
-            )
         }
         .onChange(of: post.id) {
             hasShared = post.viewerHasShared
