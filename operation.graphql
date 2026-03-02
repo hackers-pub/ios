@@ -540,9 +540,13 @@ query ActorByHandleQuery($handle: String!, $after: String) {
   actorByHandle(handle: $handle, allowLocalHandle: true) {
     id
     handle
+    isViewer
+    viewerFollows
+    followsViewer
     name
     bio
     avatarUrl
+    viewerBlocks
     posts(first: 20, after: $after) {
       edges {
         cursor
@@ -677,6 +681,17 @@ query ActorByHandleQuery($handle: String!, $after: String) {
   }
 }
 
+query ActorRelationshipQuery($handle: String!) {
+  actorByHandle(handle: $handle, allowLocalHandle: true) {
+    id
+    handle
+    isViewer
+    viewerFollows
+    followsViewer
+    viewerBlocks
+  }
+}
+
 query ViewerQuery {
   viewer {
     id
@@ -733,6 +748,101 @@ mutation CreateNoteMutation($content: Markdown!, $language: Locale!, $visibility
 mutation RevokeSessionMutation($sessionId: UUID!) {
   revokeSession(sessionId: $sessionId) {
     id
+  }
+}
+
+mutation FollowActorMutation($actorId: ID!) {
+  followActor(input: { actorId: $actorId }) {
+    ... on FollowActorPayload {
+      followee {
+        id
+      }
+      follower {
+        id
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation UnfollowActorMutation($actorId: ID!) {
+  unfollowActor(input: { actorId: $actorId }) {
+    ... on UnfollowActorPayload {
+      followee {
+        id
+      }
+      follower {
+        id
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation BlockActorMutation($actorId: ID!) {
+  blockActor(input: { actorId: $actorId }) {
+    ... on BlockActorPayload {
+      blockee {
+        id
+      }
+      blocker {
+        id
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation UnblockActorMutation($actorId: ID!) {
+  unblockActor(input: { actorId: $actorId }) {
+    ... on UnblockActorPayload {
+      blockee {
+        id
+      }
+      blocker {
+        id
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation RemoveFollowerMutation($actorId: ID!) {
+  removeFollower(input: { actorId: $actorId }) {
+    ... on RemoveFollowerPayload {
+      followee {
+        id
+      }
+      follower {
+        id
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
   }
 }
 

@@ -157,6 +157,7 @@ type Actor implements Node {
   url: URL
   username: String!
   uuid: UUID!
+  viewerBlocks: Boolean!
   viewerFollows: Boolean!
 }
 
@@ -340,6 +341,19 @@ type ArticleDraft implements Node {
   updated: DateTime!
   uuid: UUID!
 }
+
+input BlockActorInput {
+  actorId: ID!
+  clientMutationId: ID
+}
+
+type BlockActorPayload {
+  blockee: Actor!
+  blocker: Actor!
+  clientMutationId: ID
+}
+
+union BlockActorResult = BlockActorPayload | InvalidInputError | NotAuthenticatedError
 
 input CreateNoteInput {
   clientMutationId: ID
@@ -555,6 +569,7 @@ type MentionNotification implements Node & Notification {
 
 type Mutation {
   addReactionToPost(input: AddReactionToPostInput!): AddReactionToPostResult!
+  blockActor(input: BlockActorInput!): BlockActorResult!
   completeLoginChallenge(
     """The code of the login challenge."""
     code: String!
@@ -625,6 +640,8 @@ type Mutation {
     verifyUrl: URITemplate!
   ): LoginResult!
   publishArticleDraft(input: PublishArticleDraftInput!): PublishArticleDraftResult!
+  registerApnsDeviceToken(input: RegisterApnsDeviceTokenInput!): RegisterApnsDeviceTokenResult!
+  removeFollower(input: RemoveFollowerInput!): RemoveFollowerResult!
   removeReactionFromPost(input: RemoveReactionFromPostInput!): RemoveReactionFromPostResult!
   revokePasskey(passkeyId: ID!): ID
 
@@ -635,9 +652,12 @@ type Mutation {
   ): Session
   saveArticleDraft(input: SaveArticleDraftInput!): SaveArticleDraftResult!
   sharePost(input: SharePostInput!): SharePostResult!
+  unblockActor(input: UnblockActorInput!): UnblockActorResult!
   unfollowActor(input: UnfollowActorInput!): UnfollowActorResult!
+  unregisterApnsDeviceToken(input: UnregisterApnsDeviceTokenInput!): UnregisterApnsDeviceTokenResult!
   unsharePost(input: UnsharePostInput!): UnsharePostResult!
   updateAccount(input: UpdateAccountInput!): UpdateAccountPayload!
+  uploadMedia(input: UploadMediaInput!): UploadMediaResult!
   verifyPasskeyRegistration(accountId: ID!, name: String!, registrationResponse: JSON!): PasskeyRegistrationResult!
 }
 
@@ -939,6 +959,19 @@ type Query {
 
   """Returns all accounts as a flat array for building the invitation tree."""
   invitationTree: [InvitationTreeNode!]!
+
+  """
+  Look up a remote Fediverse user by their handle, fetching their ActivityPub profile and constructing a remote follow URL for the given actor.
+  """
+  lookupRemoteFollower(
+    """The Relay global ID of the Hackers' Pub actor to be followed."""
+    actorId: ID!
+
+    """
+    The Fediverse handle of the remote user who wants to follow (e.g., @user@mastodon.social).
+    """
+    followerHandle: String!
+  ): WebFingerResult
   markdownGuide(
     """The locale for the Markdown guide."""
     locale: Locale!
@@ -1085,6 +1118,40 @@ type ReactionGroupReactorsConnectionEdge {
   node: Actor!
 }
 
+type RegisterApnsDeviceTokenFailedError {
+  limit: Int!
+  message: String!
+}
+
+input RegisterApnsDeviceTokenInput {
+  clientMutationId: ID
+
+  """The APNS device token."""
+  deviceToken: String!
+}
+
+type RegisterApnsDeviceTokenPayload {
+  clientMutationId: ID
+  created: DateTime!
+  deviceToken: String!
+  updated: DateTime!
+}
+
+union RegisterApnsDeviceTokenResult = InvalidInputError | NotAuthenticatedError | RegisterApnsDeviceTokenFailedError | RegisterApnsDeviceTokenPayload
+
+input RemoveFollowerInput {
+  actorId: ID!
+  clientMutationId: ID
+}
+
+type RemoveFollowerPayload {
+  clientMutationId: ID
+  followee: Actor!
+  follower: Actor!
+}
+
+union RemoveFollowerResult = InvalidInputError | NotAuthenticatedError | RemoveFollowerPayload
+
 input RemoveReactionFromPostInput {
   clientMutationId: ID
   emoji: String!
@@ -1227,6 +1294,19 @@ A field whose value is a generic Universally Unique Identifier: https://en.wikip
 """
 scalar UUID
 
+input UnblockActorInput {
+  actorId: ID!
+  clientMutationId: ID
+}
+
+type UnblockActorPayload {
+  blockee: Actor!
+  blocker: Actor!
+  clientMutationId: ID
+}
+
+union UnblockActorResult = InvalidInputError | NotAuthenticatedError | UnblockActorPayload
+
 input UnfollowActorInput {
   actorId: ID!
   clientMutationId: ID
@@ -1239,6 +1319,21 @@ type UnfollowActorPayload {
 }
 
 union UnfollowActorResult = InvalidInputError | NotAuthenticatedError | UnfollowActorPayload
+
+input UnregisterApnsDeviceTokenInput {
+  clientMutationId: ID
+
+  """The APNS device token."""
+  deviceToken: String!
+}
+
+type UnregisterApnsDeviceTokenPayload {
+  clientMutationId: ID
+  deviceToken: String!
+  unregistered: Boolean!
+}
+
+union UnregisterApnsDeviceTokenResult = InvalidInputError | NotAuthenticatedError | UnregisterApnsDeviceTokenPayload
 
 input UnsharePostInput {
   clientMutationId: ID
@@ -1271,4 +1366,35 @@ input UpdateAccountInput {
 type UpdateAccountPayload {
   account: Account!
   clientMutationId: ID
+}
+
+input UploadMediaInput {
+  clientMutationId: ID
+  draftId: UUID
+  mediaUrl: URL!
+}
+
+type UploadMediaPayload {
+  clientMutationId: ID
+  height: Int!
+  url: URL!
+  width: Int!
+}
+
+union UploadMediaResult = InvalidInputError | NotAuthenticatedError | UploadMediaPayload
+
+"""
+Result of looking up a remote follower via WebFinger, including their ActivityPub profile and remote follow URL.
+"""
+type WebFingerResult {
+  domain: String
+  emojis: JSON
+  handle: String
+  iconUrl: URL
+  name: String
+  preferredUsername: String
+  remoteFollowUrl: URL
+  software: String
+  summary: String
+  url: URL
 }

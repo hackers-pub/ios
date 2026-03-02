@@ -41,12 +41,14 @@ public extension HackersPub {
       case "Article": return HackersPub.Objects.Article
       case "ArticleContent": return HackersPub.Objects.ArticleContent
       case "ArticleDraft": return HackersPub.Objects.ArticleDraft
+      case "BlockActorPayload": return HackersPub.Objects.BlockActorPayload
       case "CreateNotePayload": return HackersPub.Objects.CreateNotePayload
       case "CustomEmoji": return HackersPub.Objects.CustomEmoji
       case "CustomEmojiReactionGroup": return HackersPub.Objects.CustomEmojiReactionGroup
       case "DeletePostPayload": return HackersPub.Objects.DeletePostPayload
       case "EmojiReactionGroup": return HackersPub.Objects.EmojiReactionGroup
       case "EmptySearchQueryError": return HackersPub.Objects.EmptySearchQueryError
+      case "FollowActorPayload": return HackersPub.Objects.FollowActorPayload
       case "FollowNotification": return HackersPub.Objects.FollowNotification
       case "Instance": return HackersPub.Objects.Instance
       case "InvalidInputError": return HackersPub.Objects.InvalidInputError
@@ -84,6 +86,7 @@ public extension HackersPub {
       case "Reaction": return HackersPub.Objects.Reaction
       case "ReactionGroupReactorsConnection": return HackersPub.Objects.ReactionGroupReactorsConnection
       case "ReactionGroupReactorsConnectionEdge": return HackersPub.Objects.ReactionGroupReactorsConnectionEdge
+      case "RemoveFollowerPayload": return HackersPub.Objects.RemoveFollowerPayload
       case "RemoveReactionFromPostPayload": return HackersPub.Objects.RemoveReactionFromPostPayload
       case "ReplyNotification": return HackersPub.Objects.ReplyNotification
       case "SearchedObject": return HackersPub.Objects.SearchedObject
@@ -91,6 +94,8 @@ public extension HackersPub {
       case "ShareNotification": return HackersPub.Objects.ShareNotification
       case "SharePostPayload": return HackersPub.Objects.SharePostPayload
       case "SharedPostDeletionNotAllowedError": return HackersPub.Objects.SharedPostDeletionNotAllowedError
+      case "UnblockActorPayload": return HackersPub.Objects.UnblockActorPayload
+      case "UnfollowActorPayload": return HackersPub.Objects.UnfollowActorPayload
       case "UnsharePostPayload": return HackersPub.Objects.UnsharePostPayload
       default: return nil
       }

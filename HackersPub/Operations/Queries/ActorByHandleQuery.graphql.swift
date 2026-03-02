@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "ActorByHandleQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query ActorByHandleQuery($handle: String!, $after: String) { actorByHandle(handle: $handle, allowLocalHandle: true) { __typename id handle name bio avatarUrl posts(first: 20, after: $after) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } mentions(first: 20) { __typename edges { __typename node { __typename id handle } } } } } pageInfo { __typename hasNextPage endCursor } } } }"#
+        #"query ActorByHandleQuery($handle: String!, $after: String) { actorByHandle(handle: $handle, allowLocalHandle: true) { __typename id handle isViewer viewerFollows followsViewer name bio avatarUrl viewerBlocks posts(first: 20, after: $after) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } mentions(first: 20) { __typename edges { __typename node { __typename id handle } } } } } pageInfo { __typename hasNextPage endCursor } } } }"#
       ))
 
     public var handle: String
@@ -57,9 +57,13 @@ public extension HackersPub {
           .field("__typename", String.self),
           .field("id", HackersPub.ID.self),
           .field("handle", String.self),
+          .field("isViewer", Bool.self),
+          .field("viewerFollows", Bool.self),
+          .field("followsViewer", Bool.self),
           .field("name", HackersPub.HTML?.self),
           .field("bio", HackersPub.HTML?.self),
           .field("avatarUrl", HackersPub.URL.self),
+          .field("viewerBlocks", Bool.self),
           .field("posts", Posts.self, arguments: [
             "first": 20,
             "after": .variable("after")
@@ -71,9 +75,13 @@ public extension HackersPub {
 
         public var id: HackersPub.ID { __data["id"] }
         public var handle: String { __data["handle"] }
+        public var isViewer: Bool { __data["isViewer"] }
+        public var viewerFollows: Bool { __data["viewerFollows"] }
+        public var followsViewer: Bool { __data["followsViewer"] }
         public var name: HackersPub.HTML? { __data["name"] }
         public var bio: HackersPub.HTML? { __data["bio"] }
         public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+        public var viewerBlocks: Bool { __data["viewerBlocks"] }
         public var posts: Posts { __data["posts"] }
 
         /// ActorByHandle.Posts
