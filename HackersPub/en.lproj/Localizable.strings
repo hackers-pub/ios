@@ -164,6 +164,49 @@
 "settings.engagement.swapQuoteActions" = "Swap Quote Tap and Long Press";
 "settings.engagement.footer" = "Swap what tap and long press do for Shares and Quotes buttons.";
 
+/* Links Settings */
+"settings.links" = "Links";
+"settings.links.useInAppBrowser" = "Use in-app browser";
+"settings.links.footer" = "Turn off to open links with your default browser app.";
+
+/* Profile Relationship */
+"profile.tag.followsViewer" = "Follows you";
+"profile.tag.viewerBlocks" = "Blocked";
+"profile.action.follow" = "Follow";
+"profile.action.unfollow" = "Unfollow";
+"profile.action.block" = "Block";
+"profile.action.unblock" = "Unblock";
+"profile.action.removeFollower" = "Remove follower";
+
+/* Actor Relationship Errors */
+"actorRelation.error.title" = "Action failed";
+"actorRelation.error.actorNotFound" = "Could not find this account.";
+"actorRelation.error.invalidInput" = "Invalid input: %@";
+"actorRelation.error.notAuthenticated" = "You must be signed in.";
+"actorRelation.error.operationFailed" = "Request failed. Please try again.";
+
+/* Sneak Peek */
+"sneakpeek.menu.user" = "User";
+"sneakpeek.action.sharePost" = "Share post";
+"sneakpeek.action.follow" = "Follow";
+"sneakpeek.action.unfollow" = "Unfollow";
+"sneakpeek.action.block" = "Block";
+"sneakpeek.action.unblock" = "Unblock";
+"sneakpeek.action.loadRelationship" = "Reload relationship";
+"sneakpeek.action.openLink" = "Open link";
+"sneakpeek.action.shareLink" = "Share link";
+"sneakpeek.action.shareProfileLink" = "Share profile link";
+
+/* Image Actions */
+"image.action.alertTitle" = "Image";
+"image.action.download" = "Download image";
+"image.action.downloading" = "Downloading image...";
+"image.action.share" = "Share image";
+"image.download.success" = "Image saved to your photo library.";
+"image.download.error.invalidURL" = "Invalid image URL.";
+"image.download.error.invalidData" = "Failed to read image data.";
+"image.download.error.permissionDenied" = "Photo library permission is required to save images.";
+
 /* Share Confirmation */
 "share.confirm.shareTitle" = "Share this post?";
 "share.confirm.shareAction" = "Share";

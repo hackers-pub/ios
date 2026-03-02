@@ -164,6 +164,49 @@
 "settings.engagement.swapQuoteActions" = "인용 탭 / 길게 누르기 바꾸기";
 "settings.engagement.footer" = "공유와 인용 버튼의 탭과 길게 누르기 동작을 서로 바꿉니다.";
 
+/* Links Settings */
+"settings.links" = "링크";
+"settings.links.useInAppBrowser" = "인앱 브라우저 사용";
+"settings.links.footer" = "끄면 기본 브라우저 앱으로 링크를 엽니다.";
+
+/* Profile Relationship */
+"profile.tag.followsViewer" = "나를 팔로우 중";
+"profile.tag.viewerBlocks" = "차단함";
+"profile.action.follow" = "팔로우";
+"profile.action.unfollow" = "언팔로우";
+"profile.action.block" = "차단";
+"profile.action.unblock" = "차단 해제";
+"profile.action.removeFollower" = "팔로워 삭제";
+
+/* Actor Relationship Errors */
+"actorRelation.error.title" = "작업 실패";
+"actorRelation.error.actorNotFound" = "사용자를 찾을 수 없습니다.";
+"actorRelation.error.invalidInput" = "잘못된 입력: %@";
+"actorRelation.error.notAuthenticated" = "로그인이 필요합니다.";
+"actorRelation.error.operationFailed" = "요청에 실패했습니다. 다시 시도해주세요.";
+
+/* Sneak Peek */
+"sneakpeek.menu.user" = "사용자";
+"sneakpeek.action.sharePost" = "게시물 공유";
+"sneakpeek.action.follow" = "팔로우";
+"sneakpeek.action.unfollow" = "언팔로우";
+"sneakpeek.action.block" = "차단";
+"sneakpeek.action.unblock" = "차단 해제";
+"sneakpeek.action.loadRelationship" = "관계 상태 다시 불러오기";
+"sneakpeek.action.openLink" = "링크 열기";
+"sneakpeek.action.shareLink" = "링크 공유";
+"sneakpeek.action.shareProfileLink" = "프로필 링크 공유";
+
+/* Image Actions */
+"image.action.alertTitle" = "이미지";
+"image.action.download" = "이미지 다운로드";
+"image.action.downloading" = "이미지 다운로드 중...";
+"image.action.share" = "이미지 공유";
+"image.download.success" = "이미지가 사진 보관함에 저장되었습니다.";
+"image.download.error.invalidURL" = "이미지 URL이 올바르지 않습니다.";
+"image.download.error.invalidData" = "이미지 데이터를 읽을 수 없습니다.";
+"image.download.error.permissionDenied" = "이미지를 저장하려면 사진 보관함 권한이 필요합니다.";
+
 /* Share Confirmation */
 "share.confirm.shareTitle" = "이 게시물을 공유할까요?";
 "share.confirm.shareAction" = "공유";

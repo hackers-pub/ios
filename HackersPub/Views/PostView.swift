@@ -72,32 +72,157 @@ protocol MediaProtocol {
 private func withPreviewEnvironment<V: View>(
     _ view: V,
     authManager: AuthManager,
-    navigationCoordinator: NavigationCoordinator
+    navigationCoordinator: NavigationCoordinator,
+    externalURLRouter: ExternalURLRouter
 ) -> some View {
     view
         .environment(authManager)
         .environment(navigationCoordinator)
+        .environment(externalURLRouter)
         .environmentObject(FontSettingsManager.shared)
 }
 
 private struct PostSneakPeekModifier: ViewModifier {
     let postId: String?
+    let actorHandle: String?
+    let shareURL: URL?
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @Environment(ExternalURLRouter.self) private var externalURLRouter
+    @State private var relationship: ActorRelationshipState?
+    @State private var relationshipActionErrorMessage: String?
+    @State private var isApplyingRelationshipAction = false
 
     @ViewBuilder
     func body(content: Content) -> some View {
         if let postId {
-            content.contextMenu(menuItems: {
-            }, preview: {
-                withPreviewEnvironment(
-                    PostDetailView(postId: postId),
-                    authManager: authManager,
-                    navigationCoordinator: navigationCoordinator
-                )
-            })
+            content
+                .task(id: actorHandle) {
+                    await loadRelationship()
+                }
+                .contextMenu(menuItems: {
+                    if let shareURL {
+                        ShareLink(item: shareURL) {
+                            Label(NSLocalizedString("sneakpeek.action.sharePost", comment: "Share post"), systemImage: "square.and.arrow.up")
+                        }
+                    }
+
+                    if let actorHandle {
+                        Menu {
+                            if authManager.isAuthenticated,
+                               let relationship,
+                               !relationship.isViewer
+                            {
+                                Button {
+                                    performRelationshipAction(
+                                        relationship.viewerFollows ? .unfollow : .follow,
+                                        handle: actorHandle
+                                    )
+                                } label: {
+                                    Label(
+                                        relationship.viewerFollows
+                                            ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
+                                            : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
+                                        systemImage: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"
+                                    )
+                                }
+                                .disabled(isApplyingRelationshipAction)
+
+                                Button(role: relationship.viewerBlocks ? nil : .destructive) {
+                                    performRelationshipAction(
+                                        relationship.viewerBlocks ? .unblock : .block,
+                                        handle: actorHandle
+                                    )
+                                } label: {
+                                    Label(
+                                        relationship.viewerBlocks
+                                            ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
+                                            : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
+                                        systemImage: relationship.viewerBlocks ? "nosign" : "hand.raised"
+                                    )
+                                }
+                                .disabled(isApplyingRelationshipAction)
+                            }
+
+                            if let profileURL = actorProfileURL(handle: actorHandle) {
+                                ShareLink(item: profileURL) {
+                                    Label(NSLocalizedString("sneakpeek.action.shareProfileLink", comment: "Share profile link"), systemImage: "link")
+                                }
+                            }
+                        } label: {
+                            Label(NSLocalizedString("sneakpeek.menu.user", comment: "User menu"), systemImage: "person.crop.circle")
+                        }
+                    }
+                }, preview: {
+                    withPreviewEnvironment(
+                        PostDetailView(postId: postId)
+                            .frame(width: 340, height: 560),
+                        authManager: authManager,
+                        navigationCoordinator: navigationCoordinator,
+                        externalURLRouter: externalURLRouter
+                    )
+                })
+                .alert(
+                    NSLocalizedString("actorRelation.error.title", comment: "Actor relation action error title"),
+                    isPresented: Binding(
+                        get: { relationshipActionErrorMessage != nil },
+                        set: { isPresented in
+                            if !isPresented {
+                                relationshipActionErrorMessage = nil
+                            }
+                        }
+                    )
+                ) {
+                    Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
+                        relationshipActionErrorMessage = nil
+                    }
+                } message: {
+                    Text(relationshipActionErrorMessage ?? "")
+                }
         } else {
             content
+        }
+    }
+
+    private func loadRelationship(cachePolicy: CachePolicy.Query.SingleResponse = .networkFirst) async {
+        guard let actorHandle else {
+            relationship = nil
+            return
+        }
+
+        do {
+            relationship = try await ActorRelationshipService.fetch(handle: actorHandle, cachePolicy: cachePolicy)
+        } catch {
+            relationship = nil
+        }
+    }
+
+    private func performRelationshipAction(_ action: ActorRelationshipAction, handle: String) {
+        guard authManager.isAuthenticated else { return }
+        guard !isApplyingRelationshipAction else { return }
+
+        Task {
+            isApplyingRelationshipAction = true
+            defer { isApplyingRelationshipAction = false }
+
+            do {
+                let currentRelationship: ActorRelationshipState
+                if let relationship {
+                    currentRelationship = relationship
+                } else if let fetched = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly) {
+                    currentRelationship = fetched
+                    self.relationship = fetched
+                } else {
+                    throw ActorRelationshipServiceError.actorNotFound
+                }
+
+                guard !currentRelationship.isViewer else { return }
+
+                try await ActorRelationshipService.perform(action: action, actorId: currentRelationship.actorId)
+                relationship = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly)
+            } catch {
+                relationshipActionErrorMessage = error.localizedDescription
+            }
         }
     }
 }
@@ -106,32 +231,135 @@ private struct ProfileSneakPeekModifier: ViewModifier {
     let handle: String?
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @Environment(ExternalURLRouter.self) private var externalURLRouter
+    @State private var relationship: ActorRelationshipState?
+    @State private var relationshipActionErrorMessage: String?
+    @State private var isApplyingRelationshipAction = false
 
     @ViewBuilder
     func body(content: Content) -> some View {
         if let handle {
-            content.contextMenu(menuItems: {
-                Button {
-                    navigationCoordinator.navigateToProfile(handle: handle)
-                } label: {
-                    Label("Open Profile", systemImage: "person.crop.circle")
+            content
+                .task(id: handle) {
+                    await loadRelationship()
                 }
-            }, preview: {
-                withPreviewEnvironment(
-                    ActorProfileViewWrapper(handle: handle).frame(width: 340, height: 560),
-                    authManager: authManager,
-                    navigationCoordinator: navigationCoordinator
-                )
-            })
+                .contextMenu(menuItems: {
+                    if authManager.isAuthenticated,
+                       let relationship,
+                       !relationship.isViewer
+                    {
+                        Button {
+                            performRelationshipAction(
+                                relationship.viewerFollows ? .unfollow : .follow,
+                                handle: handle
+                            )
+                        } label: {
+                            Label(
+                                relationship.viewerFollows
+                                    ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
+                                    : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
+                                systemImage: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"
+                            )
+                        }
+                        .disabled(isApplyingRelationshipAction)
+
+                        Button(role: relationship.viewerBlocks ? nil : .destructive) {
+                            performRelationshipAction(
+                                relationship.viewerBlocks ? .unblock : .block,
+                                handle: handle
+                            )
+                        } label: {
+                            Label(
+                                relationship.viewerBlocks
+                                    ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
+                                    : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
+                                systemImage: relationship.viewerBlocks ? "nosign" : "hand.raised"
+                            )
+                        }
+                        .disabled(isApplyingRelationshipAction)
+                    }
+
+                    if let profileURL = actorProfileURL(handle: handle) {
+                        ShareLink(item: profileURL) {
+                            Label(NSLocalizedString("sneakpeek.action.shareProfileLink", comment: "Share profile link"), systemImage: "link")
+                        }
+                    }
+                }, preview: {
+                    withPreviewEnvironment(
+                        ActorProfileViewWrapper(handle: handle).frame(width: 340, height: 560),
+                        authManager: authManager,
+                        navigationCoordinator: navigationCoordinator,
+                        externalURLRouter: externalURLRouter
+                    )
+                })
+                .alert(
+                    NSLocalizedString("actorRelation.error.title", comment: "Actor relation action error title"),
+                    isPresented: Binding(
+                        get: { relationshipActionErrorMessage != nil },
+                        set: { isPresented in
+                            if !isPresented {
+                                relationshipActionErrorMessage = nil
+                            }
+                        }
+                    )
+                ) {
+                    Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
+                        relationshipActionErrorMessage = nil
+                    }
+                } message: {
+                    Text(relationshipActionErrorMessage ?? "")
+                }
         } else {
             content
+        }
+    }
+
+    private func loadRelationship(cachePolicy: CachePolicy.Query.SingleResponse = .networkFirst) async {
+        guard let handle else {
+            relationship = nil
+            return
+        }
+
+        do {
+            relationship = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: cachePolicy)
+        } catch {
+            relationship = nil
+        }
+    }
+
+    private func performRelationshipAction(_ action: ActorRelationshipAction, handle: String) {
+        guard authManager.isAuthenticated else { return }
+        guard !isApplyingRelationshipAction else { return }
+
+        Task {
+            isApplyingRelationshipAction = true
+            defer { isApplyingRelationshipAction = false }
+
+            do {
+                let currentRelationship: ActorRelationshipState
+                if let relationship {
+                    currentRelationship = relationship
+                } else if let fetched = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly) {
+                    currentRelationship = fetched
+                    self.relationship = fetched
+                } else {
+                    throw ActorRelationshipServiceError.actorNotFound
+                }
+
+                guard !currentRelationship.isViewer else { return }
+
+                try await ActorRelationshipService.perform(action: action, actorId: currentRelationship.actorId)
+                relationship = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly)
+            } catch {
+                relationshipActionErrorMessage = error.localizedDescription
+            }
         }
     }
 }
 
 private extension View {
-    func postSneakPeek(postId: String?) -> some View {
-        modifier(PostSneakPeekModifier(postId: postId))
+    func postSneakPeek(postId: String?, actorHandle: String?, shareURL: URL? = nil) -> some View {
+        modifier(PostSneakPeekModifier(postId: postId, actorHandle: actorHandle, shareURL: shareURL))
     }
 
     func profileSneakPeek(handle: String?) -> some View {
@@ -306,6 +534,8 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
     let disableNavigation: Bool
     let suppressContentLongPress: Bool
     let sneakPeekPostId: String?
+    let sneakPeekActorHandle: String?
+    let sneakPeekShareURL: URL?
     let enableProfileSneakPeek: Bool
     let showFullDateTime: Bool
     let onTap: (() -> Void)?
@@ -315,6 +545,8 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
         disableNavigation: Bool = false,
         suppressContentLongPress: Bool = false,
         sneakPeekPostId: String? = nil,
+        sneakPeekActorHandle: String? = nil,
+        sneakPeekShareURL: URL? = nil,
         enableProfileSneakPeek: Bool = false,
         showFullDateTime: Bool = false,
         onTap: (() -> Void)? = nil
@@ -323,6 +555,8 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
         self.disableNavigation = disableNavigation
         self.suppressContentLongPress = suppressContentLongPress
         self.sneakPeekPostId = sneakPeekPostId
+        self.sneakPeekActorHandle = sneakPeekActorHandle
+        self.sneakPeekShareURL = sneakPeekShareURL
         self.enableProfileSneakPeek = enableProfileSneakPeek
         self.showFullDateTime = showFullDateTime
         self.onTap = onTap
@@ -369,7 +603,9 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
                 },
                 onTap: !disableNavigation ? onTap : nil,
                 suppressLongPressInteractions: suppressContentLongPress,
-                sneakPeekPostId: sneakPeekPostId
+                sneakPeekPostId: sneakPeekPostId,
+                sneakPeekActorHandle: sneakPeekActorHandle,
+                sneakPeekShareURL: sneakPeekShareURL
             )
 
             Text(publishedText)
@@ -931,7 +1167,9 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                                 navigationCoordinator.navigateToPost(id: sharedPost.id)
                             } : nil,
                             suppressLongPressInteractions: sneakPeekEnabled,
-                            sneakPeekPostId: sneakPeekPostId(sharedPost.id)
+                            sneakPeekPostId: sneakPeekPostId(sharedPost.id),
+                            sneakPeekActorHandle: sneakPeekHandle(sharedPost.actor.handle),
+                            sneakPeekShareURL: sharedPost.resolvedShareURL
                         )
 
                         Text(DateFormatHelper.relativeTime(from: sharedPost.published))
@@ -941,7 +1179,11 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     .padding()
                     .background(Color.gray.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .postSneakPeek(postId: sneakPeekPostId(sharedPost.id))
+                    .postSneakPeek(
+                        postId: sneakPeekPostId(sharedPost.id),
+                        actorHandle: sneakPeekHandle(sharedPost.actor.handle),
+                        shareURL: sharedPost.resolvedShareURL
+                    )
                 } else if post.isArticle {
                     // Display article summary with navigation link
                     NavigationLink {
@@ -984,7 +1226,9 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                             navigationCoordinator.navigateToPost(id: post.id)
                         } : nil,
                         suppressLongPressInteractions: sneakPeekEnabled,
-                        sneakPeekPostId: mainSneakPeekPostId
+                        sneakPeekPostId: mainSneakPeekPostId,
+                        sneakPeekActorHandle: sneakPeekHandle(post.actor.handle),
+                        sneakPeekShareURL: post.resolvedShareURL
                     )
 
                     if let quotedPost = post.quotedPost {
@@ -993,12 +1237,16 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                             disableNavigation: disableNavigation,
                             suppressContentLongPress: sneakPeekEnabled,
                             sneakPeekPostId: sneakPeekPostId(quotedPost.id),
+                            sneakPeekActorHandle: sneakPeekHandle(quotedPost.actor.handle),
                             enableProfileSneakPeek: sneakPeekEnabled,
                             onTap: {
                                 navigationCoordinator.navigateToPost(id: quotedPost.id)
                             }
                         )
-                        .postSneakPeek(postId: sneakPeekPostId(quotedPost.id))
+                        .postSneakPeek(
+                            postId: sneakPeekPostId(quotedPost.id),
+                            actorHandle: sneakPeekHandle(quotedPost.actor.handle)
+                        )
                     }
                 }
 
@@ -1085,6 +1333,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                 }
                 .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .background(
                 Group {
@@ -1097,7 +1346,11 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     }
                 }
             )
-            .postSneakPeek(postId: mainSneakPeekPostId)
+            .postSneakPeek(
+                postId: mainSneakPeekPostId,
+                actorHandle: sneakPeekHandle(post.actor.handle),
+                shareURL: post.resolvedShareURL
+            )
         }
         .onChange(of: post.id) {
             hasShared = post.viewerHasShared
