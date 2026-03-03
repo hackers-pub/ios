@@ -25,8 +25,6 @@ struct HTMLContentView: View {
     @State private var isVisible: Bool = false
     @State private var mediaActionMessage: String?
     @State private var isSavingImage = false
-    @State private var latestPressedLinkURL: URL?
-    @State private var latestPressedLinkAt: Date = .distantPast
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(ExternalURLRouter.self) private var externalURLRouter
@@ -55,16 +53,6 @@ struct HTMLContentView: View {
         }
         let aspectRatio = CGFloat(height) / CGFloat(width)
         return min(max(260, 320 * aspectRatio), 540)
-    }
-
-    private var shouldPreferLinkSneakPeek: Bool {
-        guard latestPressedLinkURL != nil else { return false }
-        return Date().timeIntervalSince(latestPressedLinkAt) <= 2.0
-    }
-
-    private var webContentSneakPeekPostId: String? {
-        guard !shouldPreferLinkSneakPeek else { return nil }
-        return sneakPeekPostId
     }
 
     /// Estimate minimum height based on HTML content length
@@ -115,10 +103,7 @@ struct HTMLContentView: View {
                         sneakPeekPostId: sneakPeekPostId,
                         sneakPeekActorHandle: sneakPeekActorHandle,
                         sneakPeekShareURL: sneakPeekShareURL,
-                        onLinkPressStateChange: { pressedURL in
-                            latestPressedLinkURL = pressedURL
-                            latestPressedLinkAt = Date()
-                        }
+                        onLinkPressStateChange: nil
                     )
                     .id(sneakPeekPostId ?? html)
                     .frame(height: webViewHeight > 0 ? webViewHeight : estimatedMinHeight)
@@ -136,11 +121,6 @@ struct HTMLContentView: View {
             .onAppear {
                 isVisible = true
             }
-            .postSneakPeek(
-                postId: webContentSneakPeekPostId,
-                actorHandle: sneakPeekActorHandle,
-                shareURL: sneakPeekShareURL
-            )
             // Display images in carousel if present
             if !media.isEmpty {
                 TabView {

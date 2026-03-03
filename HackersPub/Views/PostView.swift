@@ -716,9 +716,9 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
                 },
                 onTap: !disableNavigation ? onTap : nil,
                 suppressLongPressInteractions: suppressContentLongPress,
-                sneakPeekPostId: sneakPeekPostId,
-                sneakPeekActorHandle: sneakPeekActorHandle,
-                sneakPeekShareURL: sneakPeekShareURL
+                sneakPeekPostId: nil,
+                sneakPeekActorHandle: nil,
+                sneakPeekShareURL: nil
             )
 
             Text(publishedText)
@@ -729,6 +729,11 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
         .background(Color.gray.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .contentShape(RoundedRectangle(cornerRadius: 8))
+        .postSneakPeek(
+            postId: sneakPeekPostId,
+            actorHandle: sneakPeekActorHandle,
+            shareURL: sneakPeekShareURL
+        )
         .onTapGesture {
             guard !disableNavigation else { return }
             onTap?()

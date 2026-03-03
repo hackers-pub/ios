@@ -146,6 +146,14 @@ final class HTMLHeightCache: @unchecked Sendable {
             webView.scrollView.setContentOffset(.zero, animated: false)
             context.coordinator.webView = webView
 
+            // Replace WKWebView's built-in link-only context menu with our own
+            // UIContextMenuInteraction that handles both links AND non-link post preview.
+            for interaction in webView.interactions where interaction is UIContextMenuInteraction {
+                webView.removeInteraction(interaction)
+            }
+            let contextMenuInteraction = UIContextMenuInteraction(delegate: context.coordinator)
+            webView.addInteraction(contextMenuInteraction)
+
             // Disable pinch to zoom, hide scrollbars, and add tap detection
             let source = """
             var meta = document.createElement('meta');
@@ -353,7 +361,7 @@ final class HTMLHeightCache: @unchecked Sendable {
 
         // MARK: - Coordinator
 
-        class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UIScrollViewDelegate {
+        class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UIScrollViewDelegate, UIContextMenuInteractionDelegate {
             private enum ContextMenuCommitTarget {
                 case post(id: String)
                 case link(url: URL)
@@ -520,54 +528,67 @@ final class HTMLHeightCache: @unchecked Sendable {
                 }
             }
 
+            // MARK: - WKUIDelegate context menu (disabled — handled by UIContextMenuInteraction)
+
             func webView(
                 _: WKWebView,
-                contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo,
+                contextMenuConfigurationForElement _: WKContextMenuElementInfo,
                 completionHandler: @escaping (UIContextMenuConfiguration?) -> Void
             ) {
-                if let linkURL = elementInfo.linkURL ?? fallbackPressedLinkURL() {
+                // All context menus are now handled by our custom UIContextMenuInteraction
+                // which supports both links AND non-link post sneak peek.
+                completionHandler(nil)
+            }
+
+            // MARK: - UIContextMenuInteractionDelegate
+
+            func contextMenuInteraction(
+                _: UIContextMenuInteraction,
+                configurationForMenuAtLocation _: CGPoint
+            ) -> UIContextMenuConfiguration? {
+                if let linkURL = fallbackPressedLinkURL() {
                     pendingCommitTarget = .link(url: linkURL)
-                    completionHandler(makeLinkContextMenuConfiguration(url: linkURL))
-                    return
+                    return makeLinkContextMenuConfiguration(url: linkURL)
                 }
 
                 guard let postId = parent.sneakPeekPostId else {
                     pendingCommitTarget = nil
-                    completionHandler(nil)
-                    return
+                    return nil
                 }
 
                 pendingCommitTarget = .post(id: postId)
-                completionHandler(makePostContextMenuConfiguration())
+                return makePostContextMenuConfiguration()
             }
 
-            func webView(
-                _: WKWebView,
-                contextMenuWillPresentForElement _: WKContextMenuElementInfo
+            func contextMenuInteraction(
+                _: UIContextMenuInteraction,
+                willPerformPreviewActionForMenuWith _: UIContextMenuConfiguration,
+                animator: UIContextMenuInteractionCommitAnimating
+            ) {
+                guard let target = pendingCommitTarget else { return }
+                animator.addCompletion { [weak self] in
+                    self?.commitContextMenuTarget(target)
+                }
+            }
+
+            func contextMenuInteraction(
+                _: UIContextMenuInteraction,
+                willDisplayMenuFor _: UIContextMenuConfiguration,
+                animator _: UIContextMenuInteractionAnimating?
             ) {
                 ignoreTapUntil = Date().addingTimeInterval(InteractionTiming.ignoreTapAfterMenuOpen)
             }
 
-            func webView(
-                _: WKWebView,
-                contextMenuDidEndForElement _: WKContextMenuElementInfo
+            func contextMenuInteraction(
+                _: UIContextMenuInteraction,
+                willEndFor _: UIContextMenuConfiguration,
+                animator _: UIContextMenuInteractionAnimating?
             ) {
                 ignoreTapUntil = Date().addingTimeInterval(InteractionTiming.ignoreTapAfterMenuEnd)
                 lastPressedLinkURL = nil
                 lastPressedLinkAt = .distantPast
                 pendingCommitTarget = nil
                 parent.onLinkPressStateChange?(nil)
-            }
-
-            func webView(
-                _: WKWebView,
-                contextMenuForElement _: WKContextMenuElementInfo,
-                willCommitWithAnimator animator: UIContextMenuInteractionCommitAnimating
-            ) {
-                guard let target = pendingCommitTarget else { return }
-                animator.addCompletion { [weak self] in
-                    self?.commitContextMenuTarget(target)
-                }
             }
 
             private func fallbackPressedLinkURL() -> URL? {
