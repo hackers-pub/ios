@@ -19,7 +19,6 @@ struct NotificationsView: View {
     @State private var isLoading = true
     @State private var hasNextPage = false
     @State private var endCursor: String?
-    @State private var shouldRefresh = false
     @State private var showingSettings = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
@@ -73,12 +72,10 @@ struct NotificationsView: View {
                 hasLoadedInitial = true
                 await fetchNotifications()
             }
-            .onChange(of: shouldRefresh) { _, newValue in
-                if newValue {
-                    Task {
-                        await refreshNotifications()
-                        shouldRefresh = false
-                    }
+            .onChange(of: navigationCoordinator.currentTab) { _, newValue in
+                guard newValue == .notifications, hasLoadedInitial, !isLoading else { return }
+                Task {
+                    await refreshNotifications()
                 }
             }
             .toolbar {
@@ -116,8 +113,10 @@ struct NotificationsView: View {
         defer { isLoading = false }
 
         do {
-            // Fetch will use cache first, then network - Apollo's default behavior
-            let response = try await apolloClient.fetch(query: HackersPub.NotificationsQuery(after: nil))
+            let response = try await apolloClient.fetch(
+                query: HackersPub.NotificationsQuery(after: nil),
+                cachePolicy: .networkFirst
+            )
 
             let fetchedNotifications = response.data?.viewer?.notifications.edges.map { $0.node } ?? []
 
