@@ -16,6 +16,9 @@ struct HackersPubApp: App {
     @State private var externalURLRouter = ExternalURLRouter.shared
 
     init() {
+        UserDefaults.standard.register(defaults: [
+            "markdownMaxLength": 300,
+        ])
         setupImageCache()
     }
 
