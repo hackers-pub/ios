@@ -242,7 +242,12 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
                     .padding()
                 } else {
                     ForEach(items, id: \.id) { item in
-                        PostView(post: item, showAuthor: true, disableNavigation: true)
+                        PostView(
+                            post: item,
+                            showAuthor: true,
+                            disableNavigation: true,
+                            contentRenderMode: .lightweightText
+                        )
                             .allowsHitTesting(false)
                             .padding(.horizontal)
                             .padding(.vertical, 12)

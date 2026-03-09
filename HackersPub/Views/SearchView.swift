@@ -384,7 +384,7 @@ struct SearchResultRow: View {
     var body: some View {
         switch result {
         case .post(let post):
-            PostView(post: post)
+            PostView(post: post, contentRenderMode: .lightweightText)
 
         case .actor(let actor):
             HStack(spacing: 12) {
@@ -427,7 +427,7 @@ struct SearchDetailView: View {
         switch result {
         case .post(let post):
             ScrollView {
-                PostView(post: post)
+                PostView(post: post, contentRenderMode: .lightweightText)
                     .padding()
             }
 

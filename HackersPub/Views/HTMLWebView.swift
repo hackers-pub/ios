@@ -168,14 +168,20 @@ final class HTMLHeightCache: @unchecked Sendable {
 
             function computedDocumentHeight() {
                 var body = document.body;
-                var html = document.documentElement;
-                return Math.max(
+                var contentRoot = document.getElementById('content-root');
+                var bodyStyle = body ? window.getComputedStyle(body) : null;
+                var bodyPaddingTop = bodyStyle ? parseFloat(bodyStyle.paddingTop || '0') : 0;
+                var bodyPaddingBottom = bodyStyle ? parseFloat(bodyStyle.paddingBottom || '0') : 0;
+                if (contentRoot) {
+                    var contentRect = contentRoot.getBoundingClientRect();
+                    return Math.ceil(contentRect.height + bodyPaddingTop + bodyPaddingBottom);
+                }
+                var bodyRect = body ? body.getBoundingClientRect() : null;
+                return Math.ceil(Math.max(
                     body ? body.scrollHeight : 0,
                     body ? body.offsetHeight : 0,
-                    html ? html.clientHeight : 0,
-                    html ? html.scrollHeight : 0,
-                    html ? html.offsetHeight : 0
-                );
+                    bodyRect ? bodyRect.height : 0
+                ));
             }
 
             var pendingHeightFrame = false;
@@ -307,7 +313,6 @@ final class HTMLHeightCache: @unchecked Sendable {
             // Update coordinator reference
             context.coordinator.parent = self
             context.coordinator.webView = webView
-            context.coordinator.refreshRelationshipIfNeeded()
             context.coordinator.enforceTopViewport(on: webView)
 
             // Build a content key that captures every variable affecting the rendered output
@@ -414,7 +419,25 @@ final class HTMLHeightCache: @unchecked Sendable {
 
             private func measureAndApplyHeight(from webView: WKWebView, key: HTMLContentKey) {
                 webView.evaluateJavaScript(
-                    "Math.max(document.body ? document.body.scrollHeight : 0, document.body ? document.body.offsetHeight : 0, document.documentElement ? document.documentElement.clientHeight : 0, document.documentElement ? document.documentElement.scrollHeight : 0, document.documentElement ? document.documentElement.offsetHeight : 0)"
+                    """
+                    (function() {
+                        var body = document.body;
+                        var contentRoot = document.getElementById('content-root');
+                        var bodyStyle = body ? window.getComputedStyle(body) : null;
+                        var bodyPaddingTop = bodyStyle ? parseFloat(bodyStyle.paddingTop || '0') : 0;
+                        var bodyPaddingBottom = bodyStyle ? parseFloat(bodyStyle.paddingBottom || '0') : 0;
+                        if (contentRoot) {
+                            var contentRect = contentRoot.getBoundingClientRect();
+                            return Math.ceil(contentRect.height + bodyPaddingTop + bodyPaddingBottom);
+                        }
+                        var bodyRect = body ? body.getBoundingClientRect() : null;
+                        return Math.ceil(Math.max(
+                            body ? body.scrollHeight : 0,
+                            body ? body.offsetHeight : 0,
+                            bodyRect ? bodyRect.height : 0
+                        ));
+                    })()
+                    """
                 ) { result, _ in
                     let measuredHeight: CGFloat?
                     if let number = result as? NSNumber {
@@ -737,28 +760,21 @@ final class HTMLHeightCache: @unchecked Sendable {
                 var userChildren: [UIMenuElement] = []
 
                 if parent.authManager?.isAuthenticated == true {
-                    if let relationshipState, !relationshipState.isViewer {
-                        let followAction = UIAction(
-                            title: relationshipState.viewerFollows
-                                ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
-                                : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
-                            image: UIImage(systemName: relationshipState.viewerFollows ? "person.badge.minus" : "person.badge.plus")
-                        ) { [weak self] _ in
-                            self?.performRelationshipAction(relationshipState.viewerFollows ? .unfollow : .follow)
+                    userChildren.append(
+                        UIDeferredMenuElement { [weak self] completion in
+                            guard let self else {
+                                completion([])
+                                return
+                            }
+                            Task {
+                                _ = await self.loadRelationshipIfNeeded()
+                                let elements = await MainActor.run {
+                                    self.relationshipActionElements()
+                                }
+                                completion(elements)
+                            }
                         }
-                        userChildren.append(followAction)
-
-                        let blockAction = UIAction(
-                            title: relationshipState.viewerBlocks
-                                ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
-                                : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
-                            image: UIImage(systemName: relationshipState.viewerBlocks ? "nosign" : "hand.raised"),
-                            attributes: relationshipState.viewerBlocks ? [] : [.destructive]
-                        ) { [weak self] _ in
-                            self?.performRelationshipAction(relationshipState.viewerBlocks ? .unblock : .block)
-                        }
-                        userChildren.append(blockAction)
-                    }
+                    )
                 }
 
                 if let profileURL = actorProfileURL(handle: handle) {
@@ -778,10 +794,39 @@ final class HTMLHeightCache: @unchecked Sendable {
                 )
             }
 
+            private func relationshipActionElements() -> [UIMenuElement] {
+                guard let relationshipState, !relationshipState.isViewer else {
+                    return []
+                }
+
+                let followAction = UIAction(
+                    title: relationshipState.viewerFollows
+                        ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
+                        : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
+                    image: UIImage(systemName: relationshipState.viewerFollows ? "person.badge.minus" : "person.badge.plus")
+                ) { [weak self] _ in
+                    self?.performRelationshipAction(relationshipState.viewerFollows ? .unfollow : .follow)
+                }
+
+                let blockAction = UIAction(
+                    title: relationshipState.viewerBlocks
+                        ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
+                        : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
+                    image: UIImage(systemName: relationshipState.viewerBlocks ? "nosign" : "hand.raised"),
+                    attributes: relationshipState.viewerBlocks ? [] : [.destructive]
+                ) { [weak self] _ in
+                    self?.performRelationshipAction(relationshipState.viewerBlocks ? .unblock : .block)
+                }
+
+                return [followAction, blockAction]
+            }
+
             private func performRelationshipAction(_ action: ActorRelationshipAction) {
                 guard !isApplyingRelationshipAction else { return }
                 guard let relationshipState else {
-                    refreshRelationshipIfNeeded(forceNetwork: true)
+                    Task {
+                        _ = await loadRelationshipIfNeeded(forceNetwork: true)
+                    }
                     return
                 }
 
@@ -800,35 +845,37 @@ final class HTMLHeightCache: @unchecked Sendable {
                 }
             }
 
-            func refreshRelationshipIfNeeded(forceNetwork: Bool = false) {
+            @discardableResult
+            func loadRelationshipIfNeeded(forceNetwork: Bool = false) async -> ActorRelationshipState? {
                 guard parent.authManager?.isAuthenticated == true,
                       let handle = parent.sneakPeekActorHandle
                 else {
                     relationshipState = nil
                     relationshipHandle = nil
-                    return
+                    return nil
                 }
 
                 if isLoadingRelationship {
-                    return
+                    return relationshipState
                 }
 
-                if !forceNetwork, relationshipHandle == handle, relationshipState != nil {
-                    return
+                if !forceNetwork, relationshipHandle == handle, let relationshipState {
+                    return relationshipState
                 }
 
                 isLoadingRelationship = true
-                Task {
-                    defer { isLoadingRelationship = false }
-                    do {
-                        relationshipState = try await ActorRelationshipService.fetch(
-                            handle: handle,
-                            cachePolicy: forceNetwork ? .networkOnly : .networkFirst
-                        )
-                        relationshipHandle = handle
-                    } catch {
-                        relationshipState = nil
-                    }
+                defer { isLoadingRelationship = false }
+                do {
+                    let fetchedRelationship = try await ActorRelationshipService.fetch(
+                        handle: handle,
+                        cachePolicy: forceNetwork ? .networkOnly : .networkFirst
+                    )
+                    relationshipState = fetchedRelationship
+                    relationshipHandle = handle
+                    return fetchedRelationship
+                } catch {
+                    relationshipState = nil
+                    return nil
                 }
             }
 

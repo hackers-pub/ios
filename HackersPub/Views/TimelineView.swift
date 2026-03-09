@@ -167,9 +167,14 @@ struct TimelineView: View {
                     ProgressView()
                 } else {
                     ScrollView {
-                        VStack(spacing: 0) {
+                        LazyVStack(spacing: 0) {
                             ForEach(posts, id: \.id) { post in
-                                PostView(post: post, showAuthor: true, enableSneakPeek: true)
+                                PostView(
+                                    post: post,
+                                    showAuthor: true,
+                                    enableSneakPeek: true,
+                                    contentRenderMode: .lightweightText
+                                )
                                     .padding()
                                     .id(post.id)
                                     .onAppear {
@@ -322,9 +327,14 @@ struct PersonalTimelineView: View {
                     ProgressView()
                 } else {
                     ScrollView {
-                        VStack(spacing: 0) {
+                        LazyVStack(spacing: 0) {
                             ForEach(posts, id: \.id) { post in
-                                PostView(post: post, showAuthor: true, enableSneakPeek: true)
+                                PostView(
+                                    post: post,
+                                    showAuthor: true,
+                                    enableSneakPeek: true,
+                                    contentRenderMode: .lightweightText
+                                )
                                     .padding()
                                     .id(post.id)
                                     .onAppear {
@@ -476,9 +486,14 @@ struct LocalTimelineView: View {
                     ProgressView()
                 } else {
                     ScrollView {
-                        VStack(spacing: 0) {
+                        LazyVStack(spacing: 0) {
                             ForEach(posts, id: \.id) { post in
-                                PostView(post: post, showAuthor: true, enableSneakPeek: true)
+                                PostView(
+                                    post: post,
+                                    showAuthor: true,
+                                    enableSneakPeek: true,
+                                    contentRenderMode: .lightweightText
+                                )
                                     .padding()
                                     .id(post.id)
                                     .onAppear {

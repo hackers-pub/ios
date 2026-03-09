@@ -1,6 +1,12 @@
 import Kingfisher
+import SafariServices
 import SwiftUI
 import UIKit
+
+enum HTMLContentRenderMode {
+    case richWebView
+    case lightweightText
+}
 
 struct MediaItem: Identifiable {
     let id = UUID()
@@ -14,6 +20,7 @@ struct MediaItem: Identifiable {
 struct HTMLContentView: View {
     let html: String
     let media: [MediaItem]
+    var renderMode: HTMLContentRenderMode = .richWebView
     var onTap: (() -> Void)?
     var suppressLongPressInteractions: Bool = false
     var sneakPeekPostId: String?
@@ -21,6 +28,7 @@ struct HTMLContentView: View {
     var sneakPeekShareURL: URL?
     @State private var selectedMedia: MediaItem?
     @State private var webViewHeight: CGFloat = 0
+    @State private var lightweightTextHeight: CGFloat = 0
     @State private var isLoading: Bool = true
     @State private var isVisible: Bool = false
     @State private var mediaActionMessage: String?
@@ -43,16 +51,23 @@ struct HTMLContentView: View {
         return min(estimatedWidth * aspectRatio, 500)
     }
 
-    private func previewHeight(for item: MediaItem) -> CGFloat {
+    private func previewSize(for item: MediaItem) -> CGSize {
         guard let width = item.width,
               let height = item.height,
               width > 0,
               height > 0
         else {
-            return 420
+            return CGSize(width: 320, height: 420)
         }
-        let aspectRatio = CGFloat(height) / CGFloat(width)
-        return min(max(260, 320 * aspectRatio), 540)
+
+        let maxWidth = min(UIScreen.main.bounds.width - 48, 380)
+        let maxHeight = min(UIScreen.main.bounds.height - 220, 560)
+        let scale = min(maxWidth / CGFloat(width), maxHeight / CGFloat(height))
+
+        return CGSize(
+            width: CGFloat(width) * scale,
+            height: CGFloat(height) * scale
+        )
     }
 
     /// Estimate minimum height based on HTML content length
@@ -63,64 +78,110 @@ struct HTMLContentView: View {
         return min(estimatedLines * 20, 200) // Cap at 200pt for initial estimate
     }
 
+    private var containsComplexLayoutHTML: Bool {
+        let normalized = html.lowercased()
+        return normalized.contains("<pre")
+            || normalized.contains("<table")
+    }
+
+    private var usesRichWebView: Bool {
+        renderMode == .richWebView || containsComplexLayoutHTML
+    }
+
+    private var usesInteractiveLightweightText: Bool {
+        onTap != nil || sneakPeekPostId != nil
+    }
+
+    private var mediaDownsamplingSize: CGSize {
+        CGSize(width: 350 * UIScreen.main.scale, height: carouselHeight * UIScreen.main.scale)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Display text content with smooth transition
-            ZStack(alignment: .topLeading) {
-                // Placeholder skeleton while loading
-                if isLoading, webViewHeight == 0 {
-                    VStack(alignment: .leading, spacing: 8) {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 16)
-                            .frame(maxWidth: .infinity)
+            if usesRichWebView {
+                // Display text content with smooth transition
+                ZStack(alignment: .topLeading) {
+                    // Placeholder skeleton while loading
+                    if isLoading, webViewHeight == 0 {
+                        VStack(alignment: .leading, spacing: 8) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 16)
+                                .frame(maxWidth: .infinity)
 
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 16)
-                            .frame(maxWidth: .infinity)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 16)
+                                .frame(maxWidth: .infinity)
 
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 16)
-                            .frame(maxWidth: 200)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 16)
+                                .frame(maxWidth: 200)
+                        }
+                        .frame(minHeight: estimatedMinHeight)
+                        .redacted(reason: .placeholder)
+                        .shimmering()
                     }
-                    .frame(minHeight: estimatedMinHeight)
-                    .redacted(reason: .placeholder)
-                    .shimmering()
-                }
 
-                // Only mount the web view once the cell has scrolled into view
-                if isVisible {
-                    HTMLWebView(
-                        html: html,
-                        height: $webViewHeight,
-                        onTap: onTap,
-                        authManager: authManager,
-                        navigationCoordinator: navigationCoordinator,
-                        externalURLRouter: externalURLRouter,
-                        suppressLongPressInteractions: suppressLongPressInteractions,
-                        sneakPeekPostId: sneakPeekPostId,
-                        sneakPeekActorHandle: sneakPeekActorHandle,
-                        sneakPeekShareURL: sneakPeekShareURL,
-                        onLinkPressStateChange: nil
-                    )
-                    .id(sneakPeekPostId ?? html)
-                    .frame(height: webViewHeight > 0 ? webViewHeight : estimatedMinHeight)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .opacity(webViewHeight > 0 ? 1 : 0)
-                    .onChange(of: webViewHeight) { _, newValue in
-                        if newValue > 0, isLoading {
-                            isLoading = false
+                    // Only mount the web view once the cell has scrolled into view
+                    if isVisible {
+                        HTMLWebView(
+                            html: html,
+                            height: $webViewHeight,
+                            onTap: onTap,
+                            authManager: authManager,
+                            navigationCoordinator: navigationCoordinator,
+                            externalURLRouter: externalURLRouter,
+                            suppressLongPressInteractions: suppressLongPressInteractions,
+                            sneakPeekPostId: sneakPeekPostId,
+                            sneakPeekActorHandle: sneakPeekActorHandle,
+                            sneakPeekShareURL: sneakPeekShareURL,
+                            onLinkPressStateChange: nil
+                        )
+                        .id(sneakPeekPostId ?? html)
+                        .frame(height: webViewHeight > 0 ? webViewHeight : estimatedMinHeight)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .opacity(webViewHeight > 0 ? 1 : 0)
+                        .onChange(of: webViewHeight) { _, newValue in
+                            if newValue > 0, isLoading {
+                                isLoading = false
+                            }
                         }
                     }
                 }
+                .id(sneakPeekPostId ?? html)
+                // Gate heavy web-view creation on actual visibility
+                .onAppear {
+                    isVisible = true
+                }
+            } else if usesInteractiveLightweightText {
+                InteractiveHTMLTextView(
+                    html: html,
+                    height: $lightweightTextHeight,
+                    font: .body,
+                    color: .primary,
+                    onTap: onTap,
+                    authManager: authManager,
+                    navigationCoordinator: navigationCoordinator,
+                    externalURLRouter: externalURLRouter,
+                    sneakPeekPostId: sneakPeekPostId,
+                    sneakPeekShareURL: sneakPeekShareURL
+                )
+                    .frame(height: lightweightTextHeight > 0 ? lightweightTextHeight : estimatedMinHeight)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 4)
+                    .padding(.bottom, 2)
+                    .onChange(of: html) { _, _ in
+                        lightweightTextHeight = 0
+                    }
+            } else {
+                HTMLTextView(html: html)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 4)
+                    .padding(.bottom, 2)
             }
-            .id(sneakPeekPostId ?? html)
-            // Gate heavy web-view creation on actual visibility
-            .onAppear {
-                isVisible = true
-            }
+
             // Display images in carousel if present
             if !media.isEmpty {
                 TabView {
@@ -134,6 +195,8 @@ struct HTMLContentView: View {
                                         ProgressView()
                                     }
                                 }
+                                .downsampling(size: mediaDownsamplingSize)
+                                .cancelOnDisappear(true)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -185,6 +248,82 @@ struct HTMLContentView: View {
         }
     }
 
+    private func openLink(_ url: URL) {
+        if url.host == "hackers.pub", url.path.hasPrefix("/@") {
+            let handle = String(url.path.dropFirst(2))
+            navigationCoordinator.navigateToProfile(handle: handle)
+        } else {
+            externalURLRouter.open(url)
+        }
+    }
+
+    private func makePostContextMenuConfiguration() -> UIContextMenuConfiguration? {
+        guard let sneakPeekPostId else { return nil }
+
+        return UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: {
+                let preview = PostDetailView(postId: sneakPeekPostId)
+                    .frame(width: 360, height: 560)
+                    .ignoresSafeArea()
+                    .environment(authManager)
+                    .environment(navigationCoordinator)
+                    .environment(externalURLRouter)
+                    .environmentObject(FontSettingsManager.shared)
+                let controller = UIHostingController(rootView: preview)
+                controller.view.backgroundColor = .systemBackground
+                controller.view.insetsLayoutMarginsFromSafeArea = false
+                controller.view.directionalLayoutMargins = .zero
+                return controller
+            },
+            actionProvider: { _ in
+                makePostContextMenu()
+            }
+        )
+    }
+
+    private func makePostContextMenu() -> UIMenu {
+        var children: [UIMenuElement] = []
+
+        if let sneakPeekShareURL {
+            let shareAction = UIAction(
+                title: NSLocalizedString("sneakpeek.action.sharePost", comment: "Share post"),
+                image: UIImage(systemName: "square.and.arrow.up")
+            ) { _ in
+                ShareSheetPresenter.present(items: [sneakPeekShareURL])
+            }
+            children.append(shareAction)
+        }
+
+        return UIMenu(children: children)
+    }
+
+    private func makeLinkContextMenuConfiguration(url: URL) -> UIContextMenuConfiguration {
+        UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: {
+                SFSafariViewController(url: url)
+            },
+            actionProvider: { _ in
+                let openAction = UIAction(
+                    title: NSLocalizedString("sneakpeek.action.openLink", comment: "Open link"),
+                    image: UIImage(systemName: "safari")
+                ) { _ in
+                    openLink(url)
+                }
+
+                let shareAction = UIAction(
+                    title: NSLocalizedString("sneakpeek.action.shareLink", comment: "Share link"),
+                    image: UIImage(systemName: "square.and.arrow.up")
+                ) { _ in
+                    ShareSheetPresenter.present(items: [url])
+                }
+
+                return UIMenu(children: [openAction, shareAction])
+            }
+        )
+    }
+
     private func saveImage(_ item: MediaItem) {
         guard !isSavingImage else { return }
         isSavingImage = true
@@ -204,16 +343,12 @@ struct HTMLContentView: View {
         UIContextMenuConfiguration(
             identifier: nil,
             previewProvider: {
-                let preview = FullScreenImageView(
-                    mediaItem: item,
-                    allMedia: media,
-                    showsToolbar: false,
-                    showsAltText: false
-                )
-                .frame(width: 320, height: previewHeight(for: item))
-
+                let previewSize = previewSize(for: item)
+                let preview = ImageSneakPeekPreview(item: item)
+                    .frame(width: previewSize.width, height: previewSize.height)
                 let controller = UIHostingController(rootView: preview)
                 controller.view.backgroundColor = .systemBackground
+                controller.preferredContentSize = previewSize
                 return controller
             },
             actionProvider: { _ in
@@ -250,6 +385,28 @@ struct HTMLContentView: View {
         }
 
         return UIMenu(children: elements)
+    }
+}
+
+private struct ImageSneakPeekPreview: View {
+    let item: MediaItem
+
+    var body: some View {
+        ZStack {
+            Color.black
+
+            if let url = URL(string: item.url) {
+                KFImage(url)
+                    .placeholder {
+                        ProgressView()
+                    }
+                    .cancelOnDisappear(true)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 

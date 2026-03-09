@@ -107,9 +107,6 @@ struct PostSneakPeekModifier: ViewModifier {
     func body(content: Content) -> some View {
         if let postId {
             content
-                .task(id: actorHandle) {
-                    await loadRelationship()
-                }
                 .uiContextMenu(
                     makeConfiguration: {
                         makePostContextMenuConfiguration(postId: postId)
@@ -229,50 +226,18 @@ struct PostSneakPeekModifier: ViewModifier {
     private func makeUserMenu(handle: String) -> UIMenu? {
         var userChildren: [UIMenuElement] = []
 
-        if authManager.isAuthenticated,
-           let relationship,
-           !relationship.isViewer
-        {
-            var followAttributes: UIMenuElement.Attributes = []
-            if isApplyingRelationshipAction {
-                followAttributes.insert(.disabled)
-            }
-
-            let followAction = UIAction(
-                title: relationship.viewerFollows
-                    ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
-                    : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
-                image: UIImage(systemName: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"),
-                attributes: followAttributes
-            ) { _ in
-                performRelationshipAction(
-                    relationship.viewerFollows ? .unfollow : .follow,
-                    handle: handle
-                )
-            }
-            userChildren.append(followAction)
-
-            var blockAttributes: UIMenuElement.Attributes = []
-            if isApplyingRelationshipAction {
-                blockAttributes.insert(.disabled)
-            }
-            if !relationship.viewerBlocks {
-                blockAttributes.insert(.destructive)
-            }
-
-            let blockAction = UIAction(
-                title: relationship.viewerBlocks
-                    ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
-                    : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
-                image: UIImage(systemName: relationship.viewerBlocks ? "nosign" : "hand.raised"),
-                attributes: blockAttributes
-            ) { _ in
-                performRelationshipAction(
-                    relationship.viewerBlocks ? .unblock : .block,
-                    handle: handle
-                )
-            }
-            userChildren.append(blockAction)
+        if authManager.isAuthenticated {
+            userChildren.append(
+                UIDeferredMenuElement { completion in
+                    Task {
+                        await loadRelationship()
+                        let actions = await MainActor.run {
+                            relationshipActions(handle: handle)
+                        }
+                        completion(actions)
+                    }
+                }
+            )
         }
 
         if let profileURL = actorProfileURL(handle: handle) {
@@ -293,6 +258,56 @@ struct PostSneakPeekModifier: ViewModifier {
             children: userChildren
         )
     }
+
+    private func relationshipActions(handle: String) -> [UIMenuElement] {
+        guard authManager.isAuthenticated,
+              let relationship,
+              !relationship.isViewer
+        else {
+            return []
+        }
+
+        var followAttributes: UIMenuElement.Attributes = []
+        if isApplyingRelationshipAction {
+            followAttributes.insert(.disabled)
+        }
+
+        let followAction = UIAction(
+            title: relationship.viewerFollows
+                ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
+                : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
+            image: UIImage(systemName: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"),
+            attributes: followAttributes
+        ) { _ in
+            performRelationshipAction(
+                relationship.viewerFollows ? .unfollow : .follow,
+                handle: handle
+            )
+        }
+
+        var blockAttributes: UIMenuElement.Attributes = []
+        if isApplyingRelationshipAction {
+            blockAttributes.insert(.disabled)
+        }
+        if !relationship.viewerBlocks {
+            blockAttributes.insert(.destructive)
+        }
+
+        let blockAction = UIAction(
+            title: relationship.viewerBlocks
+                ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
+                : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
+            image: UIImage(systemName: relationship.viewerBlocks ? "nosign" : "hand.raised"),
+            attributes: blockAttributes
+        ) { _ in
+            performRelationshipAction(
+                relationship.viewerBlocks ? .unblock : .block,
+                handle: handle
+            )
+        }
+
+        return [followAction, blockAction]
+    }
 }
 
 private struct ProfileSneakPeekModifier: ViewModifier {
@@ -308,9 +323,6 @@ private struct ProfileSneakPeekModifier: ViewModifier {
     func body(content: Content) -> some View {
         if let handle {
             content
-                .task(id: handle) {
-                    await loadRelationship()
-                }
                 .uiContextMenu(
                     makeConfiguration: {
                         makeProfileContextMenuConfiguration(handle: handle)
@@ -410,50 +422,18 @@ private struct ProfileSneakPeekModifier: ViewModifier {
     private func makeProfileContextActions(handle: String) -> [UIMenuElement] {
         var actions: [UIMenuElement] = []
 
-        if authManager.isAuthenticated,
-           let relationship,
-           !relationship.isViewer
-        {
-            var followAttributes: UIMenuElement.Attributes = []
-            if isApplyingRelationshipAction {
-                followAttributes.insert(.disabled)
-            }
-
-            let followAction = UIAction(
-                title: relationship.viewerFollows
-                    ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
-                    : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
-                image: UIImage(systemName: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"),
-                attributes: followAttributes
-            ) { _ in
-                performRelationshipAction(
-                    relationship.viewerFollows ? .unfollow : .follow,
-                    handle: handle
-                )
-            }
-            actions.append(followAction)
-
-            var blockAttributes: UIMenuElement.Attributes = []
-            if isApplyingRelationshipAction {
-                blockAttributes.insert(.disabled)
-            }
-            if !relationship.viewerBlocks {
-                blockAttributes.insert(.destructive)
-            }
-
-            let blockAction = UIAction(
-                title: relationship.viewerBlocks
-                    ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
-                    : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
-                image: UIImage(systemName: relationship.viewerBlocks ? "nosign" : "hand.raised"),
-                attributes: blockAttributes
-            ) { _ in
-                performRelationshipAction(
-                    relationship.viewerBlocks ? .unblock : .block,
-                    handle: handle
-                )
-            }
-            actions.append(blockAction)
+        if authManager.isAuthenticated {
+            actions.append(
+                UIDeferredMenuElement { completion in
+                    Task {
+                        await loadRelationship()
+                        let elements = await MainActor.run {
+                            profileRelationshipActions(handle: handle)
+                        }
+                        completion(elements)
+                    }
+                }
+            )
         }
 
         if let profileURL = actorProfileURL(handle: handle) {
@@ -467,6 +447,56 @@ private struct ProfileSneakPeekModifier: ViewModifier {
         }
 
         return actions
+    }
+
+    private func profileRelationshipActions(handle: String) -> [UIMenuElement] {
+        guard authManager.isAuthenticated,
+              let relationship,
+              !relationship.isViewer
+        else {
+            return []
+        }
+
+        var followAttributes: UIMenuElement.Attributes = []
+        if isApplyingRelationshipAction {
+            followAttributes.insert(.disabled)
+        }
+
+        let followAction = UIAction(
+            title: relationship.viewerFollows
+                ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
+                : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
+            image: UIImage(systemName: relationship.viewerFollows ? "person.badge.minus" : "person.badge.plus"),
+            attributes: followAttributes
+        ) { _ in
+            performRelationshipAction(
+                relationship.viewerFollows ? .unfollow : .follow,
+                handle: handle
+            )
+        }
+
+        var blockAttributes: UIMenuElement.Attributes = []
+        if isApplyingRelationshipAction {
+            blockAttributes.insert(.disabled)
+        }
+        if !relationship.viewerBlocks {
+            blockAttributes.insert(.destructive)
+        }
+
+        let blockAction = UIAction(
+            title: relationship.viewerBlocks
+                ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
+                : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
+            image: UIImage(systemName: relationship.viewerBlocks ? "nosign" : "hand.raised"),
+            attributes: blockAttributes
+        ) { _ in
+            performRelationshipAction(
+                relationship.viewerBlocks ? .unblock : .block,
+                handle: handle
+            )
+        }
+
+        return [followAction, blockAction]
     }
 }
 
@@ -548,7 +578,18 @@ struct EngagementToolbarButton: View {
 struct RepostIndicator<Actor: ActorProtocol>: View {
     let actor: Actor
     let enableProfileSneakPeek: Bool
+    let prefersPlainTextName: Bool
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+
+    init(
+        actor: Actor,
+        enableProfileSneakPeek: Bool,
+        prefersPlainTextName: Bool = false
+    ) {
+        self.actor = actor
+        self.enableProfileSneakPeek = enableProfileSneakPeek
+        self.prefersPlainTextName = prefersPlainTextName
+    }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -560,6 +601,8 @@ struct RepostIndicator<Actor: ActorProtocol>: View {
                     .placeholder {
                         Color.gray.opacity(0.2)
                     }
+                    .downsampling(size: CGSize(width: 32, height: 32))
+                    .cancelOnDisappear(true)
                     .resizable()
                     .scaledToFill()
                     .frame(width: 16, height: 16)
@@ -567,9 +610,16 @@ struct RepostIndicator<Actor: ActorProtocol>: View {
 
                 Group {
                     if let name = actor.name {
-                        HTMLTextView(html: name, font: .caption)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                        if prefersPlainTextName {
+                            Text(plainTextPreview(from: name))
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        } else {
+                            HTMLTextView(html: name, font: .caption)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
                     } else {
                         Text(actor.handle)
                             .font(.caption)
@@ -599,8 +649,27 @@ private struct ActorHeaderIdentity<Actor: ActorProtocol>: View {
     let nameWeight: Font.Weight?
     let handleFont: Font
     let sneakPeekHandle: String?
+    let prefersPlainTextName: Bool
 
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+
+    init(
+        actor: Actor,
+        avatarSize: CGFloat,
+        nameFont: Font,
+        nameWeight: Font.Weight?,
+        handleFont: Font,
+        sneakPeekHandle: String?,
+        prefersPlainTextName: Bool = false
+    ) {
+        self.actor = actor
+        self.avatarSize = avatarSize
+        self.nameFont = nameFont
+        self.nameWeight = nameWeight
+        self.handleFont = handleFont
+        self.sneakPeekHandle = sneakPeekHandle
+        self.prefersPlainTextName = prefersPlainTextName
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -608,6 +677,13 @@ private struct ActorHeaderIdentity<Actor: ActorProtocol>: View {
                 .placeholder {
                     Color.gray.opacity(0.2)
                 }
+                .downsampling(
+                    size: CGSize(
+                        width: avatarSize * UIScreen.main.scale,
+                        height: avatarSize * UIScreen.main.scale
+                    )
+                )
+                .cancelOnDisappear(true)
                 .resizable()
                 .scaledToFill()
                 .frame(width: avatarSize, height: avatarSize)
@@ -615,7 +691,13 @@ private struct ActorHeaderIdentity<Actor: ActorProtocol>: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 if let name = actor.name {
-                    let nameView = HTMLTextView(html: name, font: nameFont)
+                    let nameView = Group {
+                        if prefersPlainTextName {
+                            Text(plainTextPreview(from: name))
+                        } else {
+                            HTMLTextView(html: name, font: nameFont)
+                        }
+                    }
                         .lineLimit(1)
                         .truncationMode(.tail)
                     if let nameWeight {
@@ -642,8 +724,21 @@ private struct ActorHeaderIdentity<Actor: ActorProtocol>: View {
     }
 }
 
+private func plainTextPreview(from html: String) -> String {
+    var text = html.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+    text = text.replacingOccurrences(of: "&nbsp;", with: " ")
+    text = text.replacingOccurrences(of: "&amp;", with: "&")
+    text = text.replacingOccurrences(of: "&lt;", with: "<")
+    text = text.replacingOccurrences(of: "&gt;", with: ">")
+    text = text.replacingOccurrences(of: "&quot;", with: "\"")
+    text = text.replacingOccurrences(of: "&#39;", with: "'")
+    text = text.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+    return text.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
 struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
     let quotedPost: QuotedPost
+    let contentRenderMode: HTMLContentRenderMode
     let disableNavigation: Bool
     let suppressContentLongPress: Bool
     let sneakPeekPostId: String?
@@ -655,6 +750,7 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
 
     init(
         quotedPost: QuotedPost,
+        contentRenderMode: HTMLContentRenderMode = .richWebView,
         disableNavigation: Bool = false,
         suppressContentLongPress: Bool = false,
         sneakPeekPostId: String? = nil,
@@ -665,6 +761,7 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
         onTap: (() -> Void)? = nil
     ) {
         self.quotedPost = quotedPost
+        self.contentRenderMode = contentRenderMode
         self.disableNavigation = disableNavigation
         self.suppressContentLongPress = suppressContentLongPress
         self.sneakPeekPostId = sneakPeekPostId
@@ -682,6 +779,13 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
         return DateFormatHelper.relativeTime(from: quotedPost.published)
     }
 
+    private var quotedContentRenderMode: HTMLContentRenderMode {
+        // Embedded quote cards were the remaining clipping hotspot in list cells.
+        // Keeping them on the rich renderer avoids the lightweight text view's
+        // transient under-measurement without regressing the main timeline body.
+        .richWebView
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -689,9 +793,10 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
                     actor: quotedPost.actor,
                     avatarSize: 32,
                     nameFont: .subheadline,
-                    nameWeight: .semibold,
+                    nameWeight: .bold,
                     handleFont: .caption,
-                    sneakPeekHandle: enableProfileSneakPeek ? quotedPost.actor.handle : nil
+                    sneakPeekHandle: enableProfileSneakPeek ? quotedPost.actor.handle : nil,
+                    prefersPlainTextName: contentRenderMode == .lightweightText
                 )
 
                 Spacer()
@@ -714,6 +819,7 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
                         height: $0.height
                     )
                 },
+                renderMode: quotedContentRenderMode,
                 onTap: !disableNavigation ? onTap : nil,
                 suppressLongPressInteractions: suppressContentLongPress,
                 sneakPeekPostId: nil,
@@ -769,6 +875,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     let showAuthor: Bool
     let disableNavigation: Bool
     let enableSneakPeek: Bool
+    let contentRenderMode: HTMLContentRenderMode
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -812,12 +919,14 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         post: P,
         showAuthor: Bool = true,
         disableNavigation: Bool = false,
-        enableSneakPeek: Bool = false
+        enableSneakPeek: Bool = false,
+        contentRenderMode: HTMLContentRenderMode = .richWebView
     ) {
         self.post = post
         self.showAuthor = showAuthor
         self.disableNavigation = disableNavigation
         self.enableSneakPeek = enableSneakPeek
+        self.contentRenderMode = contentRenderMode
         _hasShared = State(initialValue: post.viewerHasShared)
         _sharesCount = State(initialValue: post.engagementStats.shares)
         _reactionsCount = State(initialValue: post.engagementStats.reactions)
@@ -1239,7 +1348,11 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // Show repost indicator
                     if showAuthor && post.sharedPost != nil {
-                        RepostIndicator(actor: post.actor, enableProfileSneakPeek: sneakPeekEnabled)
+                        RepostIndicator(
+                            actor: post.actor,
+                            enableProfileSneakPeek: sneakPeekEnabled,
+                            prefersPlainTextName: contentRenderMode == .lightweightText
+                        )
                     }
 
                     if showAuthor && post.sharedPost == nil {
@@ -1248,9 +1361,10 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                                 actor: post.actor,
                                 avatarSize: 40,
                                 nameFont: .headline,
-                                nameWeight: nil,
+                                nameWeight: .bold,
                                 handleFont: .subheadline,
-                                sneakPeekHandle: sneakPeekHandle(post.actor.handle)
+                                sneakPeekHandle: sneakPeekHandle(post.actor.handle),
+                                prefersPlainTextName: contentRenderMode == .lightweightText
                             )
 
                             Spacer()
@@ -1265,9 +1379,10 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                                     actor: sharedPost.actor,
                                     avatarSize: 40,
                                     nameFont: .headline,
-                                    nameWeight: nil,
+                                    nameWeight: .bold,
                                     handleFont: .subheadline,
-                                    sneakPeekHandle: sneakPeekHandle(sharedPost.actor.handle)
+                                    sneakPeekHandle: sneakPeekHandle(sharedPost.actor.handle),
+                                    prefersPlainTextName: contentRenderMode == .lightweightText
                                 )
 
                                 Spacer()
@@ -1282,6 +1397,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                             HTMLContentView(
                                 html: content,
                                 media: mediaItems(from: sharedPost.media),
+                                renderMode: contentRenderMode,
                                 onTap: !disableNavigation ? {
                                     navigationCoordinator.navigateToPost(id: sharedPost.id)
                                 } : nil,
@@ -1336,6 +1452,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         HTMLContentView(
                             html: content,
                             media: mediaItems(from: post.media),
+                            renderMode: contentRenderMode,
                             onTap: !disableNavigation && !post.isArticle ? {
                                 navigationCoordinator.navigateToPost(id: post.id)
                             } : nil,
@@ -1348,6 +1465,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         if let quotedPost = post.quotedPost {
                             QuotedPostCard(
                                 quotedPost: quotedPost,
+                                contentRenderMode: contentRenderMode,
                                 disableNavigation: disableNavigation,
                                 suppressContentLongPress: sneakPeekEnabled,
                                 sneakPeekPostId: sneakPeekPostId(quotedPost.id),

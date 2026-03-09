@@ -12,14 +12,17 @@ enum HTMLStyles {
         body {
             font-family: \(fontFamily);
             font-size: \(fontSize)px;
-            line-height: 1.5;
+            line-height: 1.35;
             padding: 4px 0 2px;
             color: light-dark(#000000, #ffffff);
             overflow-wrap: anywhere;
             word-break: break-word;
         }
-        body > :first-child { margin-top: 0 !important; }
-        body > :last-child { margin-bottom: 0 !important; }
+        #content-root {
+            display: block;
+        }
+        #content-root > :first-child { margin-top: 0 !important; }
+        #content-root > :last-child { margin-bottom: 0 !important; }
         h1, h2, h3, h4, h5, h6 {
             margin-top: 0.5em;
             margin-bottom: 0.25em;
@@ -90,14 +93,17 @@ enum HTMLStyles {
         body {
             font-family: \(fontFamily);
             font-size: \(fontSize)px;
-            line-height: 1.5;
+            line-height: 1.35;
             padding: 16px;
             color: light-dark(#000000, #ffffff);
             overflow-wrap: anywhere;
             word-break: break-word;
         }
-        body > :first-child { margin-top: 0 !important; }
-        body > :last-child { margin-bottom: 0 !important; }
+        #content-root {
+            display: block;
+        }
+        #content-root > :first-child { margin-top: 0 !important; }
+        #content-root > :last-child { margin-bottom: 0 !important; }
         h1, h2, h3, h4, h5, h6 {
             margin-top: 1em;
             margin-bottom: 0.5em;
@@ -182,7 +188,7 @@ enum HTMLStyles {
             <style>\(css)</style>
         </head>
         <body>
-        \(content)
+            <div id="content-root">\(content)</div>
         </body>
         </html>
         """
