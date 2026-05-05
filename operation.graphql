@@ -727,6 +727,59 @@ mutation CompleteLoginChallengeMutation($token: UUID!, $code: String!) {
   }
 }
 
+mutation GetPasskeyAuthenticationOptionsMutation($sessionId: UUID!) {
+  getPasskeyAuthenticationOptions(sessionId: $sessionId)
+}
+
+mutation LoginByPasskeyMutation($sessionId: UUID!, $authenticationResponse: JSON!) {
+  loginByPasskey(sessionId: $sessionId, authenticationResponse: $authenticationResponse) {
+    id
+    account {
+      id
+      username
+      name
+      avatarUrl
+      handle
+    }
+  }
+}
+
+mutation GetPasskeyRegistrationOptionsMutation($accountId: ID!) {
+  getPasskeyRegistrationOptions(accountId: $accountId)
+}
+
+mutation VerifyPasskeyRegistrationMutation($accountId: ID!, $name: String!, $registrationResponse: JSON!) {
+  verifyPasskeyRegistration(accountId: $accountId, name: $name, registrationResponse: $registrationResponse) {
+    verified
+    passkey {
+      id
+      name
+      created
+      lastUsed
+    }
+  }
+}
+
+query ViewerPasskeysQuery {
+  viewer {
+    id
+    passkeys(first: 50) {
+      edges {
+        node {
+          id
+          name
+          created
+          lastUsed
+        }
+      }
+    }
+  }
+}
+
+mutation RevokePasskeyMutation($passkeyId: ID!) {
+  revokePasskey(passkeyId: $passkeyId)
+}
+
 mutation CreateNoteMutation($content: Markdown!, $language: Locale!, $visibility: PostVisibility!, $replyTargetId: ID, $quotedPostId: ID) {
   createNote(input: { content: $content, language: $language, visibility: $visibility, replyTargetId: $replyTargetId, quotedPostId: $quotedPostId }) {
     ... on CreateNotePayload {

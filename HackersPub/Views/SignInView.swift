@@ -50,6 +50,20 @@ struct SignInView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(username.isEmpty || isLoading)
+
+                        Button {
+                            Task {
+                                await signInWithPasskey()
+                            }
+                        } label: {
+                            Label(
+                                NSLocalizedString("signIn.passkey", comment: "Sign in with passkey button"),
+                                systemImage: "person.badge.key"
+                            )
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isLoading)
                     }
                 } else {
                     VStack(spacing: 16) {
@@ -138,6 +152,20 @@ struct SignInView: View {
             errorMessage = error.localizedDescription
         } catch {
             errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
+        }
+    }
+
+    private func signInWithPasskey() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            try await authManager.signInWithPasskey()
+        } catch let error as AuthError {
+            errorMessage = error.localizedDescription
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

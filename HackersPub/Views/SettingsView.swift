@@ -8,6 +8,12 @@ struct SettingsView: View {
     @State private var showingClearCacheAlert = false
     @State private var cacheCleared = false
     @State private var cacheSize: String = NSLocalizedString("settings.calculating", comment: "Cache size calculating")
+    @State private var showingAddPasskeyAlert = false
+    @State private var newPasskeyName = ""
+    @State private var passkeyErrorMessage: String?
+    @State private var passkeyPendingRevocation: PasskeyInfo?
+    @State private var isRegisteringPasskey = false
+    @State private var revokingPasskeyID: String?
 #if os(iOS)
     @State private var currentAppIcon: String = {
         // Map actual alternate icon name to display name
@@ -73,160 +79,25 @@ struct SettingsView: View {
                     }
                 }
 
-                Section {
-                    NavigationLink {
-                        FontPickerView()
-                    } label: {
-                        HStack {
-                            Text(NSLocalizedString("settings.typography.fontFamily", comment: "Font family setting"))
-                            Spacer()
-                            Text(fontSettings.selectedFontName)
-                                .foregroundStyle(.secondary)
-                                .font(fontSettings.font(for: .body))
-                        }
-                    }
+                TypographySettingsSection()
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(NSLocalizedString("settings.typography.fontSize", comment: "Font size setting"))
-                            Spacer()
-                            Text("\(Int(fontSettings.fontSizeMultiplier * 100))%")
-                                .foregroundStyle(.secondary)
-                        }
+                TimelineSettingsSection(markdownMaxLength: $markdownMaxLength)
 
-                        Slider(value: SliderHelper.snappedBinding($fontSettings.fontSizeMultiplier, step: 0.05, range: 0.75...3.0), in: 0.75...3.0, step: 0.05)
-#if os(iOS)
-                            .disabled(fontSettings.useSystemDynamicType)
-#endif
-                    }
-#if os(iOS)
-                    .opacity(fontSettings.useSystemDynamicType ? 0.5 : 1.0)
-#endif
+                EngagementSettingsSection(
+                    sharePressActionsSwapped: $sharePressActionsSwapped,
+                    quotePressActionsSwapped: $quotePressActionsSwapped,
+                    confirmBeforeShare: $confirmBeforeShare,
+                    confirmBeforeDelete: $confirmBeforeDelete
+                )
+
+                LinksSettingsSection(useInAppBrowser: $useInAppBrowser)
 
 #if os(iOS)
-                    Toggle(NSLocalizedString("settings.typography.useSystemDynamicType", comment: "Use system dynamic type toggle"), isOn: $fontSettings.useSystemDynamicType)
-#endif
-
-                    Button(NSLocalizedString("settings.typography.resetToDefaults", comment: "Reset to defaults button")) {
-                        fontSettings.resetToDefaults()
-                    }
-                    .foregroundStyle(.blue)
-                } header: {
-                    Text(NSLocalizedString("settings.typography", comment: "Typography section header"))
-                } footer: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("settings.typography.preview", comment: "Preview label"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Text(NSLocalizedString("settings.typography.previewText", comment: "Preview text"))
-                            .font(fontSettings.font(for: .body))
-                            .padding(12)
-                            .background(Color.gray.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(NSLocalizedString("settings.timeline.markdownMaxLength", comment: "Timeline markdown max length label"))
-                            Spacer()
-                            Picker(selection: Binding(
-                                get: {
-                                    return markdownMaxLength
-                                },
-                                set: { newValue in
-                                    markdownMaxLength = newValue
-                                }
-                            ), label: Text("")) {
-                                Text("300").tag(300)
-                                Text("500").tag(500)
-                                Text("700").tag(700)
-                                Text("1,000").tag(1000)
-                                Text(NSLocalizedString("settings.timeline.unlimited", comment: "Unlimited option label")).tag(0)
-                            }
-                            .pickerStyle(MenuPickerStyle())
-                        }
-                    }
-                } header: {
-                    Text(NSLocalizedString("settings.timeline", comment: "Timeline section header"))
-                } footer: {
-                    Text(NSLocalizedString("settings.timeline.footer", comment: "Timeline footer"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    Toggle(
-                        NSLocalizedString("settings.engagement.confirmBeforeDelete", comment: "Confirm before delete toggle"),
-                        isOn: $confirmBeforeDelete
-                    )
-                    Toggle(
-                        NSLocalizedString("settings.engagement.confirmBeforeShare", comment: "Confirm before share toggle"),
-                        isOn: $confirmBeforeShare
-                    )
-                    Toggle(
-                        NSLocalizedString("settings.engagement.swapShareActions", comment: "Swap share tap and long press actions toggle"),
-                        isOn: $sharePressActionsSwapped
-                    )
-                    Toggle(
-                        NSLocalizedString("settings.engagement.swapQuoteActions", comment: "Swap quote tap and long press actions toggle"),
-                        isOn: $quotePressActionsSwapped
-                    )
-                } header: {
-                    Text(NSLocalizedString("settings.engagement", comment: "Engagement section header"))
-                } footer: {
-                    Text(NSLocalizedString("settings.engagement.footer", comment: "Engagement section footer"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    Toggle(
-                        NSLocalizedString("settings.links.useInAppBrowser", comment: "Use in-app browser toggle"),
-                        isOn: $useInAppBrowser
-                    )
-                } header: {
-                    Text(NSLocalizedString("settings.links", comment: "Links section header"))
-                } footer: {
-                    Text(NSLocalizedString("settings.links.footer", comment: "Links section footer"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-#if os(iOS)
-                Section {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 16) {
-                            ForEach(appIcons, id: \.name) { icon in
-                                Button {
-                                    setAppIcon(icon.name)
-                                } label: {
-                                    VStack(spacing: 8) {
-                                        Image(icon.name)
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(width: 80, height: 80)
-                                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 16)
-                                                    .stroke(currentAppIcon == icon.name ? Color.blue : Color.clear, lineWidth: 3)
-                                            )
-
-                                        Text(icon.displayName)
-                                            .font(.caption)
-                                            .foregroundStyle(.primary)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 8)
-                    }
-                } header: {
-                    Text(NSLocalizedString("settings.appIcon", comment: "App icon section header"))
-                }
+                AppIconSettingsSection(
+                    currentAppIcon: currentAppIcon,
+                    appIcons: appIcons,
+                    onSelect: setAppIcon
+                )
 #endif
 
                 Section {
@@ -254,20 +125,25 @@ struct SettingsView: View {
                 }
 
                 if authManager.isAuthenticated {
-                    Section {
-                        Button(role: .destructive) {
+                    AuthenticatedSettingsSection(
+                        passkeys: authManager.passkeys,
+                        isLoadingPasskeys: authManager.isLoadingPasskeys,
+                        isRegisteringPasskey: isRegisteringPasskey,
+                        revokingPasskeyID: revokingPasskeyID,
+                        onAddPasskey: {
+                            newPasskeyName = UIDevice.current.name
+                            showingAddPasskeyAlert = true
+                        },
+                        onRemovePasskey: { passkey in
+                            passkeyPendingRevocation = passkey
+                        },
+                        onSignOut: {
                             Task {
                                 await authManager.signOut()
                                 dismiss()
                             }
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text(NSLocalizedString("settings.signOut", comment: "Sign out button"))
-                                Spacer()
-                            }
                         }
-                    }
+                    )
                 }
             }
             .navigationTitle(NSLocalizedString("nav.settings", comment: "Settings navigation title"))
@@ -283,19 +159,63 @@ struct SettingsView: View {
                     .accessibilityLabel(NSLocalizedString("settings.done", comment: "Done button"))
                 }
             }
-            .alert(NSLocalizedString("settings.clearCacheAlert.title", comment: "Clear cache alert title"), isPresented: $showingClearCacheAlert) {
-                Button(NSLocalizedString("settings.clearCacheAlert.cancel", comment: "Cancel button"), role: .cancel) { }
-                Button(NSLocalizedString("settings.clearCacheAlert.clear", comment: "Clear button"), role: .destructive) {
-                    Task {
-                        await clearCache()
-                    }
-                }
-            } message: {
-                Text(NSLocalizedString("settings.clearCacheAlert.message", comment: "Clear cache alert message"))
-            }
+            .modifier(settingsAlerts)
             .task {
                 await calculateCacheSize()
+                if authManager.isAuthenticated {
+                    await authManager.loadPasskeys()
+                }
             }
+        }
+    }
+
+    private var settingsAlerts: SettingsAlertsModifier {
+        SettingsAlertsModifier(
+            showingClearCacheAlert: $showingClearCacheAlert,
+            showingAddPasskeyAlert: $showingAddPasskeyAlert,
+            newPasskeyName: $newPasskeyName,
+            passkeyPendingRevocation: $passkeyPendingRevocation,
+            passkeyErrorMessage: $passkeyErrorMessage,
+            onClearCache: {
+                Task {
+                    await clearCache()
+                }
+            },
+            onRegisterPasskey: {
+                Task {
+                    await registerPasskey()
+                }
+            },
+            onRevokePasskey: { passkey in
+                Task {
+                    await revokePasskey(passkey)
+                }
+            }
+        )
+    }
+
+    private func registerPasskey() async {
+        let name = newPasskeyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        isRegisteringPasskey = true
+        defer { isRegisteringPasskey = false }
+
+        do {
+            try await authManager.registerPasskey(name: name)
+        } catch {
+            passkeyErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func revokePasskey(_ passkey: PasskeyInfo) async {
+        revokingPasskeyID = passkey.id
+        defer { revokingPasskeyID = nil }
+
+        do {
+            try await authManager.revokePasskey(id: passkey.id)
+        } catch {
+            passkeyErrorMessage = error.localizedDescription
         }
     }
 
@@ -398,5 +318,382 @@ struct SettingsView: View {
             }
         }
 #endif
+    }
+}
+
+#if os(iOS)
+private struct AppIconSettingsSection: View {
+    let currentAppIcon: String
+    let appIcons: [(name: String, displayName: String)]
+    let onSelect: (String) -> Void
+
+    var body: some View {
+        Section {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(appIcons, id: \.name) { icon in
+                        Button {
+                            onSelect(icon.name)
+                        } label: {
+                            VStack(spacing: 8) {
+                                Image(icon.name)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 80, height: 80)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(currentAppIcon == icon.name ? Color.blue : Color.clear, lineWidth: 3)
+                                    )
+
+                                Text(icon.displayName)
+                                    .font(.caption)
+                                    .foregroundStyle(.primary)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 8)
+            }
+        } header: {
+            Text(NSLocalizedString("settings.appIcon", comment: "App icon section header"))
+        }
+    }
+}
+#endif
+
+private struct TypographySettingsSection: View {
+    @EnvironmentObject private var fontSettings: FontSettingsManager
+
+    var body: some View {
+        Section {
+            NavigationLink {
+                FontPickerView()
+            } label: {
+                HStack {
+                    Text(NSLocalizedString("settings.typography.fontFamily", comment: "Font family setting"))
+                    Spacer()
+                    Text(fontSettings.selectedFontName)
+                        .foregroundStyle(.secondary)
+                        .font(fontSettings.font(for: .body))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(NSLocalizedString("settings.typography.fontSize", comment: "Font size setting"))
+                    Spacer()
+                    Text("\(Int(fontSettings.fontSizeMultiplier * 100))%")
+                        .foregroundStyle(.secondary)
+                }
+
+                Slider(
+                    value: SliderHelper.snappedBinding(
+                        $fontSettings.fontSizeMultiplier,
+                        step: 0.05,
+                        range: 0.75...3.0
+                    ),
+                    in: 0.75...3.0,
+                    step: 0.05
+                )
+                .disabled(fontSettings.useSystemDynamicType)
+            }
+            .opacity(fontSettings.useSystemDynamicType ? 0.5 : 1.0)
+
+            Toggle(
+                NSLocalizedString("settings.typography.useSystemDynamicType", comment: "Use system dynamic type toggle"),
+                isOn: $fontSettings.useSystemDynamicType
+            )
+
+            Button(NSLocalizedString("settings.typography.resetToDefaults", comment: "Reset to defaults button")) {
+                fontSettings.resetToDefaults()
+            }
+            .foregroundStyle(.blue)
+        } header: {
+            Text(NSLocalizedString("settings.typography", comment: "Typography section header"))
+        } footer: {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(NSLocalizedString("settings.typography.preview", comment: "Preview label"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text(NSLocalizedString("settings.typography.previewText", comment: "Preview text"))
+                    .font(fontSettings.font(for: .body))
+                    .padding(12)
+                    .background(Color.gray.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+}
+
+private struct SettingsAlertsModifier: ViewModifier {
+    @Binding var showingClearCacheAlert: Bool
+    @Binding var showingAddPasskeyAlert: Bool
+    @Binding var newPasskeyName: String
+    @Binding var passkeyPendingRevocation: PasskeyInfo?
+    @Binding var passkeyErrorMessage: String?
+
+    let onClearCache: () -> Void
+    let onRegisterPasskey: () -> Void
+    let onRevokePasskey: (PasskeyInfo) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .alert(NSLocalizedString("settings.clearCacheAlert.title", comment: "Clear cache alert title"), isPresented: $showingClearCacheAlert) {
+                Button(NSLocalizedString("settings.clearCacheAlert.cancel", comment: "Cancel button"), role: .cancel) { }
+                Button(NSLocalizedString("settings.clearCacheAlert.clear", comment: "Clear button"), role: .destructive, action: onClearCache)
+            } message: {
+                Text(NSLocalizedString("settings.clearCacheAlert.message", comment: "Clear cache alert message"))
+            }
+            .alert(NSLocalizedString("settings.passkeys.add", comment: "Add passkey alert title"), isPresented: $showingAddPasskeyAlert) {
+                TextField(NSLocalizedString("settings.passkeys.name", comment: "Passkey name field"), text: $newPasskeyName)
+                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+                Button(NSLocalizedString("settings.passkeys.add", comment: "Add passkey button"), action: onRegisterPasskey)
+                    .disabled(newPasskeyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } message: {
+                Text(NSLocalizedString("settings.passkeys.addMessage", comment: "Add passkey message"))
+            }
+            .alert(NSLocalizedString("settings.passkeys.remove", comment: "Remove passkey alert title"), isPresented: removePasskeyAlertBinding) {
+                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+                Button(NSLocalizedString("settings.passkeys.remove", comment: "Remove passkey button"), role: .destructive) {
+                    if let passkey = passkeyPendingRevocation {
+                        onRevokePasskey(passkey)
+                    }
+                }
+            } message: {
+                Text(removePasskeyMessage)
+            }
+            .alert(NSLocalizedString("settings.passkeys.errorTitle", comment: "Passkey error alert title"), isPresented: Binding(
+                get: { passkeyErrorMessage != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        passkeyErrorMessage = nil
+                    }
+                }
+            )) {
+                Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
+                    passkeyErrorMessage = nil
+                }
+            } message: {
+                Text(passkeyErrorMessage ?? "")
+            }
+    }
+
+    private var removePasskeyAlertBinding: Binding<Bool> {
+        Binding(
+            get: { passkeyPendingRevocation != nil },
+            set: { isPresented in
+                if !isPresented {
+                    passkeyPendingRevocation = nil
+                }
+            }
+        )
+    }
+
+    private var removePasskeyMessage: String {
+        String(
+            format: NSLocalizedString("settings.passkeys.removeMessage", comment: "Remove passkey confirmation message"),
+            passkeyPendingRevocation?.name ?? ""
+        )
+    }
+}
+
+private struct TimelineSettingsSection: View {
+    @Binding var markdownMaxLength: Int
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(NSLocalizedString("settings.timeline.markdownMaxLength", comment: "Timeline markdown max length label"))
+                    Spacer()
+                    Picker(selection: $markdownMaxLength, label: Text("")) {
+                        Text("300").tag(300)
+                        Text("500").tag(500)
+                        Text("700").tag(700)
+                        Text("1,000").tag(1000)
+                        Text(NSLocalizedString("settings.timeline.unlimited", comment: "Unlimited option label")).tag(0)
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                }
+            }
+        } header: {
+            Text(NSLocalizedString("settings.timeline", comment: "Timeline section header"))
+        } footer: {
+            Text(NSLocalizedString("settings.timeline.footer", comment: "Timeline footer"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct EngagementSettingsSection: View {
+    @Binding var sharePressActionsSwapped: Bool
+    @Binding var quotePressActionsSwapped: Bool
+    @Binding var confirmBeforeShare: Bool
+    @Binding var confirmBeforeDelete: Bool
+
+    var body: some View {
+        Section {
+            Toggle(
+                NSLocalizedString("settings.engagement.confirmBeforeDelete", comment: "Confirm before delete toggle"),
+                isOn: $confirmBeforeDelete
+            )
+            Toggle(
+                NSLocalizedString("settings.engagement.confirmBeforeShare", comment: "Confirm before share toggle"),
+                isOn: $confirmBeforeShare
+            )
+            Toggle(
+                NSLocalizedString("settings.engagement.swapShareActions", comment: "Swap share tap and long press actions toggle"),
+                isOn: $sharePressActionsSwapped
+            )
+            Toggle(
+                NSLocalizedString("settings.engagement.swapQuoteActions", comment: "Swap quote tap and long press actions toggle"),
+                isOn: $quotePressActionsSwapped
+            )
+        } header: {
+            Text(NSLocalizedString("settings.engagement", comment: "Engagement section header"))
+        } footer: {
+            Text(NSLocalizedString("settings.engagement.footer", comment: "Engagement section footer"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct LinksSettingsSection: View {
+    @Binding var useInAppBrowser: Bool
+
+    var body: some View {
+        Section {
+            Toggle(
+                NSLocalizedString("settings.links.useInAppBrowser", comment: "Use in-app browser toggle"),
+                isOn: $useInAppBrowser
+            )
+        } header: {
+            Text(NSLocalizedString("settings.links", comment: "Links section header"))
+        } footer: {
+            Text(NSLocalizedString("settings.links.footer", comment: "Links section footer"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct AuthenticatedSettingsSection: View {
+    let passkeys: [PasskeyInfo]
+    let isLoadingPasskeys: Bool
+    let isRegisteringPasskey: Bool
+    let revokingPasskeyID: String?
+    let onAddPasskey: () -> Void
+    let onRemovePasskey: (PasskeyInfo) -> Void
+    let onSignOut: () -> Void
+
+    var body: some View {
+        PasskeysSettingsSection(
+            passkeys: passkeys,
+            isLoading: isLoadingPasskeys,
+            isRegistering: isRegisteringPasskey,
+            revokingPasskeyID: revokingPasskeyID,
+            onAdd: onAddPasskey,
+            onRemove: onRemovePasskey
+        )
+
+        Section {
+            Button(role: .destructive, action: onSignOut) {
+                HStack {
+                    Spacer()
+                    Text(NSLocalizedString("settings.signOut", comment: "Sign out button"))
+                    Spacer()
+                }
+            }
+        }
+    }
+}
+
+private struct PasskeysSettingsSection: View {
+    let passkeys: [PasskeyInfo]
+    let isLoading: Bool
+    let isRegistering: Bool
+    let revokingPasskeyID: String?
+    let onAdd: () -> Void
+    let onRemove: (PasskeyInfo) -> Void
+
+    var body: some View {
+        Section {
+            if isLoading {
+                HStack {
+                    ProgressView()
+                    Text(NSLocalizedString("settings.passkeys.loading", comment: "Loading passkeys label"))
+                        .foregroundStyle(.secondary)
+                }
+            } else if passkeys.isEmpty {
+                Text(NSLocalizedString("settings.passkeys.empty", comment: "No passkeys label"))
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(passkeys) { passkey in
+                    PasskeyRow(
+                        passkey: passkey,
+                        isRevoking: revokingPasskeyID == passkey.id,
+                        onRemove: { onRemove(passkey) }
+                    )
+                }
+            }
+
+            Button {
+                onAdd()
+            } label: {
+                Label(NSLocalizedString("settings.passkeys.add", comment: "Add passkey button"), systemImage: "plus")
+            }
+            .disabled(isRegistering)
+        } header: {
+            Text(NSLocalizedString("settings.passkeys", comment: "Passkeys settings section header"))
+        } footer: {
+            Text(NSLocalizedString("settings.passkeys.footer", comment: "Passkeys settings footer"))
+        }
+    }
+}
+
+private struct PasskeyRow: View {
+    let passkey: PasskeyInfo
+    let isRevoking: Bool
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(passkey.name)
+                Text(detailText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if isRevoking {
+                ProgressView()
+            } else {
+                Button(role: .destructive, action: onRemove) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(NSLocalizedString("settings.passkeys.remove", comment: "Remove passkey accessibility label"))
+            }
+        }
+    }
+
+    private var detailText: String {
+        if let lastUsed = passkey.lastUsed {
+            return String(
+                format: NSLocalizedString("settings.passkeys.lastUsed", comment: "Passkey last used label"),
+                lastUsed
+            )
+        }
+        return String(
+            format: NSLocalizedString("settings.passkeys.created", comment: "Passkey created label"),
+            passkey.created
+        )
     }
 }
