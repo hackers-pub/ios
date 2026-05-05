@@ -59,7 +59,7 @@ struct ArticleDetailView<P: PostProtocol>: View {
                 Divider()
 
                 // Full article content
-                HTMLContentView(
+                ArticleContentDocumentView(
                     html: post.content,
                     media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
                 )

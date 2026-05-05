@@ -779,13 +779,6 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
         return DateFormatHelper.relativeTime(from: quotedPost.published)
     }
 
-    private var quotedContentRenderMode: HTMLContentRenderMode {
-        // Feed-embedded quote cards must not contain a nested scroll view.
-        // UITextView keeps links/context menus while letting the parent feed
-        // own all vertical scrolling.
-        .lightweightText
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -808,7 +801,7 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
                     .fontWeight(.semibold)
             }
 
-            HTMLContentView(
+            EmbeddedPostContentPreviewView(
                 html: quotedPost.content,
                 media: quotedPost.media.map {
                     MediaItem(
@@ -819,12 +812,11 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
                         height: $0.height
                     )
                 },
-                renderMode: quotedContentRenderMode,
                 onTap: !disableNavigation ? onTap : nil,
                 suppressLongPressInteractions: suppressContentLongPress,
-                sneakPeekPostId: nil,
-                sneakPeekActorHandle: nil,
-                sneakPeekShareURL: nil
+                sneakPeekPostId: sneakPeekPostId,
+                sneakPeekActorHandle: sneakPeekActorHandle,
+                sneakPeekShareURL: sneakPeekShareURL
             )
 
             Text(publishedText)
@@ -835,11 +827,6 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
         .background(Color.gray.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .contentShape(RoundedRectangle(cornerRadius: 8))
-        .postSneakPeek(
-            postId: sneakPeekPostId,
-            actorHandle: sneakPeekActorHandle,
-            shareURL: sneakPeekShareURL
-        )
         .onTapGesture {
             guard !disableNavigation else { return }
             onTap?()
@@ -959,12 +946,6 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
 
     private var engagementSnapshot: PostEngagementSnapshot {
         PostEngagementSnapshot(post: post)
-    }
-
-    private var embeddedPostContentRenderMode: HTMLContentRenderMode {
-        // Shared/original post cards are embedded inside a scrolling feed row,
-        // so avoid WKWebView's internal scroll state here.
-        .lightweightText
     }
 
     private var canDeleteCurrentPost: Bool {
@@ -1421,10 +1402,9 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                             }
 
                             let content = self.getContent(content: sharedPost.content)
-                            HTMLContentView(
+                            EmbeddedPostContentPreviewView(
                                 html: content,
                                 media: mediaItems(from: sharedPost.media),
-                                renderMode: embeddedPostContentRenderMode,
                                 onTap: !disableNavigation ? {
                                     navigationCoordinator.navigateToPost(id: sharedPost.id)
                                 } : nil,
@@ -1476,10 +1456,9 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         }
 
                         let content = self.getContent(content: post.content)
-                        HTMLContentView(
+                        PostContentPreviewView(
                             html: content,
                             media: mediaItems(from: post.media),
-                            renderMode: contentRenderMode,
                             onTap: !disableNavigation && !post.isArticle ? {
                                 navigationCoordinator.navigateToPost(id: post.id)
                             } : nil,

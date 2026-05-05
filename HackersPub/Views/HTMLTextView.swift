@@ -114,6 +114,7 @@ enum HTMLTextRenderer {
         uiColor: UIColor
     ) -> NSAttributedString {
         let mutableAttributed = NSMutableAttributedString(attributedString: attributed)
+        trimTrailingWhitespace(from: mutableAttributed)
         let fullRange = NSRange(location: 0, length: mutableAttributed.length)
 
         guard fullRange.length > 0 else {
@@ -144,6 +145,23 @@ enum HTMLTextRenderer {
         }
 
         return NSAttributedString(attributedString: mutableAttributed)
+    }
+
+    private static func trimTrailingWhitespace(from attributed: NSMutableAttributedString) {
+        let trailingCharacters = CharacterSet.whitespacesAndNewlines
+            .union(CharacterSet(charactersIn: "\u{00A0}"))
+
+        while attributed.length > 0 {
+            let lastIndex = attributed.length - 1
+            let scalarValue = (attributed.string as NSString).character(at: lastIndex)
+            guard let scalar = UnicodeScalar(Int(scalarValue)),
+                  trailingCharacters.contains(scalar)
+            else {
+                break
+            }
+
+            attributed.deleteCharacters(in: NSRange(location: lastIndex, length: 1))
+        }
     }
 
     static func requiresHTMLParsing(_ text: String) -> Bool {

@@ -8,6 +8,20 @@ enum HTMLContentRenderMode {
     case lightweightText
 }
 
+enum HTMLContentRenderingContext {
+    case feedPreview
+    case embeddedPreview
+    case detail
+    case document
+    case profileBio
+}
+
+private enum HTMLContentRendererKind {
+    case richWebView
+    case interactiveText
+    case staticText
+}
+
 struct MediaItem: Identifiable {
     let id: String
     let url: String
@@ -30,6 +44,7 @@ struct HTMLContentView: View {
     let html: String
     let media: [MediaItem]
     var renderMode: HTMLContentRenderMode = .richWebView
+    var renderingContext: HTMLContentRenderingContext = .document
     var onTap: (() -> Void)?
     var suppressLongPressInteractions: Bool = false
     var sneakPeekPostId: String?
@@ -87,18 +102,33 @@ struct HTMLContentView: View {
         return min(estimatedLines * 20, 200) // Cap at 200pt for initial estimate
     }
 
-    private var containsComplexLayoutHTML: Bool {
-        let normalized = html.lowercased()
-        return normalized.contains("<pre")
-            || normalized.contains("<table")
-    }
-
     private var usesRichWebView: Bool {
-        renderMode == .richWebView || containsComplexLayoutHTML
+        rendererKind == .richWebView
     }
 
     private var usesInteractiveLightweightText: Bool {
-        onTap != nil || sneakPeekPostId != nil
+        rendererKind == .interactiveText
+    }
+
+    private var rendererKind: HTMLContentRendererKind {
+        switch renderingContext {
+        case .feedPreview, .embeddedPreview, .profileBio:
+            return hasInteractiveTextBehavior ? .interactiveText : .staticText
+        case .detail, .document:
+            if renderMode == .richWebView {
+                return .richWebView
+            }
+            return hasInteractiveTextBehavior ? .interactiveText : .staticText
+        }
+    }
+
+    private var hasInteractiveTextBehavior: Bool {
+        onTap != nil || sneakPeekPostId != nil || sneakPeekShareURL != nil || containsAnchorHTML
+    }
+
+    private var containsAnchorHTML: Bool {
+        let normalized = html.lowercased()
+        return normalized.contains("<a ") || normalized.contains("<a\n") || normalized.contains("href=")
     }
 
     private var mediaDownsamplingSize: CGSize {
@@ -175,9 +205,11 @@ struct HTMLContentView: View {
                     navigationCoordinator: navigationCoordinator,
                     externalURLRouter: externalURLRouter,
                     sneakPeekPostId: sneakPeekPostId,
+                    sneakPeekActorHandle: sneakPeekActorHandle,
                     sneakPeekShareURL: sneakPeekShareURL
                 )
-                    .frame(height: lightweightTextHeight > 0 ? lightweightTextHeight : estimatedMinHeight)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: lightweightTextHeight > 0 ? lightweightTextHeight : estimatedMinHeight)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
                     .padding(.bottom, 2)
@@ -394,6 +426,93 @@ struct HTMLContentView: View {
         }
 
         return UIMenu(children: elements)
+    }
+}
+
+struct PostContentPreviewView: View {
+    let html: String
+    let media: [MediaItem]
+    var onTap: (() -> Void)?
+    var suppressLongPressInteractions: Bool = false
+    var sneakPeekPostId: String?
+    var sneakPeekActorHandle: String?
+    var sneakPeekShareURL: URL?
+
+    var body: some View {
+        HTMLContentView(
+            html: html,
+            media: media,
+            renderMode: .lightweightText,
+            renderingContext: .feedPreview,
+            onTap: onTap,
+            suppressLongPressInteractions: suppressLongPressInteractions,
+            sneakPeekPostId: sneakPeekPostId,
+            sneakPeekActorHandle: sneakPeekActorHandle,
+            sneakPeekShareURL: sneakPeekShareURL
+        )
+    }
+}
+
+struct EmbeddedPostContentPreviewView: View {
+    let html: String
+    let media: [MediaItem]
+    var onTap: (() -> Void)?
+    var suppressLongPressInteractions: Bool = false
+    var sneakPeekPostId: String?
+    var sneakPeekActorHandle: String?
+    var sneakPeekShareURL: URL?
+
+    var body: some View {
+        HTMLContentView(
+            html: html,
+            media: media,
+            renderMode: .lightweightText,
+            renderingContext: .embeddedPreview,
+            onTap: onTap,
+            suppressLongPressInteractions: suppressLongPressInteractions,
+            sneakPeekPostId: sneakPeekPostId,
+            sneakPeekActorHandle: sneakPeekActorHandle,
+            sneakPeekShareURL: sneakPeekShareURL
+        )
+    }
+}
+
+struct PostContentDetailView: View {
+    let html: String
+    let media: [MediaItem]
+
+    var body: some View {
+        HTMLContentView(
+            html: html,
+            media: media,
+            renderingContext: .detail
+        )
+    }
+}
+
+struct ArticleContentDocumentView: View {
+    let html: String
+    let media: [MediaItem]
+
+    var body: some View {
+        HTMLContentView(
+            html: html,
+            media: media,
+            renderingContext: .document
+        )
+    }
+}
+
+struct ProfileBioContentView: View {
+    let html: String
+
+    var body: some View {
+        HTMLContentView(
+            html: html,
+            media: [],
+            renderMode: .lightweightText,
+            renderingContext: .profileBio
+        )
     }
 }
 

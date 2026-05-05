@@ -145,7 +145,7 @@ struct PostDetailView: View {
                                     .font(.headline)
                             }
 
-                            HTMLContentView(
+                            EmbeddedPostContentPreviewView(
                                 html: replyTarget.content,
                                 media: replyTarget.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
                             )
@@ -259,7 +259,7 @@ struct PostDetailView: View {
                                     .font(.headline)
                             }
 
-                            HTMLContentView(
+                            EmbeddedPostContentPreviewView(
                                 html: sharedPost.content,
                                 media: sharedPost.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
                             )
@@ -321,7 +321,7 @@ struct PostDetailView: View {
                         }
 
                         // Post content
-                        HTMLContentView(
+                        PostContentDetailView(
                             html: post.content,
                             media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
                         )

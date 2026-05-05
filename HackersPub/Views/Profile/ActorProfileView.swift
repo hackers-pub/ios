@@ -161,7 +161,7 @@ struct ActorProfileView: View {
                     }
 
                     if let bio = actorData.bio {
-                        HTMLContentView(html: bio, media: [])
+                        ProfileBioContentView(html: bio)
                             .padding(.horizontal)
                     }
                 }

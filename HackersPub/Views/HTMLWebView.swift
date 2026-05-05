@@ -176,14 +176,10 @@ final class HTMLHeightCache: @unchecked Sendable {
                 var bodyPaddingTop = bodyStyle ? parseFloat(bodyStyle.paddingTop || '0') : 0;
                 var bodyPaddingBottom = bodyStyle ? parseFloat(bodyStyle.paddingBottom || '0') : 0;
                 var contentRect = contentRoot ? contentRoot.getBoundingClientRect() : null;
-                var bodyRect = body ? body.getBoundingClientRect() : null;
                 return Math.ceil(Math.max(
                     contentRoot ? contentRoot.scrollHeight : 0,
                     contentRoot ? contentRoot.offsetHeight : 0,
-                    contentRect ? contentRect.height : 0,
-                    body ? body.scrollHeight : 0,
-                    body ? body.offsetHeight : 0,
-                    bodyRect ? bodyRect.height : 0
+                    contentRect ? contentRect.height : 0
                 ) + bodyPaddingTop + bodyPaddingBottom + 8);
             }
 
@@ -313,7 +309,7 @@ final class HTMLHeightCache: @unchecked Sendable {
             context.coordinator.webView = webView
             // Build a content key that captures every variable affecting the rendered output
             let contentKey = HTMLContentKey(
-                measurementVersion: 5,
+                measurementVersion: 6,
                 html: html,
                 fontName: fontSettings.selectedFontName,
                 sizeMultiplier: fontSettings.fontSizeMultiplier,
@@ -415,14 +411,10 @@ final class HTMLHeightCache: @unchecked Sendable {
                         var bodyPaddingTop = bodyStyle ? parseFloat(bodyStyle.paddingTop || '0') : 0;
                         var bodyPaddingBottom = bodyStyle ? parseFloat(bodyStyle.paddingBottom || '0') : 0;
                         var contentRect = contentRoot ? contentRoot.getBoundingClientRect() : null;
-                        var bodyRect = body ? body.getBoundingClientRect() : null;
                         return Math.ceil(Math.max(
                             contentRoot ? contentRoot.scrollHeight : 0,
                             contentRoot ? contentRoot.offsetHeight : 0,
-                            contentRect ? contentRect.height : 0,
-                            body ? body.scrollHeight : 0,
-                            body ? body.offsetHeight : 0,
-                            bodyRect ? bodyRect.height : 0
+                            contentRect ? contentRect.height : 0
                         ) + bodyPaddingTop + bodyPaddingBottom + 8);
                     })()
                     """
@@ -439,15 +431,13 @@ final class HTMLHeightCache: @unchecked Sendable {
                     }
 
                     guard let measuredHeight, measuredHeight > 0 else { return }
-                    let nativeContentHeight = webView.scrollView.contentSize.height
 
                     DispatchQueue.main.async {
                         // Re-check after the async gap to avoid stale writes.
                         guard let currentKey = self.lastContentKey, currentKey == key else { return }
-                        let finalHeight = max(measuredHeight, nativeContentHeight + 8)
-                        HTMLHeightCache.shared.setHeight(finalHeight, for: key)
-                        if abs(self.parent.height - finalHeight) > 0.5 {
-                            self.parent.height = finalHeight
+                        HTMLHeightCache.shared.setHeight(measuredHeight, for: key)
+                        if abs(self.parent.height - measuredHeight) > 0.5 {
+                            self.parent.height = measuredHeight
                         }
                     }
                 }
@@ -523,11 +513,9 @@ final class HTMLHeightCache: @unchecked Sendable {
 
                     DispatchQueue.main.async {
                         guard self.lastContentKey == key else { return }
-                        let nativeContentHeight = self.webView?.scrollView.contentSize.height ?? 0
-                        let finalHeight = max(measuredHeight, nativeContentHeight + 8)
-                        HTMLHeightCache.shared.setHeight(finalHeight, for: key)
-                        if abs(self.parent.height - finalHeight) > 0.5 {
-                            self.parent.height = finalHeight
+                        HTMLHeightCache.shared.setHeight(measuredHeight, for: key)
+                        if abs(self.parent.height - measuredHeight) > 0.5 {
+                            self.parent.height = measuredHeight
                         }
                     }
                     return

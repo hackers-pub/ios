@@ -1,6 +1,7 @@
+import Apollo
+import SafariServices
 import SwiftUI
 import UIKit
-import SafariServices
 
 struct InteractiveHTMLTextView: UIViewRepresentable {
     private enum CommitTarget {
@@ -17,6 +18,7 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
     var navigationCoordinator: NavigationCoordinator?
     var externalURLRouter: ExternalURLRouter?
     var sneakPeekPostId: String?
+    var sneakPeekActorHandle: String?
     var sneakPeekShareURL: URL?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -32,6 +34,7 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         navigationCoordinator: NavigationCoordinator? = nil,
         externalURLRouter: ExternalURLRouter? = nil,
         sneakPeekPostId: String? = nil,
+        sneakPeekActorHandle: String? = nil,
         sneakPeekShareURL: URL? = nil
     ) {
         self.html = html
@@ -43,6 +46,7 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         self.navigationCoordinator = navigationCoordinator
         self.externalURLRouter = externalURLRouter
         self.sneakPeekPostId = sneakPeekPostId
+        self.sneakPeekActorHandle = sneakPeekActorHandle
         self.sneakPeekShareURL = sneakPeekShareURL
     }
 
@@ -50,45 +54,33 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         Coordinator(parent: self)
     }
 
-    func makeUIView(context: Context) -> UITextView {
-        let textView = SelfSizingTextView()
-        textView.backgroundColor = .clear
-        textView.isEditable = false
-        textView.isSelectable = true
-        textView.isScrollEnabled = false
-        textView.showsVerticalScrollIndicator = false
-        textView.showsHorizontalScrollIndicator = false
-        textView.setContentOffset(.zero, animated: false)
-        textView.textContainerInset = .zero
-        textView.textContainer.lineFragmentPadding = 0
-        textView.textDragInteraction?.isEnabled = false
-        textView.adjustsFontForContentSizeCategory = true
-        textView.delegate = context.coordinator
-        textView.linkTextAttributes = [
-            .foregroundColor: HTMLTextRenderer.richLinkColor,
-            .underlineStyle: 0,
-        ]
+    func makeUIView(context: Context) -> UILabel {
+        let label = SelfSizingHTMLLabel()
+        label.backgroundColor = .clear
+        label.numberOfLines = 0
+        label.lineBreakMode = .byWordWrapping
+        label.adjustsFontForContentSizeCategory = true
+        label.isUserInteractionEnabled = true
 
         let tapRecognizer = UITapGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handleTap(_:))
         )
-        tapRecognizer.cancelsTouchesInView = false
         tapRecognizer.delegate = context.coordinator
-        textView.addGestureRecognizer(tapRecognizer)
-        textView.addInteraction(UIContextMenuInteraction(delegate: context.coordinator))
-        context.coordinator.textView = textView
-        textView.onHeightChange = { [weak coordinator = context.coordinator] measuredHeight in
+        label.addGestureRecognizer(tapRecognizer)
+        label.addInteraction(UIContextMenuInteraction(delegate: context.coordinator))
+
+        context.coordinator.label = label
+        label.onHeightChange = { [weak coordinator = context.coordinator] measuredHeight in
             coordinator?.updateMeasuredHeight(measuredHeight)
         }
-        return textView
+        return label
     }
 
-    func updateUIView(_ textView: UITextView, context: Context) {
+    func updateUIView(_ label: UILabel, context: Context) {
         context.coordinator.parent = self
-        textView.setContentOffset(.zero, animated: false)
-        if let selfSizingTextView = textView as? SelfSizingTextView {
-            selfSizingTextView.onHeightChange = { [weak coordinator = context.coordinator] measuredHeight in
+        if let selfSizingLabel = label as? SelfSizingHTMLLabel {
+            selfSizingLabel.onHeightChange = { [weak coordinator = context.coordinator] measuredHeight in
                 coordinator?.updateMeasuredHeight(measuredHeight)
             }
         }
@@ -115,22 +107,31 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
 
     func sizeThatFits(
         _ proposal: ProposedViewSize,
-        uiView: UITextView,
+        uiView: UILabel,
         context _: Context
     ) -> CGSize? {
         let targetWidth = max(proposal.width ?? uiView.bounds.width, 1)
-        let size = uiView.sizeThatFits(
-            CGSize(width: targetWidth, height: CGFloat.greatestFiniteMagnitude)
-        )
-        return CGSize(width: targetWidth, height: size.height)
+        let measuredHeight: CGFloat
+        if let selfSizingLabel = uiView as? SelfSizingHTMLLabel {
+            measuredHeight = selfSizingLabel.measuredHeight(for: targetWidth)
+        } else {
+            measuredHeight = uiView.sizeThatFits(
+                CGSize(width: targetWidth, height: CGFloat.greatestFiniteMagnitude)
+            ).height
+        }
+        return CGSize(width: targetWidth, height: measuredHeight)
     }
 
-    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate, UIContextMenuInteractionDelegate {
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate, UIContextMenuInteractionDelegate {
         var parent: InteractiveHTMLTextView
-        weak var textView: SelfSizingTextView?
+        weak var label: SelfSizingHTMLLabel?
         private var renderTask: Task<Void, Never>?
         private var lastCacheKey: String?
         private var pendingCommitTarget: CommitTarget?
+        private var relationshipState: ActorRelationshipState?
+        private var relationshipHandle: String?
+        private var isLoadingRelationship = false
+        private var isApplyingRelationshipAction = false
 
         init(parent: InteractiveHTMLTextView) {
             self.parent = parent
@@ -161,24 +162,22 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
                     )
                     guard !Task.isCancelled else { return }
                     await MainActor.run {
-                        self.textView?.attributedText = attributed
-                        self.textView?.setContentOffset(.zero, animated: false)
-                        self.textView?.invalidateIntrinsicContentSize()
-                        self.textView?.setNeedsLayout()
-                        self.textView?.layoutIfNeeded()
-                        self.textView?.reportHeightIfNeeded()
+                        self.label?.attributedText = attributed
+                        self.label?.invalidateIntrinsicContentSize()
+                        self.label?.setNeedsLayout()
+                        self.label?.layoutIfNeeded()
+                        self.label?.reportHeightIfNeeded()
                     }
                 } catch {
                     guard !Task.isCancelled else { return }
                     await MainActor.run {
-                        self.textView?.text = html
-                        self.textView?.font = uiFont
-                        self.textView?.textColor = uiColor
-                        self.textView?.setContentOffset(.zero, animated: false)
-                        self.textView?.invalidateIntrinsicContentSize()
-                        self.textView?.setNeedsLayout()
-                        self.textView?.layoutIfNeeded()
-                        self.textView?.reportHeightIfNeeded()
+                        self.label?.text = html
+                        self.label?.font = uiFont
+                        self.label?.textColor = uiColor
+                        self.label?.invalidateIntrinsicContentSize()
+                        self.label?.setNeedsLayout()
+                        self.label?.layoutIfNeeded()
+                        self.label?.reportHeightIfNeeded()
                     }
                 }
             }
@@ -193,26 +192,21 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
 
         @objc
         func handleTap(_ recognizer: UITapGestureRecognizer) {
-            parent.onTap?()
+            guard let label else { return }
+            if let linkURL = linkTarget(at: recognizer.location(in: label)) {
+                route(url: linkURL)
+            } else {
+                parent.onTap?()
+            }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
             guard gestureRecognizer is UITapGestureRecognizer,
-                  let textView
+                  let label
             else {
                 return true
             }
-            return linkTarget(at: touch.location(in: textView)) == nil
-        }
-
-        func textView(
-            _ textView: UITextView,
-            shouldInteractWith url: URL,
-            in characterRange: NSRange,
-            interaction: UITextItemInteraction
-        ) -> Bool {
-            route(url: url)
-            return false
+            return parent.onTap != nil || linkTarget(at: touch.location(in: label)) != nil
         }
 
         func contextMenuInteraction(
@@ -245,25 +239,42 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         }
 
         private func linkTarget(at location: CGPoint) -> URL? {
-            guard let textView else { return nil }
+            guard let label,
+                  let attributedText = label.attributedText,
+                  attributedText.length > 0,
+                  label.bounds.width > 0
+            else { return nil }
+
+            let textRect = label.textRect(
+                forBounds: label.bounds,
+                limitedToNumberOfLines: label.numberOfLines
+            )
+            guard textRect.insetBy(dx: -8, dy: -8).contains(location) else { return nil }
+
+            let textStorage = NSTextStorage(attributedString: attributedText)
+            let layoutManager = NSLayoutManager()
+            let textContainer = NSTextContainer(size: textRect.size)
+            textContainer.lineFragmentPadding = 0
+            textContainer.maximumNumberOfLines = label.numberOfLines
+            textContainer.lineBreakMode = label.lineBreakMode
+            layoutManager.addTextContainer(textContainer)
+            textStorage.addLayoutManager(layoutManager)
+            layoutManager.ensureLayout(for: textContainer)
 
             let containerPoint = CGPoint(
-                x: location.x - textView.textContainerInset.left,
-                y: location.y - textView.textContainerInset.top
+                x: location.x - textRect.minX,
+                y: location.y - textRect.minY
             )
-
-            let layoutManager = textView.layoutManager
-            let textContainer = textView.textContainer
             let characterIndex = layoutManager.characterIndex(
                 for: containerPoint,
                 in: textContainer,
                 fractionOfDistanceBetweenInsertionPoints: nil
             )
 
-            guard characterIndex < textView.textStorage.length else { return nil }
+            guard characterIndex < textStorage.length else { return nil }
 
             var effectiveRange = NSRange(location: 0, length: 0)
-            let value = textView.textStorage.attribute(
+            let value = textStorage.attribute(
                 .link,
                 at: characterIndex,
                 effectiveRange: &effectiveRange
@@ -292,21 +303,173 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
                 },
                 actionProvider: { [weak self] _ in
                     guard let self else { return UIMenu(children: []) }
-
-                    var children: [UIMenuElement] = []
-                    if let shareURL = self.parent.sneakPeekShareURL {
-                        children.append(
-                            UIAction(
-                                title: NSLocalizedString("sneakpeek.action.sharePost", comment: "Share post"),
-                                image: UIImage(systemName: "square.and.arrow.up")
-                            ) { _ in
-                                ShareSheetPresenter.present(items: [shareURL], from: self.textView)
-                            }
-                        )
-                    }
-                    return UIMenu(children: children)
+                    return self.makePostContextMenu()
                 }
             )
+        }
+
+        private func makePostContextMenu() -> UIMenu {
+            var children: [UIMenuElement] = []
+
+            if let shareURL = parent.sneakPeekShareURL {
+                children.append(
+                    UIAction(
+                        title: NSLocalizedString("sneakpeek.action.sharePost", comment: "Share post"),
+                        image: UIImage(systemName: "square.and.arrow.up")
+                    ) { [weak self] _ in
+                        self?.presentShareSheet(items: [shareURL])
+                    }
+                )
+            }
+
+            if let userMenu = makeUserActionMenu() {
+                children.append(userMenu)
+            }
+
+            return UIMenu(children: children)
+        }
+
+        private func makeUserActionMenu() -> UIMenu? {
+            guard let handle = parent.sneakPeekActorHandle else { return nil }
+
+            var userChildren: [UIMenuElement] = []
+
+            if parent.authManager?.isAuthenticated == true {
+                userChildren.append(
+                    UIDeferredMenuElement { [weak self] completion in
+                        guard let self else {
+                            completion([])
+                            return
+                        }
+                        Task {
+                            _ = await self.loadRelationshipIfNeeded()
+                            let elements = await MainActor.run {
+                                self.relationshipActionElements()
+                            }
+                            completion(elements)
+                        }
+                    }
+                )
+            }
+
+            if let profileURL = actorProfileURL(handle: handle) {
+                userChildren.append(
+                    UIAction(
+                        title: NSLocalizedString("sneakpeek.action.shareProfileLink", comment: "Share profile link"),
+                        image: UIImage(systemName: "link")
+                    ) { [weak self] _ in
+                        self?.presentShareSheet(items: [profileURL])
+                    }
+                )
+            }
+
+            guard !userChildren.isEmpty else { return nil }
+
+            return UIMenu(
+                title: NSLocalizedString("sneakpeek.menu.user", comment: "User menu"),
+                image: UIImage(systemName: "person.crop.circle"),
+                children: userChildren
+            )
+        }
+
+        private func relationshipActionElements() -> [UIMenuElement] {
+            guard let relationshipState, !relationshipState.isViewer else {
+                return []
+            }
+
+            var followAttributes: UIMenuElement.Attributes = []
+            if isApplyingRelationshipAction {
+                followAttributes.insert(.disabled)
+            }
+
+            let followAction = UIAction(
+                title: relationshipState.viewerFollows
+                    ? NSLocalizedString("sneakpeek.action.unfollow", comment: "Unfollow action")
+                    : NSLocalizedString("sneakpeek.action.follow", comment: "Follow action"),
+                image: UIImage(systemName: relationshipState.viewerFollows ? "person.badge.minus" : "person.badge.plus"),
+                attributes: followAttributes
+            ) { [weak self] _ in
+                self?.performRelationshipAction(relationshipState.viewerFollows ? .unfollow : .follow)
+            }
+
+            var blockAttributes: UIMenuElement.Attributes = []
+            if isApplyingRelationshipAction {
+                blockAttributes.insert(.disabled)
+            }
+            if !relationshipState.viewerBlocks {
+                blockAttributes.insert(.destructive)
+            }
+
+            let blockAction = UIAction(
+                title: relationshipState.viewerBlocks
+                    ? NSLocalizedString("sneakpeek.action.unblock", comment: "Unblock action")
+                    : NSLocalizedString("sneakpeek.action.block", comment: "Block action"),
+                image: UIImage(systemName: relationshipState.viewerBlocks ? "nosign" : "hand.raised"),
+                attributes: blockAttributes
+            ) { [weak self] _ in
+                self?.performRelationshipAction(relationshipState.viewerBlocks ? .unblock : .block)
+            }
+
+            return [followAction, blockAction]
+        }
+
+        private func performRelationshipAction(_ action: ActorRelationshipAction) {
+            guard !isApplyingRelationshipAction else { return }
+            guard let relationshipState else {
+                Task {
+                    _ = await loadRelationshipIfNeeded(forceNetwork: true)
+                }
+                return
+            }
+
+            isApplyingRelationshipAction = true
+            Task {
+                defer { isApplyingRelationshipAction = false }
+                do {
+                    try await ActorRelationshipService.perform(action: action, actorId: relationshipState.actorId)
+                    if let handle = parent.sneakPeekActorHandle {
+                        self.relationshipState = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly)
+                        self.relationshipHandle = handle
+                    }
+                } catch {
+                    presentErrorAlert(message: error.localizedDescription)
+                }
+            }
+        }
+
+        @discardableResult
+        private func loadRelationshipIfNeeded(forceNetwork: Bool = false) async -> ActorRelationshipState? {
+            guard parent.authManager?.isAuthenticated == true,
+                  let handle = parent.sneakPeekActorHandle
+            else {
+                relationshipState = nil
+                relationshipHandle = nil
+                return nil
+            }
+
+            if isLoadingRelationship {
+                return relationshipState
+            }
+
+            if !forceNetwork, relationshipHandle == handle, let relationshipState {
+                return relationshipState
+            }
+
+            isLoadingRelationship = true
+            defer { isLoadingRelationship = false }
+            do {
+                let fetchedRelationship = try await ActorRelationshipService.fetch(
+                    handle: handle,
+                    cachePolicy: forceNetwork ? .networkOnly : .networkFirst
+                )
+                relationshipState = fetchedRelationship
+                relationshipHandle = handle
+                return fetchedRelationship
+            } catch {
+                relationshipState = nil
+                relationshipHandle = nil
+                return nil
+            }
         }
 
         private func makeLinkContextMenuConfiguration(url: URL) -> UIContextMenuConfiguration {
@@ -327,7 +490,7 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
                         title: NSLocalizedString("sneakpeek.action.shareLink", comment: "Share link"),
                         image: UIImage(systemName: "square.and.arrow.up")
                     ) { _ in
-                        ShareSheetPresenter.present(items: [url], from: self.textView)
+                        self.presentShareSheet(items: [url])
                     }
                     return UIMenu(children: [openAction, shareAction])
                 }
@@ -382,45 +545,97 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
                 (parent.externalURLRouter ?? .shared).open(url)
             }
         }
+
+        private func presentShareSheet(items: [Any]) {
+            ShareSheetPresenter.present(items: items, from: label)
+        }
+
+        private func presentErrorAlert(message: String) {
+            guard let presenter = topViewController() else { return }
+
+            let alert = UIAlertController(
+                title: NSLocalizedString("actorRelation.error.title", comment: "Actor relation action error title"),
+                message: message,
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: NSLocalizedString("compose.error.ok", comment: "OK button"), style: .default))
+            presenter.present(alert, animated: true)
+        }
+
+        private func topViewController(startingAt root: UIViewController? = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .rootViewController) -> UIViewController?
+        {
+            guard let root else { return nil }
+
+            if let presented = root.presentedViewController {
+                return topViewController(startingAt: presented)
+            }
+
+            if let navigationController = root as? UINavigationController {
+                return topViewController(startingAt: navigationController.visibleViewController)
+            }
+
+            if let tabBarController = root as? UITabBarController {
+                return topViewController(startingAt: tabBarController.selectedViewController)
+            }
+
+            return root
+        }
     }
 }
 
-final class SelfSizingTextView: UITextView {
+final class SelfSizingHTMLLabel: UILabel {
     private var lastKnownWidth: CGFloat = 0
     private var lastReportedHeight: CGFloat = 0
     var onHeightChange: ((CGFloat) -> Void)?
 
-    private func measuredHeight(for width: CGFloat) -> CGFloat {
-        guard width > 0 else { return 0 }
+    override var attributedText: NSAttributedString? {
+        didSet {
+            invalidateIntrinsicContentSize()
+            setNeedsLayout()
+        }
+    }
 
-        let fittingSize = sizeThatFits(
+    override var text: String? {
+        didSet {
+            invalidateIntrinsicContentSize()
+            setNeedsLayout()
+        }
+    }
+
+    override var font: UIFont! {
+        didSet {
+            invalidateIntrinsicContentSize()
+            setNeedsLayout()
+        }
+    }
+
+    func measuredHeight(for width: CGFloat) -> CGFloat {
+        guard width > 0 else { return 0 }
+        preferredMaxLayoutWidth = width
+
+        let fittingHeight = sizeThatFits(
             CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         ).height
 
-        layoutManager.ensureLayout(for: textContainer)
-        let usedRectHeight = layoutManager.usedRect(for: textContainer).height
-            + textContainerInset.top
-            + textContainerInset.bottom
+        let textKitHeight = measuredTextKitHeight(for: width)
+        let boundingHeight = attributedText?.boundingRect(
+            with: CGSize(width: width, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil
+        ).height ?? 0
 
-        return ceil(max(fittingSize, usedRectHeight))
-    }
-
-    override var contentSize: CGSize {
-        didSet {
-            if oldValue != contentSize {
-                invalidateIntrinsicContentSize()
-            }
-        }
+        return ceil(max(fittingHeight, textKitHeight, boundingHeight)) + 4
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        if contentOffset != .zero {
-            setContentOffset(.zero, animated: false)
-        }
-        reportHeightIfNeeded()
         guard bounds.width > 0, bounds.width != lastKnownWidth else { return }
         lastKnownWidth = bounds.width
+        preferredMaxLayoutWidth = bounds.width
         invalidateIntrinsicContentSize()
         reportHeightIfNeeded()
     }
@@ -437,5 +652,20 @@ final class SelfSizingTextView: UITextView {
         guard fittedHeight > 0, abs(fittedHeight - lastReportedHeight) > 0.5 else { return }
         lastReportedHeight = fittedHeight
         onHeightChange?(fittedHeight)
+    }
+
+    private func measuredTextKitHeight(for width: CGFloat) -> CGFloat {
+        guard let attributedText, attributedText.length > 0 else { return 0 }
+
+        let textStorage = NSTextStorage(attributedString: attributedText)
+        let layoutManager = NSLayoutManager()
+        let textContainer = NSTextContainer(size: CGSize(width: width, height: CGFloat.greatestFiniteMagnitude))
+        textContainer.lineFragmentPadding = 0
+        textContainer.maximumNumberOfLines = numberOfLines
+        textContainer.lineBreakMode = lineBreakMode
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+        layoutManager.ensureLayout(for: textContainer)
+        return layoutManager.usedRect(for: textContainer).height
     }
 }
