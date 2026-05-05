@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PersonalTimelineQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PersonalTimelineQuery($after: String) { personalTimeline(first: 20, after: $after) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasNextPage endCursor } } }"#
+        #"query PersonalTimelineQuery($after: String) { personalTimeline(first: 20, after: $after) { __typename edges { __typename cursor added sharersCount lastSharer { __typename id name handle avatarUrl } node { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasNextPage endCursor } } }"#
       ))
 
     public var after: GraphQLNullable<String>
@@ -68,6 +68,9 @@ public extension HackersPub {
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
             .field("__typename", String.self),
             .field("cursor", String.self),
+            .field("added", HackersPub.DateTime.self),
+            .field("sharersCount", Int.self),
+            .field("lastSharer", LastSharer?.self),
             .field("node", Node.self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
@@ -75,7 +78,35 @@ public extension HackersPub {
           ] }
 
           public var cursor: String { __data["cursor"] }
+          public var added: HackersPub.DateTime { __data["added"] }
+          public var sharersCount: Int { __data["sharersCount"] }
+          public var lastSharer: LastSharer? { __data["lastSharer"] }
           public var node: Node { __data["node"] }
+
+          /// PersonalTimeline.Edge.LastSharer
+          ///
+          /// Parent Type: `Actor`
+          public struct LastSharer: HackersPub.SelectionSet {
+            @_spi(Unsafe) public let __data: DataDict
+            @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+            @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+            @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+              .field("__typename", String.self),
+              .field("id", HackersPub.ID.self),
+              .field("name", HackersPub.HTML?.self),
+              .field("handle", String.self),
+              .field("avatarUrl", HackersPub.URL.self),
+            ] }
+            @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+              PersonalTimelineQuery.Data.PersonalTimeline.Edge.LastSharer.self
+            ] }
+
+            public var id: HackersPub.ID { __data["id"] }
+            public var name: HackersPub.HTML? { __data["name"] }
+            public var handle: String { __data["handle"] }
+            public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+          }
 
           /// PersonalTimeline.Edge.Node
           ///

@@ -60,7 +60,7 @@ struct ExploreView: View {
 // Extracted LocalTimeline content without NavigationStack
 struct LocalTimelineContent: View {
     @Binding var showingComposeView: Bool
-    @State private var posts: [LocalPost] = []
+    @State private var edges: [HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge] = []
     @State private var hasLoadedInitial = false
     @State private var isLoading = false
     @State private var hasNextPage = false
@@ -71,16 +71,22 @@ struct LocalTimelineContent: View {
 
     var body: some View {
         Group {
-            if isLoading && posts.isEmpty {
+            if isLoading && edges.isEmpty {
                 ProgressView()
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(posts, id: \.id) { post in
-                            PostView(post: post, enableSneakPeek: true, contentRenderMode: .lightweightText)
+                        ForEach(edges, id: \.timelineListID) { edge in
+                            PostView(
+                                post: edge.node,
+                                timelineSharer: edge.lastSharer,
+                                timelineAdded: edge.added,
+                                enableSneakPeek: true,
+                                contentRenderMode: .lightweightText
+                            )
                                 .padding()
                                 .onAppear {
-                                    if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                    if edge.cursor == edges.last?.cursor && hasNextPage && !isLoading {
                                         Task {
                                             await loadMore()
                                         }
@@ -90,7 +96,7 @@ struct LocalTimelineContent: View {
                             Divider()
                         }
 
-                        if isLoading && !posts.isEmpty {
+                        if isLoading && !edges.isEmpty {
                             HStack {
                                 Spacer()
                                 ProgressView()
@@ -155,9 +161,7 @@ struct LocalTimelineContent: View {
 
         do {
             let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: nil), cachePolicy: .networkFirst)
-            let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-
-            posts = fetchedPosts
+            edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {}
@@ -171,8 +175,7 @@ struct LocalTimelineContent: View {
 
         do {
             let response = try await apolloClient.fetch(query: HackersPub.LocalTimelineQuery(after: .some(cursor)), cachePolicy: .networkFirst)
-            let newPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-            posts.append(contentsOf: newPosts)
+            edges.append(contentsOf: response.data?.publicTimeline.edges ?? [])
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {}
@@ -184,8 +187,7 @@ struct LocalTimelineContent: View {
 
         do {
             let response = try await apolloClient.fetchAfterClearingCache(query: HackersPub.LocalTimelineQuery(after: nil))
-            let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-            posts = fetchedPosts
+            edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {}
@@ -195,7 +197,7 @@ struct LocalTimelineContent: View {
 // Extracted GlobalTimeline content without NavigationStack
 struct GlobalTimelineContent: View {
     @Binding var showingComposeView: Bool
-    @State private var posts: [Post] = []
+    @State private var edges: [HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge] = []
     @State private var hasLoadedInitial = false
     @State private var isLoading = false
     @State private var hasNextPage = false
@@ -206,16 +208,22 @@ struct GlobalTimelineContent: View {
 
     var body: some View {
         Group {
-            if isLoading && posts.isEmpty {
+            if isLoading && edges.isEmpty {
                 ProgressView()
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(posts, id: \.id) { post in
-                            PostView(post: post, enableSneakPeek: true, contentRenderMode: .lightweightText)
+                        ForEach(edges, id: \.timelineListID) { edge in
+                            PostView(
+                                post: edge.node,
+                                timelineSharer: edge.lastSharer,
+                                timelineAdded: edge.added,
+                                enableSneakPeek: true,
+                                contentRenderMode: .lightweightText
+                            )
                                 .padding()
                                 .onAppear {
-                                    if post.id == posts.last?.id && hasNextPage && !isLoading {
+                                    if edge.cursor == edges.last?.cursor && hasNextPage && !isLoading {
                                         Task {
                                             await loadMore()
                                         }
@@ -225,7 +233,7 @@ struct GlobalTimelineContent: View {
                             Divider()
                         }
 
-                        if isLoading && !posts.isEmpty {
+                        if isLoading && !edges.isEmpty {
                             HStack {
                                 Spacer()
                                 ProgressView()
@@ -290,9 +298,7 @@ struct GlobalTimelineContent: View {
 
         do {
             let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: nil), cachePolicy: .networkFirst)
-            let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-
-            posts = fetchedPosts
+            edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {}
@@ -306,8 +312,7 @@ struct GlobalTimelineContent: View {
 
         do {
             let response = try await apolloClient.fetch(query: HackersPub.PublicTimelineQuery(after: .some(cursor)), cachePolicy: .networkFirst)
-            let newPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-            posts.append(contentsOf: newPosts)
+            edges.append(contentsOf: response.data?.publicTimeline.edges ?? [])
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {}
@@ -319,8 +324,7 @@ struct GlobalTimelineContent: View {
 
         do {
             let response = try await apolloClient.fetchAfterClearingCache(query: HackersPub.PublicTimelineQuery(after: nil))
-            let fetchedPosts = response.data?.publicTimeline.edges.map { $0.node } ?? []
-            posts = fetchedPosts
+            edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
         } catch {}

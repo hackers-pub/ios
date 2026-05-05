@@ -575,14 +575,14 @@ struct EngagementToolbarButton: View {
     }
 }
 
-struct RepostIndicator<Actor: ActorProtocol>: View {
-    let actor: Actor
+struct RepostIndicator: View {
+    let actor: any ActorProtocol
     let enableProfileSneakPeek: Bool
     let prefersPlainTextName: Bool
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(
-        actor: Actor,
+        actor: any ActorProtocol,
         enableProfileSneakPeek: Bool,
         prefersPlainTextName: Bool = false
     ) {
@@ -875,6 +875,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     }
 
     let post: P
+    let timelineSharer: (any ActorProtocol)?
+    let timelineAdded: String?
     let showAuthor: Bool
     let disableNavigation: Bool
     let enableSneakPeek: Bool
@@ -920,12 +922,16 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
 
     init(
         post: P,
+        timelineSharer: (any ActorProtocol)? = nil,
+        timelineAdded: String? = nil,
         showAuthor: Bool = true,
         disableNavigation: Bool = false,
         enableSneakPeek: Bool = false,
         contentRenderMode: HTMLContentRenderMode = .richWebView
     ) {
         self.post = post
+        self.timelineSharer = timelineSharer
+        self.timelineAdded = timelineAdded
         self.showAuthor = showAuthor
         self.disableNavigation = disableNavigation
         self.enableSneakPeek = enableSneakPeek
@@ -951,7 +957,15 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     private var canDeleteCurrentPost: Bool {
         guard let viewerHandle = authManager.currentAccount?.handle else { return false }
         let isViewerAuthor = viewerHandle.caseInsensitiveCompare(post.actor.handle) == .orderedSame
-        return isViewerAuthor && post.sharedPost == nil
+        return isViewerAuthor && post.sharedPost == nil && timelineSharer == nil
+    }
+
+    private var repostIndicatorActor: (any ActorProtocol)? {
+        timelineSharer ?? (post.sharedPost == nil ? nil : post.actor)
+    }
+
+    private var displayedPublished: String {
+        timelineAdded ?? post.published
     }
 
     private var mainSneakPeekPostId: String? {
@@ -1355,15 +1369,15 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 8) {
                     // Show repost indicator
-                    if showAuthor && post.sharedPost != nil {
+                    if showAuthor, let repostIndicatorActor {
                         RepostIndicator(
-                            actor: post.actor,
+                            actor: repostIndicatorActor,
                             enableProfileSneakPeek: sneakPeekEnabled,
                             prefersPlainTextName: contentRenderMode == .lightweightText
                         )
                     }
 
-                    if showAuthor && post.sharedPost == nil {
+                    if showAuthor && post.sharedPost == nil && timelineSharer == nil {
                         HStack(spacing: 8) {
                             ActorHeaderIdentity(
                                 actor: post.actor,
@@ -1379,7 +1393,63 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         }
                     }
 
-                    if let sharedPost = post.sharedPost {
+                    if timelineSharer != nil {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 8) {
+                                ActorHeaderIdentity(
+                                    actor: post.actor,
+                                    avatarSize: 40,
+                                    nameFont: .headline,
+                                    nameWeight: .bold,
+                                    handleFont: .subheadline,
+                                    sneakPeekHandle: sneakPeekHandle(post.actor.handle),
+                                    prefersPlainTextName: contentRenderMode == .lightweightText
+                                )
+
+                                Spacer()
+                            }
+
+                            if let name = post.name {
+                                Text(name)
+                                    .font(.headline)
+                            }
+
+                            let content = self.getContent(content: post.content)
+                            EmbeddedPostContentPreviewView(
+                                html: content,
+                                media: mediaItems(from: post.media),
+                                onTap: !disableNavigation ? {
+                                    navigationCoordinator.navigateToPost(id: post.id)
+                                } : nil,
+                                suppressLongPressInteractions: sneakPeekEnabled,
+                                sneakPeekPostId: sneakPeekPostId(post.id),
+                                sneakPeekActorHandle: sneakPeekHandle(post.actor.handle),
+                                sneakPeekShareURL: post.resolvedShareURL
+                            )
+
+                            if let quotedPost = post.quotedPost {
+                                QuotedPostCard(
+                                    quotedPost: quotedPost,
+                                    contentRenderMode: contentRenderMode,
+                                    disableNavigation: disableNavigation,
+                                    suppressContentLongPress: sneakPeekEnabled,
+                                    sneakPeekPostId: sneakPeekPostId(quotedPost.id),
+                                    sneakPeekActorHandle: sneakPeekHandle(quotedPost.actor.handle),
+                                    enableProfileSneakPeek: sneakPeekEnabled,
+                                    onTap: {
+                                        navigationCoordinator.navigateToPost(id: quotedPost.id)
+                                    }
+                                )
+                            }
+
+                            Text(DateFormatHelper.relativeTime(from: post.published))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    } else if let sharedPost = post.sharedPost {
                         // Display shared post
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 8) {
@@ -1484,7 +1554,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         }
                     }
 
-                    Text(DateFormatHelper.relativeTime(from: post.published))
+                    Text(DateFormatHelper.relativeTime(from: displayedPublished))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
