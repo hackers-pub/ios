@@ -135,6 +135,7 @@
 "passkey.error.invalidChallenge" = "서버가 올바르지 않은 패스키 챌린지를 반환했습니다.";
 "passkey.error.invalidUserID" = "서버가 올바르지 않은 패스키 사용자 ID를 반환했습니다.";
 "passkey.error.unsupportedCredential" = "지원하지 않는 패스키 응답입니다.";
+"passkey.error.authorizationUnavailable" = "이 빌드에서는 패스키를 사용할 수 없습니다. 앱 서명과 Associated Domains 설정을 확인하세요.";
 "passkey.error.authorizationFailed" = "패스키 인증에 실패했습니다.";
 
 /* Date formatting */
