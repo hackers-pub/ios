@@ -63,8 +63,7 @@ extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node: PostProtocol {
     typealias EngagementStatsType = HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.EngagementStats
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {
@@ -84,8 +83,7 @@ extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost: PostP
     var quotedPost: HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {
@@ -111,8 +109,7 @@ extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node: Post
     typealias EngagementStatsType = HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.EngagementStats
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {
@@ -132,8 +129,7 @@ extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.Share
     var quotedPost: HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {

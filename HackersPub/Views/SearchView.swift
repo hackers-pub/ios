@@ -145,9 +145,14 @@ struct SearchView: View {
 
                                 ForEach(posts, id: \.id) { result in
                                     if case .post(let post) = result {
-                                        NavigationLink(value: NavigationDestination.post(id: post.id)) {
+                                        if post.isArticle {
                                             SearchResultRow(result: result)
                                                 .padding()
+                                        } else {
+                                            NavigationLink(value: NavigationDestination.post(id: post.id)) {
+                                                SearchResultRow(result: result)
+                                                    .padding()
+                                            }
                                         }
                                     }
                                     Divider()

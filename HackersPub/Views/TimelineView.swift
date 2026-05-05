@@ -10,8 +10,7 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node: PostProt
     typealias EngagementStatsType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.EngagementStats
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {
@@ -31,8 +30,7 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPos
     var quotedPost: HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {
@@ -56,8 +54,7 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node: PostProto
     typealias EngagementStatsType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.EngagementStats
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {
@@ -77,8 +74,7 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
     var quotedPost: HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {
@@ -104,8 +100,7 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node: Post
     typealias EngagementStatsType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.EngagementStats
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {
@@ -125,8 +120,7 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Share
     var quotedPost: HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost? { nil }
 
     var isArticle: Bool {
-        // Temporarily disabled - just show all posts as regular posts
-        return false
+        return __typename == "Article"
     }
     
     var mentionedHandles: [String] {
