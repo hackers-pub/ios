@@ -441,43 +441,55 @@ private struct SettingsAlertsModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .alert(NSLocalizedString("settings.clearCacheAlert.title", comment: "Clear cache alert title"), isPresented: $showingClearCacheAlert) {
-                Button(NSLocalizedString("settings.clearCacheAlert.cancel", comment: "Cancel button"), role: .cancel) { }
-                Button(NSLocalizedString("settings.clearCacheAlert.clear", comment: "Clear button"), role: .destructive, action: onClearCache)
-            } message: {
-                Text(NSLocalizedString("settings.clearCacheAlert.message", comment: "Clear cache alert message"))
-            }
-            .alert(NSLocalizedString("settings.passkeys.add", comment: "Add passkey alert title"), isPresented: $showingAddPasskeyAlert) {
-                TextField(NSLocalizedString("settings.passkeys.name", comment: "Passkey name field"), text: $newPasskeyName)
-                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
-                Button(NSLocalizedString("settings.passkeys.add", comment: "Add passkey button"), action: onRegisterPasskey)
-                    .disabled(newPasskeyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            } message: {
-                Text(NSLocalizedString("settings.passkeys.addMessage", comment: "Add passkey message"))
-            }
-            .alert(NSLocalizedString("settings.passkeys.remove", comment: "Remove passkey alert title"), isPresented: removePasskeyAlertBinding) {
-                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
-                Button(NSLocalizedString("settings.passkeys.remove", comment: "Remove passkey button"), role: .destructive) {
-                    if let passkey = passkeyPendingRevocation {
-                        onRevokePasskey(passkey)
+            .background {
+                Color.clear
+                    .alert(NSLocalizedString("settings.clearCacheAlert.title", comment: "Clear cache alert title"), isPresented: $showingClearCacheAlert) {
+                        Button(NSLocalizedString("settings.clearCacheAlert.cancel", comment: "Cancel button"), role: .cancel) { }
+                        Button(NSLocalizedString("settings.clearCacheAlert.clear", comment: "Clear button"), role: .destructive, action: onClearCache)
+                    } message: {
+                        Text(NSLocalizedString("settings.clearCacheAlert.message", comment: "Clear cache alert message"))
                     }
-                }
-            } message: {
-                Text(removePasskeyMessage)
             }
-            .alert(NSLocalizedString("settings.passkeys.errorTitle", comment: "Passkey error alert title"), isPresented: Binding(
-                get: { passkeyErrorMessage != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        passkeyErrorMessage = nil
+            .background {
+                Color.clear
+                    .alert(NSLocalizedString("settings.passkeys.add", comment: "Add passkey alert title"), isPresented: $showingAddPasskeyAlert) {
+                        TextField(NSLocalizedString("settings.passkeys.name", comment: "Passkey name field"), text: $newPasskeyName)
+                        Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+                        Button(NSLocalizedString("settings.passkeys.add", comment: "Add passkey button"), action: onRegisterPasskey)
+                            .disabled(newPasskeyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    } message: {
+                        Text(NSLocalizedString("settings.passkeys.addMessage", comment: "Add passkey message"))
                     }
-                }
-            )) {
-                Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
-                    passkeyErrorMessage = nil
-                }
-            } message: {
-                Text(passkeyErrorMessage ?? "")
+            }
+            .background {
+                Color.clear
+                    .alert(NSLocalizedString("settings.passkeys.remove", comment: "Remove passkey alert title"), isPresented: removePasskeyAlertBinding) {
+                        Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+                        Button(NSLocalizedString("settings.passkeys.remove", comment: "Remove passkey button"), role: .destructive) {
+                            if let passkey = passkeyPendingRevocation {
+                                onRevokePasskey(passkey)
+                            }
+                        }
+                    } message: {
+                        Text(removePasskeyMessage)
+                    }
+            }
+            .background {
+                Color.clear
+                    .alert(NSLocalizedString("settings.passkeys.errorTitle", comment: "Passkey error alert title"), isPresented: Binding(
+                        get: { passkeyErrorMessage != nil },
+                        set: { isPresented in
+                            if !isPresented {
+                                passkeyErrorMessage = nil
+                            }
+                        }
+                    )) {
+                        Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
+                            passkeyErrorMessage = nil
+                        }
+                    } message: {
+                        Text(passkeyErrorMessage ?? "")
+                    }
             }
     }
 

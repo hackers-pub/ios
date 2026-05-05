@@ -42,6 +42,26 @@ struct PasskeyCredentialDescriptor {
     }
 }
 
+private func decodeCredentialDescriptors(
+    from value: ApolloAPI.JSONValue?
+) throws -> [PasskeyCredentialDescriptor] {
+    guard let value else {
+        return []
+    }
+    guard let values = value as? [ApolloAPI.JSONValue] else {
+        throw PasskeyServiceError.invalidOptions
+    }
+
+    return try values.map { value in
+        guard let object = value as? ApolloAPI.JSONObject,
+              let descriptor = PasskeyCredentialDescriptor(json: object)
+        else {
+            throw PasskeyServiceError.invalidOptions
+        }
+        return descriptor
+    }
+}
+
 struct PasskeyAuthenticationOptions {
     let challenge: Data
     let relyingPartyID: String
@@ -62,9 +82,7 @@ struct PasskeyAuthenticationOptions {
             throw PasskeyServiceError.invalidOptions
         }
         let userVerificationPreference = Self.userVerificationPreference(from: object["userVerification"])
-        let credentials = (object["allowCredentials"] as? [ApolloAPI.JSONValue])?
-            .compactMap { $0 as? ApolloAPI.JSONObject }
-            .compactMap(PasskeyCredentialDescriptor.init(json:)) ?? []
+        let credentials = try decodeCredentialDescriptors(from: object["allowCredentials"])
 
         self.challenge = challenge
         self.relyingPartyID = relyingPartyID
@@ -120,9 +138,7 @@ struct PasskeyRegistrationOptions {
         let userVerificationPreference = Self.userVerificationPreference(
             from: authenticatorSelection?["userVerification"]
         )
-        let credentials = (object["excludeCredentials"] as? [ApolloAPI.JSONValue])?
-            .compactMap { $0 as? ApolloAPI.JSONObject }
-            .compactMap(PasskeyCredentialDescriptor.init(json:)) ?? []
+        let credentials = try decodeCredentialDescriptors(from: object["excludeCredentials"])
 
         self.challenge = challenge
         self.relyingPartyID = relyingPartyID
@@ -173,7 +189,7 @@ final class PasskeyService: NSObject {
             "authenticatorData": credential.rawAuthenticatorData.base64URLEncodedString(),
             "clientDataJSON": credential.rawClientDataJSON.base64URLEncodedString(),
             "signature": credential.signature.base64URLEncodedString(),
-            "userHandle": credential.userID.base64URLEncodedString()
+            "userHandle": (credential.userID as Data?)?.base64URLEncodedString() ?? NSNull()
         ]
         let value: ApolloAPI.JSONEncodableDictionary = [
             "id": credential.credentialID.base64URLEncodedString(),
@@ -244,7 +260,7 @@ final class PasskeyService: NSObject {
         if let keyWindow = windowScenes.flatMap(\.windows).first(where: \.isKeyWindow) {
             return keyWindow
         }
-        return windowScenes.first.map(ASPresentationAnchor.init(windowScene:))
+        return windowScenes.flatMap(\.windows).first
     }
 }
 
