@@ -38,6 +38,7 @@ struct PostDetailView: View {
     @State private var refreshPostOnSheetDismiss = false
     @State private var hasMoreReplies = false
     @State private var repliesCursor: String?
+    @State private var replyEdges: [HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge] = []
     @State private var isLoadingMoreReplies = false
     @State private var isSharing = false
     @State private var isReacting = false
@@ -82,7 +83,8 @@ struct PostDetailView: View {
 
     private func canDelete(post: HackersPub.PostDetailQuery.Data.Node.AsPost) -> Bool {
         guard let viewerHandle = authManager.currentAccount?.handle else { return false }
-        return viewerHandle.caseInsensitiveCompare(post.actor.handle) == .orderedSame
+        let isViewerAuthor = viewerHandle.caseInsensitiveCompare(post.actor.handle) == .orderedSame
+        return isViewerAuthor && post.sharedPost == nil
     }
 
     var body: some View {
@@ -472,7 +474,7 @@ struct PostDetailView: View {
                     }
 
                     // Replies section - only show if there are replies or more to load
-                    if !post.replies.edges.isEmpty || hasMoreReplies {
+                    if !replyEdges.isEmpty || hasMoreReplies {
                         Divider()
                             .padding(.horizontal)
 
@@ -481,7 +483,7 @@ struct PostDetailView: View {
                                 .font(.headline)
                                 .padding(.horizontal)
 
-                            ForEach(post.replies.edges.map { $0.node }, id: \.id) { reply in
+                            ForEach(replyEdges.map { $0.node }, id: \.id) { reply in
                                 PostView(post: reply, showAuthor: true, disableNavigation: false)
                                     .padding(.horizontal)
                                 Divider()
@@ -723,7 +725,10 @@ struct PostDetailView: View {
         defer { isLoading = false }
 
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.PostDetailQuery(id: postId, repliesAfter: nil))
+            let response = try await apolloClient.fetch(
+                query: HackersPub.PostDetailQuery(id: postId, repliesAfter: nil),
+                cachePolicy: .networkFirst
+            )
 
             if let errors = response.errors, !errors.isEmpty {
                 errorMessage = errors.first?.message ?? "Unknown error"
@@ -736,6 +741,7 @@ struct PostDetailView: View {
             }
 
             post = fetchedPost
+            replyEdges = fetchedPost.replies.edges
             hasMoreReplies = fetchedPost.replies.pageInfo.hasNextPage
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
             hasShared = fetchedPost.viewerHasShared
@@ -754,12 +760,15 @@ struct PostDetailView: View {
         defer { isLoadingMoreReplies = false }
 
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.PostDetailQuery(id: postId, repliesAfter: .some(cursor)))
+            let response = try await apolloClient.fetch(
+                query: HackersPub.PostDetailQuery(id: postId, repliesAfter: .some(cursor)),
+                cachePolicy: .networkOnly
+            )
 
             if let fetchedPost = response.data?.node?.asPost {
                 let newReplies = fetchedPost.replies
-                // Append new replies to existing ones
-                // Note: This is a simplified approach. In production, you'd want to update the entire post object properly
+                let existingReplyIds = Set(replyEdges.map { $0.node.id })
+                replyEdges.append(contentsOf: newReplies.edges.filter { !existingReplyIds.contains($0.node.id) })
 
                 hasMoreReplies = newReplies.pageInfo.hasNextPage
                 repliesCursor = newReplies.pageInfo.endCursor
@@ -773,7 +782,10 @@ struct PostDetailView: View {
         errorMessage = nil
 
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.PostDetailQuery(id: postId, repliesAfter: nil))
+            let response = try await apolloClient.fetch(
+                query: HackersPub.PostDetailQuery(id: postId, repliesAfter: nil),
+                cachePolicy: .networkOnly
+            )
 
             if let errors = response.errors, !errors.isEmpty {
                 errorMessage = errors.first?.message ?? "Unknown error"
@@ -786,6 +798,7 @@ struct PostDetailView: View {
             }
 
             post = fetchedPost
+            replyEdges = fetchedPost.replies.edges
             hasMoreReplies = fetchedPost.replies.pageInfo.hasNextPage
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
             hasShared = fetchedPost.viewerHasShared
