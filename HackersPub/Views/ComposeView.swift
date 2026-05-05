@@ -3,11 +3,14 @@ import SwiftUI
 import Kingfisher
 import Markdown
 import NaturalLanguage
+import UIKit
 
 struct ComposeView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var fontSettings = FontSettingsManager.shared
     @State private var content: String
+    @State private var selectedTextRange = NSRange(location: 0, length: 0)
+    @State private var selectedTextCaretRect: CGRect = .zero
     @State private var visibility: GraphQLEnum<HackersPub.PostVisibility> = .case(.public)
     @State private var isPosting = false
     @State private var errorMessage: String?
@@ -16,6 +19,10 @@ struct ComposeView: View {
     @State private var quotedPostPreview: HackersPub.PostDetailQuery.Data.Node.AsPost?
     @State private var isLoadingQuotedPost = false
     @State private var didFailToLoadQuotedPost = false
+    @State private var activeMention: ActiveMention?
+    @State private var mentionSuggestions: [HackersPub.SearchActorsByHandleQuery.Data.SearchActorsByHandle] = []
+    @State private var isLoadingMentionSuggestions = false
+    @State private var mentionSearchTask: Task<Void, Never>?
     @AppStorage("lastSelectedLocale") private var lastSelectedLocale: String = {
         Locale.current.language.languageCode?.identifier ?? "en"
     }()
@@ -25,6 +32,16 @@ struct ComposeView: View {
         let rawHTML = HTMLFormatter.format(document)
         return HTMLStyles.wrapHTML(rawHTML, css: HTMLStyles.composePreviewCSS)
     }
+
+    private var isBusy: Bool {
+        isPosting
+    }
+
+    private var shouldShowMentionSuggestions: Bool {
+        activeMention != nil && (isLoadingMentionSuggestions || !mentionSuggestions.isEmpty)
+    }
+
+    private let editorTextInset = EdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 4)
 
     let replyToPostId: String?
     let quotedPostId: String?
@@ -142,21 +159,40 @@ struct ComposeView: View {
                         }
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
                     } else {
-                        ZStack(alignment: .topLeading) {
-                            if content.isEmpty {
-                                Text(NSLocalizedString("compose.placeholder", comment: "Compose text placeholder"))
-                                    .font(fontSettings.font(for: .body))
-                                    .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 8)
-                                    .allowsHitTesting(false)
-                            }
-                            TextEditor(text: $content)
-                                .font(fontSettings.font(for: .body))
-                                .opacity(content.isEmpty ? 0.25 : 1)
-                                .onChange(of: content) { _, newValue in
-                                    detectAndUpdateLanguage(from: newValue)
+                        GeometryReader { proxy in
+                            ZStack(alignment: .topLeading) {
+                                if content.isEmpty {
+                                    Text(NSLocalizedString("compose.placeholder", comment: "Compose text placeholder"))
+                                        .font(fontSettings.font(for: .body))
+                                        .foregroundStyle(.secondary)
+                                        .padding(editorTextInset)
+                                        .allowsHitTesting(false)
                                 }
+                                ComposeTextEditor(
+                                    text: $content,
+                                    selectedRange: $selectedTextRange,
+                                    caretRect: $selectedTextCaretRect,
+                                    textInset: editorTextInset,
+                                    font: fontSettings.uiFont(for: .body),
+                                    isEditable: !isBusy
+                                )
+
+                                if shouldShowMentionSuggestions {
+                                    MentionSuggestionsPanel(
+                                        suggestions: mentionSuggestions,
+                                        isLoading: isLoadingMentionSuggestions,
+                                        onSelect: insertMention
+                                    )
+                                    .frame(width: mentionPanelWidth(in: proxy.size.width), alignment: .leading)
+                                    .offset(
+                                        x: mentionPanelX(in: proxy.size.width),
+                                        y: mentionPanelY(in: proxy.size.height)
+                                    )
+                                    .zIndex(1)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .topLeading)))
+                                }
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                         .padding()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -193,6 +229,18 @@ struct ComposeView: View {
             .task(id: quotedPostId) {
                 await fetchQuotedPostPreview()
             }
+            .onChange(of: content) { _, newValue in
+                detectAndUpdateLanguage(from: newValue)
+                scheduleMentionSearch()
+            }
+            .onChange(of: selectedTextRange) { _, _ in
+                scheduleMentionSearch()
+            }
+            .onChange(of: showPreview) { _, isPreviewing in
+                if isPreviewing {
+                    clearMentionSuggestions()
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -202,7 +250,7 @@ struct ComposeView: View {
                         Image(systemName: "xmark")
                     }
                     .accessibilityLabel(NSLocalizedString("compose.cancel", comment: "Cancel button"))
-                    .disabled(isPosting)
+                    .disabled(isBusy)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -211,7 +259,7 @@ struct ComposeView: View {
                             await post()
                         }
                     }
-                    .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPosting)
+                    .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isBusy)
                 }
             }
             .alert(NSLocalizedString("compose.error.title", comment: "Error alert title"), isPresented: .constant(errorMessage != nil)) {
@@ -327,6 +375,265 @@ struct ComposeView: View {
         }
     }
 
+    private func scheduleMentionSearch() {
+        mentionSearchTask?.cancel()
+
+        guard !showPreview, !isBusy, let mention = currentMentionTrigger() else {
+            clearMentionSuggestions()
+            return
+        }
+
+        activeMention = mention
+        isLoadingMentionSuggestions = true
+
+        mentionSearchTask = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled else { return }
+
+                let response = try await apolloClient.fetch(
+                    query: HackersPub.SearchActorsByHandleQuery(prefix: mention.query, limit: .some(10)),
+                    cachePolicy: .networkOnly
+                )
+
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    guard activeMention == mention else { return }
+                    mentionSuggestions = response.data?.searchActorsByHandle ?? []
+                    isLoadingMentionSuggestions = false
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                await MainActor.run {
+                    guard activeMention == mention else { return }
+                    mentionSuggestions = []
+                    isLoadingMentionSuggestions = false
+                }
+            }
+        }
+    }
+
+    private func currentMentionTrigger() -> ActiveMention? {
+        let nsContent = content as NSString
+        let cursor = max(0, min(selectedTextRange.location, nsContent.length))
+        guard selectedTextRange.length == 0, cursor > 0 else { return nil }
+
+        let beforeCursor = nsContent.substring(to: cursor) as NSString
+        var searchLength = beforeCursor.length
+
+        while searchLength > 0 {
+            let atRange = beforeCursor.range(
+                of: "@",
+                options: .backwards,
+                range: NSRange(location: 0, length: searchLength)
+            )
+            guard atRange.location != NSNotFound else { return nil }
+
+            let startsAtBoundary: Bool
+            if atRange.location > 0 {
+                let previous = beforeCursor.character(at: atRange.location - 1)
+                startsAtBoundary = isMentionBoundary(previous)
+            } else {
+                startsAtBoundary = true
+            }
+
+            guard startsAtBoundary else {
+                searchLength = atRange.location
+                continue
+            }
+
+            let queryLocation = atRange.location + 1
+            let queryLength = cursor - queryLocation
+            guard queryLength > 0 else { return nil }
+
+            let query = beforeCursor.substring(with: NSRange(location: queryLocation, length: queryLength))
+            guard isValidMentionQuery(query) else {
+                return nil
+            }
+
+            return ActiveMention(
+                query: query,
+                range: NSRange(location: atRange.location, length: cursor - atRange.location)
+            )
+        }
+
+        return nil
+    }
+
+    private var mentionQuerySeparators: CharacterSet {
+        CharacterSet.whitespacesAndNewlines
+            .union(CharacterSet(charactersIn: "<>()[]{}\"'`,!?;:"))
+    }
+
+    private var mentionPanelEstimatedHeight: CGFloat {
+        if mentionSuggestions.isEmpty {
+            return 52
+        }
+        return min(CGFloat(mentionSuggestions.count) * MentionSuggestionsPanel.rowHeight, MentionSuggestionsPanel.maxListHeight)
+    }
+
+    private func mentionPanelWidth(in editorWidth: CGFloat) -> CGFloat {
+        max(220, min(editorWidth, 380))
+    }
+
+    private func mentionPanelX(in editorWidth: CGFloat) -> CGFloat {
+        let panelWidth = mentionPanelWidth(in: editorWidth)
+        let proposedX = selectedTextCaretRect.minX - 8
+        return min(max(0, proposedX), max(0, editorWidth - panelWidth))
+    }
+
+    private func mentionPanelY(in editorHeight: CGFloat) -> CGFloat {
+        let proposedY = selectedTextCaretRect.maxY + 14
+        let maxY = max(8, editorHeight - mentionPanelEstimatedHeight - 8)
+        return min(max(8, proposedY), maxY)
+    }
+
+    private func isValidMentionQuery(_ query: String) -> Bool {
+        guard query.count <= 80,
+              query.rangeOfCharacter(from: mentionQuerySeparators) == nil
+        else {
+            return false
+        }
+
+        let handleParts = query.split(separator: "@", omittingEmptySubsequences: false)
+        guard (1...2).contains(handleParts.count),
+              let username = handleParts.first,
+              isValidMentionUsernamePart(String(username))
+        else {
+            return false
+        }
+
+        if handleParts.count == 2 {
+            return handleParts[1].isEmpty || isValidMentionHostPrefix(String(handleParts[1]))
+        }
+
+        return true
+    }
+
+    private func isMentionBoundary(_ utf16Value: unichar) -> Bool {
+        guard let scalar = UnicodeScalar(Int(utf16Value)) else { return false }
+        return CharacterSet.whitespacesAndNewlines.contains(scalar)
+            || CharacterSet(charactersIn: "([{").contains(scalar)
+    }
+
+    private func isValidMentionUsernamePart(_ username: String) -> Bool {
+        guard !username.isEmpty else { return false }
+
+        let scalars = Array(username.unicodeScalars)
+        for (index, scalar) in scalars.enumerated() {
+            if isASCIILetterOrDigit(scalar) || scalar == "_" {
+                continue
+            }
+
+            if (scalar == "." || scalar == "-"),
+               index > 0,
+               index < scalars.count - 1 {
+                continue
+            }
+
+            return false
+        }
+
+        return true
+    }
+
+    private func isValidMentionHostPrefix(_ host: String) -> Bool {
+        guard host.count <= 253 else { return false }
+
+        for scalar in host.unicodeScalars {
+            guard isASCIILetterOrDigit(scalar) || scalar == "-" || scalar == "." else {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private func isASCIILetterOrDigit(_ scalar: UnicodeScalar) -> Bool {
+        (65...90).contains(Int(scalar.value))
+            || (97...122).contains(Int(scalar.value))
+            || (48...57).contains(Int(scalar.value))
+    }
+
+    private func insertMention(_ actor: HackersPub.SearchActorsByHandleQuery.Data.SearchActorsByHandle) {
+        guard let activeMention else { return }
+
+        let normalizedHandle = actor.handle.hasPrefix("@")
+            ? String(actor.handle.dropFirst())
+            : actor.handle
+        let replacement = "@\(normalizedHandle) "
+        let replacementRange = mentionReplacementRange(for: activeMention)
+        replaceText(in: replacementRange, with: replacement)
+        clearMentionSuggestions()
+    }
+
+    private func mentionReplacementRange(for mention: ActiveMention) -> NSRange {
+        let nsContent = content as NSString
+        var end = min(mention.range.location + mention.range.length, nsContent.length)
+
+        while end < nsContent.length {
+            let character = nsContent.character(at: end)
+            guard !CharacterSet.whitespacesAndNewlines.containsUnicodeScalar(character) else {
+                end += 1
+                while end < nsContent.length,
+                      CharacterSet.whitespacesAndNewlines.containsUnicodeScalar(nsContent.character(at: end)) {
+                    end += 1
+                }
+                break
+            }
+
+            let currentQuery = nsContent.substring(
+                with: NSRange(location: mention.range.location + 1, length: end - mention.range.location - 1)
+            )
+            guard isMentionContinuationCharacter(character, after: currentQuery) else { break }
+            end += 1
+        }
+
+        return NSRange(location: mention.range.location, length: end - mention.range.location)
+    }
+
+    private func isMentionContinuationCharacter(_ utf16Value: unichar, after currentQuery: String) -> Bool {
+        guard let scalar = UnicodeScalar(Int(utf16Value)) else { return false }
+
+        let parts = currentQuery.split(separator: "@", omittingEmptySubsequences: false)
+        if parts.count == 1 {
+            if isASCIILetterOrDigit(scalar) || scalar == "_" || scalar == "-" {
+                return true
+            }
+            return scalar == "@" && !currentQuery.isEmpty
+        }
+
+        guard parts.count == 2 else { return false }
+        return isASCIILetterOrDigit(scalar) || scalar == "-" || scalar == "."
+    }
+
+    private func clearMentionSuggestions() {
+        mentionSearchTask?.cancel()
+        activeMention = nil
+        mentionSuggestions = []
+        isLoadingMentionSuggestions = false
+    }
+
+    @discardableResult
+    private func replaceText(in range: NSRange, with replacement: String) -> NSRange {
+        let nsContent = content as NSString
+        let location = max(0, min(range.location, nsContent.length))
+        let length = max(0, min(range.length, nsContent.length - location))
+        let boundedRange = NSRange(location: location, length: length)
+
+        if let stringRange = Range(boundedRange, in: content) {
+            content.replaceSubrange(stringRange, with: replacement)
+        } else {
+            content.append(replacement)
+        }
+
+        let newLocation = location + (replacement as NSString).length
+        let newRange = NSRange(location: newLocation, length: 0)
+        selectedTextRange = newRange
+        return newRange
+    }
+
     private func fetchQuotedPostPreview() async {
         guard let quotedPostId else { return }
         isLoadingQuotedPost = true
@@ -382,5 +689,234 @@ struct ComposeView: View {
             print("Error creating note: \(error)")
             errorMessage = String(format: NSLocalizedString("compose.error.failedWithDetails", comment: "Failed to create post error with details"), error.localizedDescription)
         }
+    }
+}
+
+private struct ActiveMention: Equatable {
+    let query: String
+    let range: NSRange
+
+    static func == (lhs: ActiveMention, rhs: ActiveMention) -> Bool {
+        lhs.query == rhs.query
+            && lhs.range.location == rhs.range.location
+            && lhs.range.length == rhs.range.length
+    }
+}
+
+private struct MentionSuggestionsPanel: View {
+    static let rowHeight: CGFloat = 62
+    static let maxListHeight: CGFloat = 248
+
+    let suggestions: [HackersPub.SearchActorsByHandleQuery.Data.SearchActorsByHandle]
+    let isLoading: Bool
+    let onSelect: (HackersPub.SearchActorsByHandleQuery.Data.SearchActorsByHandle) -> Void
+
+    private var listHeight: CGFloat {
+        min(CGFloat(suggestions.count) * Self.rowHeight, Self.maxListHeight)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if isLoading && suggestions.isEmpty {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(NSLocalizedString("compose.mentions.searching", comment: "Mention search loading status"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(12)
+            }
+
+            if !suggestions.isEmpty {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(suggestions, id: \.id) { actor in
+                            Button {
+                                onSelect(actor)
+                            } label: {
+                                MentionSuggestionRow(actor: actor)
+                            }
+                            .buttonStyle(.plain)
+
+                            if actor.id != suggestions.last?.id {
+                                Divider()
+                                    .padding(.leading, 56)
+                            }
+                        }
+                    }
+                }
+                .frame(height: listHeight)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.secondary.opacity(0.16), lineWidth: 0.5)
+        }
+        .shadow(color: .black.opacity(0.12), radius: 14, y: 6)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct MentionSuggestionRow: View {
+    let actor: HackersPub.SearchActorsByHandleQuery.Data.SearchActorsByHandle
+
+    var body: some View {
+        HStack(spacing: 10) {
+            KFImage(URL(string: actor.avatarUrl))
+                .placeholder {
+                    Circle()
+                        .fill(Color.secondary.opacity(0.15))
+                        .overlay {
+                            Image(systemName: "person.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                }
+                .resizable()
+                .scaledToFill()
+                .frame(width: 36, height: 36)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                if let name = actor.name, !name.isEmpty {
+                    HTMLTextView(html: name, font: .subheadline)
+                        .lineLimit(1)
+                } else {
+                    Text(actor.handle)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                }
+
+                Text(actor.handle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .contentShape(Rectangle())
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+}
+
+private struct ComposeTextEditor: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var selectedRange: NSRange
+    @Binding var caretRect: CGRect
+    let textInset: EdgeInsets
+    let font: UIFont
+    let isEditable: Bool
+
+    func makeUIView(context: Context) -> UITextView {
+        let textView = UITextView()
+        textView.delegate = context.coordinator
+        textView.backgroundColor = .clear
+        textView.textContainer.lineFragmentPadding = 0
+        textView.keyboardDismissMode = .interactive
+        textView.alwaysBounceVertical = true
+        textView.adjustsFontForContentSizeCategory = false
+        return textView
+    }
+
+    func updateUIView(_ textView: UITextView, context: Context) {
+        context.coordinator.parent = self
+
+        if textView.text != text {
+            textView.text = text
+        }
+
+        if textView.font != font {
+            textView.font = font
+        }
+
+        textView.textColor = .label
+        textView.textContainerInset = UIEdgeInsets(textInset)
+        textView.isEditable = isEditable
+        textView.isSelectable = true
+
+        let boundedRange = selectedRange.bounded(to: textView.text.utf16.count)
+        if textView.selectedRange != boundedRange {
+            textView.selectedRange = boundedRange
+        }
+
+        context.coordinator.updateCaretRect(textView)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var parent: ComposeTextEditor
+
+        init(parent: ComposeTextEditor) {
+            self.parent = parent
+        }
+
+        func textViewDidChange(_ textView: UITextView) {
+            parent.text = textView.text
+            updateCaretRect(textView)
+        }
+
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            parent.selectedRange = textView.selectedRange
+            updateCaretRect(textView)
+        }
+
+        func updateCaretRect(_ textView: UITextView) {
+            let textRange = textView.selectedTextRange
+                ?? textView.textRange(from: textView.endOfDocument, to: textView.endOfDocument)
+            guard let textRange else { return }
+
+            let rect = textView.caretRect(for: textRange.start)
+            guard rect.isFinite, rect != parent.caretRect else { return }
+
+            DispatchQueue.main.async { [parent] in
+                parent.caretRect = rect
+            }
+        }
+    }
+}
+
+private extension CGRect {
+    var isFinite: Bool {
+        origin.x.isFinite
+            && origin.y.isFinite
+            && size.width.isFinite
+            && size.height.isFinite
+    }
+}
+
+private extension UIEdgeInsets {
+    init(_ edgeInsets: EdgeInsets) {
+        self.init(
+            top: edgeInsets.top,
+            left: edgeInsets.leading,
+            bottom: edgeInsets.bottom,
+            right: edgeInsets.trailing
+        )
+    }
+}
+
+private extension CharacterSet {
+    func containsUnicodeScalar(_ utf16Value: unichar) -> Bool {
+        guard let scalar = UnicodeScalar(Int(utf16Value)) else { return false }
+        return contains(scalar)
+    }
+}
+
+private extension NSRange {
+    func bounded(to upperBound: Int) -> NSRange {
+        let location = max(0, min(location, upperBound))
+        let length = max(0, min(length, upperBound - location))
+        return NSRange(location: location, length: length)
     }
 }

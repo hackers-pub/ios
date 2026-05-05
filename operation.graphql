@@ -745,6 +745,15 @@ mutation CreateNoteMutation($content: Markdown!, $language: Locale!, $visibility
   }
 }
 
+query SearchActorsByHandleQuery($prefix: String!, $limit: Int = 10) {
+  searchActorsByHandle(prefix: $prefix, limit: $limit) {
+    id
+    handle
+    name
+    avatarUrl
+  }
+}
+
 mutation RevokeSessionMutation($sessionId: UUID!) {
   revokeSession(sessionId: $sessionId) {
     id
