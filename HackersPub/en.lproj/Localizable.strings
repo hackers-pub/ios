@@ -64,6 +64,7 @@
 "compose.error.ok" = "OK";
 "compose.preview.empty" = "Content is empty.";
 "compose.preview.rendering" = "Loading Preview...";
+"compose.mentions.searching" = "Searching accounts...";
 
 /* Timeline */
 "timeline.fediverse" = "Fediverse";

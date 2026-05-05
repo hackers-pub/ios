@@ -64,6 +64,7 @@
 "compose.error.ok" = "확인";
 "compose.preview.empty" = "내용이 없습니다.";
 "compose.preview.rendering" = "미리보기 로딩 중...";
+"compose.mentions.searching" = "계정 검색 중...";
 
 /* Timeline */
 "timeline.fediverse" = "페디버스";
