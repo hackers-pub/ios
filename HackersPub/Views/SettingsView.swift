@@ -131,7 +131,7 @@ struct SettingsView: View {
                         isRegisteringPasskey: isRegisteringPasskey,
                         revokingPasskeyID: revokingPasskeyID,
                         onAddPasskey: {
-                            newPasskeyName = UIDevice.current.name
+                            newPasskeyName = UIDevice.current.localizedModel
                             showingAddPasskeyAlert = true
                         },
                         onRemovePasskey: { passkey in

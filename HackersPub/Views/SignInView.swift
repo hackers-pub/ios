@@ -165,7 +165,7 @@ struct SignInView: View {
         } catch let error as AuthError {
             errorMessage = error.localizedDescription
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
         }
     }
 }
