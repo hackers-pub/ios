@@ -183,12 +183,14 @@ class AuthManager {
 
         isLoadingPasskeys = true
         defer { isLoadingPasskeys = false }
+        let requestToken = sessionToken
 
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.ViewerPasskeysQuery(),
                 cachePolicy: .networkOnly
             )
+            guard isAuthenticated, sessionToken == requestToken else { return }
             passkeys = response.data?.viewer?.passkeys.edges.map {
                 PasskeyInfo(
                     id: $0.node.id,
@@ -203,6 +205,9 @@ class AuthManager {
     }
 
     func registerPasskey(name: String) async throws {
+        if currentAccount == nil {
+            await fetchViewer()
+        }
         guard let accountId = currentAccount?.id else {
             throw AuthError.passkeyFailed
         }
@@ -232,9 +237,12 @@ class AuthManager {
     }
 
     func revokePasskey(id: String) async throws {
-        _ = try await apolloClient.perform(
+        let response = try await apolloClient.perform(
             mutation: HackersPub.RevokePasskeyMutation(passkeyId: id)
         )
+        guard response.data?.revokePasskey == id else {
+            throw AuthError.passkeyFailed
+        }
         passkeys.removeAll { $0.id == id }
     }
 

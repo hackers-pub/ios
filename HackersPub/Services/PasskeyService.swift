@@ -1,7 +1,7 @@
 import AuthenticationServices
 import Foundation
 import UIKit
-@_spi(Internal) import ApolloAPI
+import ApolloAPI
 
 enum PasskeyServiceError: LocalizedError {
     case invalidOptions
@@ -42,6 +42,7 @@ struct PasskeyCredentialDescriptor {
 struct PasskeyAuthenticationOptions {
     let challenge: Data
     let relyingPartyID: String
+    let userVerificationPreference: ASAuthorizationPublicKeyCredentialUserVerificationPreference
     let allowedCredentials: [PasskeyCredentialDescriptor]
 
     init(json: HackersPub.JSON) throws {
@@ -54,14 +55,31 @@ struct PasskeyAuthenticationOptions {
             throw PasskeyServiceError.invalidChallenge
         }
 
-        let relyingPartyID = (object["rpId"] as? String) ?? "hackers.pub"
+        guard let relyingPartyID = object["rpId"] as? String else {
+            throw PasskeyServiceError.invalidOptions
+        }
+        let userVerificationPreference = Self.userVerificationPreference(from: object["userVerification"])
         let credentials = (object["allowCredentials"] as? [ApolloAPI.JSONValue])?
             .compactMap { $0 as? ApolloAPI.JSONObject }
             .compactMap(PasskeyCredentialDescriptor.init(json:)) ?? []
 
         self.challenge = challenge
         self.relyingPartyID = relyingPartyID
+        self.userVerificationPreference = userVerificationPreference
         self.allowedCredentials = credentials
+    }
+
+    private static func userVerificationPreference(
+        from value: ApolloAPI.JSONValue?
+    ) -> ASAuthorizationPublicKeyCredentialUserVerificationPreference {
+        switch value as? String {
+        case "required":
+            return .required
+        case "discouraged":
+            return .discouraged
+        default:
+            return .preferred
+        }
     }
 }
 
@@ -70,6 +88,7 @@ struct PasskeyRegistrationOptions {
     let relyingPartyID: String
     let name: String
     let userID: Data
+    let userVerificationPreference: ASAuthorizationPublicKeyCredentialUserVerificationPreference
     let excludedCredentials: [PasskeyCredentialDescriptor]
 
     init(json: HackersPub.JSON) throws {
@@ -88,9 +107,16 @@ struct PasskeyRegistrationOptions {
             throw PasskeyServiceError.invalidUserID
         }
 
-        let relyingParty = object["rp"] as? ApolloAPI.JSONObject
-        let relyingPartyID = (relyingParty?["id"] as? String) ?? "hackers.pub"
+        guard let relyingParty = object["rp"] as? ApolloAPI.JSONObject,
+              let relyingPartyID = relyingParty["id"] as? String
+        else {
+            throw PasskeyServiceError.invalidOptions
+        }
         let name = (user["name"] as? String) ?? (user["displayName"] as? String) ?? "Hackers' Pub"
+        let authenticatorSelection = object["authenticatorSelection"] as? ApolloAPI.JSONObject
+        let userVerificationPreference = Self.userVerificationPreference(
+            from: authenticatorSelection?["userVerification"]
+        )
         let credentials = (object["excludeCredentials"] as? [ApolloAPI.JSONValue])?
             .compactMap { $0 as? ApolloAPI.JSONObject }
             .compactMap(PasskeyCredentialDescriptor.init(json:)) ?? []
@@ -99,7 +125,21 @@ struct PasskeyRegistrationOptions {
         self.relyingPartyID = relyingPartyID
         self.name = name
         self.userID = userID
+        self.userVerificationPreference = userVerificationPreference
         self.excludedCredentials = credentials
+    }
+
+    private static func userVerificationPreference(
+        from value: ApolloAPI.JSONValue?
+    ) -> ASAuthorizationPublicKeyCredentialUserVerificationPreference {
+        switch value as? String {
+        case "required":
+            return .required
+        case "discouraged":
+            return .discouraged
+        default:
+            return .preferred
+        }
     }
 }
 
@@ -114,7 +154,7 @@ final class PasskeyService: NSObject {
     func authenticate(options: PasskeyAuthenticationOptions) async throws -> HackersPub.JSON {
         let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: options.relyingPartyID)
         let request = provider.createCredentialAssertionRequest(challenge: options.challenge)
-        request.userVerificationPreference = .preferred
+        request.userVerificationPreference = options.userVerificationPreference
         request.allowedCredentials = options.allowedCredentials.map {
             ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: $0.id)
         }
@@ -147,7 +187,7 @@ final class PasskeyService: NSObject {
             name: options.name,
             userID: options.userID
         )
-        request.userVerificationPreference = .preferred
+        request.userVerificationPreference = options.userVerificationPreference
         request.excludedCredentials = options.excludedCredentials.map {
             ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: $0.id)
         }
