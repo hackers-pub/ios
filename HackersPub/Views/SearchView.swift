@@ -38,6 +38,7 @@ struct SearchView: View {
     @State private var searchTask: Task<Void, Never>?
     @AppStorage("recentSearches") private var recentSearchesData: Data = Data()
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @Environment(AuthManager.self) private var authManager
 
     private var isLoading: Bool {
         isLoadingPosts || isLoadingDirectActors || isLoadingRelatedActors
@@ -181,11 +182,13 @@ struct SearchView: View {
                 }
             }
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingComposeView = true
-                    } label: {
-                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
+                if authManager.isAuthenticated {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showingComposeView = true
+                        } label: {
+                            Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
+                        }
                     }
                 }
             }
@@ -203,15 +206,10 @@ struct SearchView: View {
                     searchTask = Task {
                         try? await Task.sleep(for: .milliseconds(500))
 
-                        if !Task.isCancelled {
-                            await performSearch(query: newValue)
-                            addToRecentSearches(newValue)
-                        } else {
-                            // If cancelled, reset loading states
-                            isLoadingPosts = false
-                            isLoadingDirectActors = false
-                            isLoadingRelatedActors = false
-                        }
+                        guard !Task.isCancelled else { return }
+                        await performSearch(query: newValue)
+                        guard !Task.isCancelled else { return }
+                        addToRecentSearches(newValue)
                     }
                 } else {
                     directActors = []
@@ -266,25 +264,25 @@ struct SearchView: View {
             isLoadingRelatedActors = true
         }
 
-        // Track seen actors across all tasks
         let seenActors = ActorTracker()
 
-        // Launch all searches concurrently without waiting
-        Task {
-            await searchAndDisplayPosts(query: query, seenActors: seenActors)
-        }
-
-        Task {
-            await searchAndDisplayDirectActor(query: query, seenActors: seenActors)
-        }
-
-        Task {
-            await searchAndDisplayObject(query: query, seenActors: seenActors)
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await searchAndDisplayPosts(query: query, seenActors: seenActors)
+            }
+            group.addTask {
+                await searchAndDisplayDirectActor(query: query, seenActors: seenActors)
+            }
+            group.addTask {
+                await searchAndDisplayObject(query: query, seenActors: seenActors)
+            }
         }
     }
 
     private func searchAndDisplayPosts(query: String, seenActors: ActorTracker) async {
         let postResults = await searchPosts(query: query)
+        guard !Task.isCancelled else { return }
+
         await MainActor.run {
             self.posts = postResults.map { .post($0) }
             self.isLoadingPosts = false
@@ -293,6 +291,7 @@ struct SearchView: View {
         // Extract unique actors from posts
         var actorResults: [SearchResultType] = []
         for post in postResults {
+            guard !Task.isCancelled else { return }
             if await seenActors.insert(post.actor.id) {
                 if let actorResult = await searchActor(handle: post.actor.handle) {
                     actorResults.append(.actor(actorResult))
@@ -302,12 +301,14 @@ struct SearchView: View {
 
         // Update related actors from posts
         if !actorResults.isEmpty {
+            guard !Task.isCancelled else { return }
             await MainActor.run {
                 self.relatedActors.append(contentsOf: actorResults)
             }
         }
 
         // Turn off related actor loading after extracting from posts
+        guard !Task.isCancelled else { return }
         await MainActor.run {
             self.isLoadingRelatedActors = false
         }
@@ -315,6 +316,7 @@ struct SearchView: View {
 
     private func searchAndDisplayDirectActor(query: String, seenActors: ActorTracker) async {
         if let directActor = await searchActorByHandle(query: query) {
+            guard !Task.isCancelled else { return }
             if await seenActors.insert(directActor.id) {
                 await MainActor.run {
                     self.directActors.append(.actor(directActor))
@@ -323,13 +325,16 @@ struct SearchView: View {
         }
 
         // Turn off direct actor loading after direct search completes
+        guard !Task.isCancelled else { return }
         await MainActor.run {
             self.isLoadingDirectActors = false
         }
     }
 
     private func searchAndDisplayObject(query: String, seenActors: ActorTracker) async {
+        guard !Task.isCancelled else { return }
         if let objectUrl = await searchObject(query: query) {
+            guard !Task.isCancelled else { return }
             await handleSearchedObjectUrl(objectUrl, seenActors: seenActors)
         }
     }
