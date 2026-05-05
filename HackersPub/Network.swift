@@ -86,3 +86,12 @@ let apolloClient = ApolloClient(
     networkTransport: networkTransport,
     store: store
 )
+
+extension ApolloClient {
+    func fetchAfterClearingCache<Query: GraphQLQuery>(
+        query: Query
+    ) async throws -> GraphQLResponse<Query> where Query.ResponseFormat == SingleResponseFormat {
+        try await clearCache()
+        return try await fetch(query: query, cachePolicy: .networkOnly)
+    }
+}

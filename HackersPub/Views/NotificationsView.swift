@@ -146,7 +146,7 @@ struct NotificationsView: View {
         defer { isLoading = false }
 
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.NotificationsQuery(after: nil), cachePolicy: .networkOnly)
+            let response = try await apolloClient.fetchAfterClearingCache(query: HackersPub.NotificationsQuery(after: nil))
             let fetchedNotifications = response.data?.viewer?.notifications.edges.map { $0.node } ?? []
             notifications = fetchedNotifications
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false

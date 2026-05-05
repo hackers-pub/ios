@@ -231,7 +231,7 @@ struct ActorProfileView: View {
             Text(relationshipActionErrorMessage ?? "")
         }
         .refreshable {
-            await fetchProfile(cachePolicy: .networkOnly)
+            await refreshProfile()
         }
         .task {
             await fetchProfile(cachePolicy: .networkFirst)
@@ -278,6 +278,25 @@ struct ActorProfileView: View {
             }
         } catch {
             print("Error fetching actor profile: \(error)")
+        }
+    }
+
+    private func refreshProfile() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let response = try await apolloClient.fetchAfterClearingCache(
+                query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: nil)
+            )
+            if let refreshedActor = response.data?.actorByHandle {
+                actorData = refreshedActor
+                posts = refreshedActor.posts.edges.map { $0.node }
+                hasNextPage = refreshedActor.posts.pageInfo.hasNextPage
+                endCursor = refreshedActor.posts.pageInfo.endCursor
+            }
+        } catch {
+            print("Error refreshing actor profile: \(error)")
         }
     }
 
