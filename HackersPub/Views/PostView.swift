@@ -780,10 +780,10 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
     }
 
     private var quotedContentRenderMode: HTMLContentRenderMode {
-        // Embedded quote cards were the remaining clipping hotspot in list cells.
-        // Keeping them on the rich renderer avoids the lightweight text view's
-        // transient under-measurement without regressing the main timeline body.
-        .richWebView
+        // Feed-embedded quote cards must not contain a nested scroll view.
+        // UITextView keeps links/context menus while letting the parent feed
+        // own all vertical scrolling.
+        .lightweightText
     }
 
     var body: some View {
@@ -959,6 +959,12 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
 
     private var engagementSnapshot: PostEngagementSnapshot {
         PostEngagementSnapshot(post: post)
+    }
+
+    private var embeddedPostContentRenderMode: HTMLContentRenderMode {
+        // Shared/original post cards are embedded inside a scrolling feed row,
+        // so avoid WKWebView's internal scroll state here.
+        .lightweightText
     }
 
     private var canDeleteCurrentPost: Bool {
@@ -1418,7 +1424,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                             HTMLContentView(
                                 html: content,
                                 media: mediaItems(from: sharedPost.media),
-                                renderMode: contentRenderMode,
+                                renderMode: embeddedPostContentRenderMode,
                                 onTap: !disableNavigation ? {
                                     navigationCoordinator.navigateToPost(id: sharedPost.id)
                                 } : nil,

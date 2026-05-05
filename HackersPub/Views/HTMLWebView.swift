@@ -8,6 +8,7 @@ import SafariServices
 /// Generates a stable hash key from all inputs that affect rendered output,
 /// used to skip redundant `loadHTMLString` calls and cache computed heights.
 struct HTMLContentKey: Equatable, Hashable {
+    let measurementVersion: Int
     let html: String
     let fontName: String
     let sizeMultiplier: Double
@@ -143,6 +144,7 @@ final class HTMLHeightCache: @unchecked Sendable {
             webView.scrollView.contentInset = .zero
             webView.scrollView.scrollIndicatorInsets = .zero
             webView.scrollView.contentInsetAdjustmentBehavior = .never
+            webView.scrollView.panGestureRecognizer.isEnabled = false
             webView.scrollView.setContentOffset(.zero, animated: false)
             context.coordinator.webView = webView
 
@@ -161,9 +163,10 @@ final class HTMLHeightCache: @unchecked Sendable {
             meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
             document.getElementsByTagName('head')[0].appendChild(meta);
 
-            // Hide scrollbars without forcing body clipping.
+            // Keep the embedded document non-scrollable; the parent SwiftUI
+            // ScrollView owns vertical scrolling for feed cells.
             var style = document.createElement('style');
-            style.textContent = '::-webkit-scrollbar { display: none; }';
+            style.textContent = 'html, body { overflow: hidden !important; } ::-webkit-scrollbar { display: none; }';
             document.getElementsByTagName('head')[0].appendChild(style);
 
             function computedDocumentHeight() {
@@ -172,16 +175,16 @@ final class HTMLHeightCache: @unchecked Sendable {
                 var bodyStyle = body ? window.getComputedStyle(body) : null;
                 var bodyPaddingTop = bodyStyle ? parseFloat(bodyStyle.paddingTop || '0') : 0;
                 var bodyPaddingBottom = bodyStyle ? parseFloat(bodyStyle.paddingBottom || '0') : 0;
-                if (contentRoot) {
-                    var contentRect = contentRoot.getBoundingClientRect();
-                    return Math.ceil(contentRect.height + bodyPaddingTop + bodyPaddingBottom);
-                }
+                var contentRect = contentRoot ? contentRoot.getBoundingClientRect() : null;
                 var bodyRect = body ? body.getBoundingClientRect() : null;
                 return Math.ceil(Math.max(
+                    contentRoot ? contentRoot.scrollHeight : 0,
+                    contentRoot ? contentRoot.offsetHeight : 0,
+                    contentRect ? contentRect.height : 0,
                     body ? body.scrollHeight : 0,
                     body ? body.offsetHeight : 0,
                     bodyRect ? bodyRect.height : 0
-                ));
+                ) + bodyPaddingTop + bodyPaddingBottom + 8);
             }
 
             var pendingHeightFrame = false;
@@ -292,11 +295,6 @@ final class HTMLHeightCache: @unchecked Sendable {
             setTimeout(reportHeightSoon, 300);
             setTimeout(reportHeightSoon, 700);
             setTimeout(reportHeightSoon, 1500);
-            setTimeout(resetScrollPosition, 50);
-            setTimeout(resetScrollPosition, 250);
-            setTimeout(resetScrollPosition, 750);
-            setTimeout(resetScrollPosition, 1500);
-            resetScrollPosition();
             reportHeightSoon();
             """
             let script = WKUserScript(
@@ -313,10 +311,9 @@ final class HTMLHeightCache: @unchecked Sendable {
             // Update coordinator reference
             context.coordinator.parent = self
             context.coordinator.webView = webView
-            context.coordinator.enforceTopViewport(on: webView)
-
             // Build a content key that captures every variable affecting the rendered output
             let contentKey = HTMLContentKey(
+                measurementVersion: 5,
                 html: html,
                 fontName: fontSettings.selectedFontName,
                 sizeMultiplier: fontSettings.fontSizeMultiplier,
@@ -357,6 +354,7 @@ final class HTMLHeightCache: @unchecked Sendable {
 
             // Capture the content key for this navigation so didFinish can verify it.
             context.coordinator.pendingContentKey = contentKey
+            webView.scrollView.setContentOffset(.zero, animated: false)
             webView.loadHTMLString(styledHTML, baseURL: nil)
         }
 
@@ -397,24 +395,14 @@ final class HTMLHeightCache: @unchecked Sendable {
                 // to prevent caching a height under the wrong content key.
                 guard let pending = pendingContentKey, pending == lastContentKey else { return }
 
-                enforceTopViewport(on: webView)
                 measureAndApplyHeight(from: webView, key: pending)
                 let delayedMeasurements: [TimeInterval] = [0.15, 0.4, 0.8, 1.5, 2.5, 4.0, 6.0]
                 for delay in delayedMeasurements {
                     DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak webView] in
                         guard let self, let webView else { return }
-                        self.enforceTopViewport(on: webView)
                         self.measureAndApplyHeight(from: webView, key: pending)
                     }
                 }
-            }
-
-            func enforceTopViewport(on webView: WKWebView) {
-                webView.scrollView.setContentOffset(.zero, animated: false)
-                webView.evaluateJavaScript(
-                    "window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0;",
-                    completionHandler: nil
-                )
             }
 
             private func measureAndApplyHeight(from webView: WKWebView, key: HTMLContentKey) {
@@ -426,16 +414,16 @@ final class HTMLHeightCache: @unchecked Sendable {
                         var bodyStyle = body ? window.getComputedStyle(body) : null;
                         var bodyPaddingTop = bodyStyle ? parseFloat(bodyStyle.paddingTop || '0') : 0;
                         var bodyPaddingBottom = bodyStyle ? parseFloat(bodyStyle.paddingBottom || '0') : 0;
-                        if (contentRoot) {
-                            var contentRect = contentRoot.getBoundingClientRect();
-                            return Math.ceil(contentRect.height + bodyPaddingTop + bodyPaddingBottom);
-                        }
+                        var contentRect = contentRoot ? contentRoot.getBoundingClientRect() : null;
                         var bodyRect = body ? body.getBoundingClientRect() : null;
                         return Math.ceil(Math.max(
+                            contentRoot ? contentRoot.scrollHeight : 0,
+                            contentRoot ? contentRoot.offsetHeight : 0,
+                            contentRect ? contentRect.height : 0,
                             body ? body.scrollHeight : 0,
                             body ? body.offsetHeight : 0,
                             bodyRect ? bodyRect.height : 0
-                        ));
+                        ) + bodyPaddingTop + bodyPaddingBottom + 8);
                     })()
                     """
                 ) { result, _ in
@@ -451,14 +439,15 @@ final class HTMLHeightCache: @unchecked Sendable {
                     }
 
                     guard let measuredHeight, measuredHeight > 0 else { return }
+                    let nativeContentHeight = webView.scrollView.contentSize.height
 
                     DispatchQueue.main.async {
                         // Re-check after the async gap to avoid stale writes.
                         guard let currentKey = self.lastContentKey, currentKey == key else { return }
-                        self.enforceTopViewport(on: webView)
-                        HTMLHeightCache.shared.setHeight(measuredHeight, for: key)
-                        if abs(self.parent.height - measuredHeight) > 0.5 {
-                            self.parent.height = measuredHeight
+                        let finalHeight = max(measuredHeight, nativeContentHeight + 8)
+                        HTMLHeightCache.shared.setHeight(finalHeight, for: key)
+                        if abs(self.parent.height - finalHeight) > 0.5 {
+                            self.parent.height = finalHeight
                         }
                     }
                 }
@@ -534,12 +523,11 @@ final class HTMLHeightCache: @unchecked Sendable {
 
                     DispatchQueue.main.async {
                         guard self.lastContentKey == key else { return }
-                        if let webView = self.webView {
-                            self.enforceTopViewport(on: webView)
-                        }
-                        HTMLHeightCache.shared.setHeight(measuredHeight, for: key)
-                        if abs(self.parent.height - measuredHeight) > 0.5 {
-                            self.parent.height = measuredHeight
+                        let nativeContentHeight = self.webView?.scrollView.contentSize.height ?? 0
+                        let finalHeight = max(measuredHeight, nativeContentHeight + 8)
+                        HTMLHeightCache.shared.setHeight(finalHeight, for: key)
+                        if abs(self.parent.height - finalHeight) > 0.5 {
+                            self.parent.height = finalHeight
                         }
                     }
                     return
