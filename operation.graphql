@@ -1476,6 +1476,41 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         }
       }
     }
+    ... on Article {
+      uuid
+      slug
+      language
+      allowLlmTranslation
+      tags
+      contents {
+        id
+        language
+        title
+        content
+        rawContent
+        summary
+        toc
+        url
+      }
+    }
+  }
+}
+
+query ArticleTranslationQuery($id: ID!, $language: Locale!) {
+  node(id: $id) {
+    ... on Article {
+      id
+      contents(includeBeingTranslated: true, language: $language) {
+        id
+        language
+        title
+        content
+        summary
+        toc
+        beingTranslated
+        url
+      }
+    }
   }
 }
 
@@ -1733,6 +1768,110 @@ mutation DeletePostMutation($id: ID!) {
     }
     ... on SharedPostDeletionNotAllowedError {
       inputPath
+    }
+  }
+}
+
+query ArticleDraftsQuery {
+  viewer {
+    id
+    articleDrafts(first: 50) {
+      edges {
+        node {
+          id
+          title
+          content
+          contentHtml
+          tags
+          created
+          updated
+        }
+      }
+    }
+  }
+}
+
+query ArticleDraftQuery($id: ID!) {
+  articleDraft(id: $id) {
+    id
+    title
+    content
+    contentHtml
+    tags
+    created
+    updated
+  }
+}
+
+mutation SaveArticleDraftMutation($title: String!, $content: Markdown!, $tags: [String!]!, $id: ID) {
+  saveArticleDraft(input: { title: $title, content: $content, tags: $tags, id: $id }) {
+    ... on SaveArticleDraftPayload {
+      draft {
+        id
+        title
+        content
+        contentHtml
+        tags
+        created
+        updated
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation UpdateArticleMutation($articleId: ID!, $title: String!, $content: Markdown!, $tags: [String!]!, $language: Locale!, $allowLlmTranslation: Boolean!) {
+  updateArticle(input: { articleId: $articleId, title: $title, content: $content, tags: $tags, language: $language, allowLlmTranslation: $allowLlmTranslation }) {
+    ... on UpdateArticlePayload {
+      article {
+        id
+        name
+        url
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation DeleteArticleDraftMutation($id: ID!) {
+  deleteArticleDraft(input: { id: $id }) {
+    ... on DeleteArticleDraftPayload {
+      deletedDraftId
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation PublishArticleDraftMutation($id: ID!, $slug: String!, $language: Locale!, $allowLlmTranslation: Boolean) {
+  publishArticleDraft(input: { id: $id, slug: $slug, language: $language, allowLlmTranslation: $allowLlmTranslation }) {
+    ... on PublishArticleDraftPayload {
+      article {
+        id
+        name
+        url
+      }
+      deletedDraftId
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
     }
   }
 }

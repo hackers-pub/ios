@@ -1492,31 +1492,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         .background(Color.gray.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else if post.isArticle {
-                        // Display article summary with navigation link
-                        NavigationLink {
-                            ArticleDetailView(post: post)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                if let name = post.name {
-                                    Text(name)
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-                                }
-                                if let summary = post.summary {
-                                    Text(summary)
-                                        .font(.body)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(3)
-                                }
-                                HStack {
-                                    Text("Read article")
-                                        .font(.caption)
-                                        .foregroundStyle(.blue)
-                                    Image(systemName: "arrow.right")
-                                        .font(.caption)
-                                        .foregroundStyle(.blue)
-                                }
-                            }
+                        ArticleSummaryCard(post: post) {
+                            navigationCoordinator.navigateToPost(id: post.id)
                         }
                     } else {
                         // Display original post content

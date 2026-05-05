@@ -129,14 +129,33 @@ class AuthManager {
     }
 
     func completeLoginChallenge(token: String, code: String) async throws {
-        let response = try await apolloClient.perform(
-            mutation: HackersPub.CompleteLoginChallengeMutation(
-                token: token,
-                code: code
+        let response: GraphQLResponse<HackersPub.CompleteLoginChallengeMutation>
+        do {
+            response = try await apolloClient.perform(
+                mutation: HackersPub.CompleteLoginChallengeMutation(
+                    token: token,
+                    code: code
+                )
             )
-        )
+        } catch {
+            #if DEBUG
+            NSLog("CompleteLoginChallenge transport/client error: \(String(describing: error))")
+            #endif
+            throw error
+        }
+
+        #if DEBUG
+        if let errors = response.errors, !errors.isEmpty {
+            for error in errors {
+                NSLog("CompleteLoginChallenge GraphQL error: \(error.message ?? "<no message>")")
+            }
+        }
+        #endif
 
         guard let session = response.data?.completeLoginChallenge else {
+            #if DEBUG
+            NSLog("CompleteLoginChallenge returned no session data")
+            #endif
             throw AuthError.verificationFailed
         }
 

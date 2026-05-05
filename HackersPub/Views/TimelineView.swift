@@ -325,6 +325,8 @@ struct PersonalTimelineView: View {
     @State private var endCursor: String?
     @State private var shouldRefresh = false
     @State private var showingSettings = false
+    @State private var showingArticleEditor = false
+    @State private var showingArticleDrafts = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
@@ -410,15 +412,40 @@ struct PersonalTimelineView: View {
                 }
 
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingComposeView = true
+                    Menu {
+                        Button {
+                            showingComposeView = true
+                        } label: {
+                            Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
+                        }
+                        Button {
+                            showingArticleEditor = true
+                        } label: {
+                            Label(NSLocalizedString("article.new", comment: "New article"), systemImage: "doc.badge.plus")
+                        }
+                        Button {
+                            showingArticleDrafts = true
+                        } label: {
+                            Label(NSLocalizedString("article.drafts", comment: "Article drafts"), systemImage: "tray.full")
+                        }
                     } label: {
-                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
+                        Label(NSLocalizedString("common.compose", comment: "Compose menu"), systemImage: "plus")
                     }
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showingArticleEditor) {
+                ArticleEditorView {
+                    showingArticleEditor = false
+                    Task {
+                        await refreshPosts()
+                    }
+                }
+            }
+            .sheet(isPresented: $showingArticleDrafts) {
+                ArticleDraftListView()
             }
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {
@@ -656,6 +683,7 @@ struct ActorProfileViewWrapper: View {
         .task {
             await fetchProfile()
         }
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private func fetchProfile() async {

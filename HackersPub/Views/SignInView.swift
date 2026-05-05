@@ -134,6 +134,9 @@ struct SignInView: View {
         } catch let error as AuthError {
             errorMessage = error.localizedDescription
         } catch {
+            #if DEBUG
+            NSLog("SignIn sendSignInLink unexpected error: \(String(describing: error))")
+            #endif
             errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
         }
     }
@@ -151,6 +154,9 @@ struct SignInView: View {
         } catch let error as AuthError {
             errorMessage = error.localizedDescription
         } catch {
+            #if DEBUG
+            NSLog("SignIn verifyCode unexpected error: \(String(describing: error))")
+            #endif
             errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
         }
     }

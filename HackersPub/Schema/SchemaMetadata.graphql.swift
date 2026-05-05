@@ -30,6 +30,8 @@ public extension HackersPub {
     @_spi(Execution) public static func objectType(forTypename typename: String) -> ApolloAPI.Object? {
       switch typename {
       case "Account": return HackersPub.Objects.Account
+      case "AccountArticleDraftsConnection": return HackersPub.Objects.AccountArticleDraftsConnection
+      case "AccountArticleDraftsConnectionEdge": return HackersPub.Objects.AccountArticleDraftsConnectionEdge
       case "AccountLink": return HackersPub.Objects.AccountLink
       case "AccountNotFoundError": return HackersPub.Objects.AccountNotFoundError
       case "AccountNotificationsConnection": return HackersPub.Objects.AccountNotificationsConnection
@@ -47,6 +49,7 @@ public extension HackersPub {
       case "CreateNotePayload": return HackersPub.Objects.CreateNotePayload
       case "CustomEmoji": return HackersPub.Objects.CustomEmoji
       case "CustomEmojiReactionGroup": return HackersPub.Objects.CustomEmojiReactionGroup
+      case "DeleteArticleDraftPayload": return HackersPub.Objects.DeleteArticleDraftPayload
       case "DeletePostPayload": return HackersPub.Objects.DeletePostPayload
       case "EmojiReactionGroup": return HackersPub.Objects.EmojiReactionGroup
       case "EmptySearchQueryError": return HackersPub.Objects.EmptySearchQueryError
@@ -76,6 +79,7 @@ public extension HackersPub {
       case "PostRepliesConnectionEdge": return HackersPub.Objects.PostRepliesConnectionEdge
       case "PostSharesConnection": return HackersPub.Objects.PostSharesConnection
       case "PostSharesConnectionEdge": return HackersPub.Objects.PostSharesConnectionEdge
+      case "PublishArticleDraftPayload": return HackersPub.Objects.PublishArticleDraftPayload
       case "Query": return HackersPub.Objects.Query
       case "QueryPersonalTimelineConnection": return HackersPub.Objects.QueryPersonalTimelineConnection
       case "QueryPersonalTimelineConnectionEdge": return HackersPub.Objects.QueryPersonalTimelineConnectionEdge
@@ -92,6 +96,7 @@ public extension HackersPub {
       case "RemoveFollowerPayload": return HackersPub.Objects.RemoveFollowerPayload
       case "RemoveReactionFromPostPayload": return HackersPub.Objects.RemoveReactionFromPostPayload
       case "ReplyNotification": return HackersPub.Objects.ReplyNotification
+      case "SaveArticleDraftPayload": return HackersPub.Objects.SaveArticleDraftPayload
       case "SearchedObject": return HackersPub.Objects.SearchedObject
       case "Session": return HackersPub.Objects.Session
       case "ShareNotification": return HackersPub.Objects.ShareNotification
@@ -100,6 +105,7 @@ public extension HackersPub {
       case "UnblockActorPayload": return HackersPub.Objects.UnblockActorPayload
       case "UnfollowActorPayload": return HackersPub.Objects.UnfollowActorPayload
       case "UnsharePostPayload": return HackersPub.Objects.UnsharePostPayload
+      case "UpdateArticlePayload": return HackersPub.Objects.UpdateArticlePayload
       default: return nil
       }
     }

@@ -249,3 +249,43 @@
 
 /* Truncation */
 "truncate.readMore" = "Read more";
+
+/* Articles */
+"article.new" = "New Article";
+"article.edit" = "Edit Article";
+"article.editDraft" = "Edit Draft";
+"article.read" = "Read article";
+"article.readOnWeb" = "Read on Web";
+"article.translate" = "Translate";
+"article.showOriginal" = "Show Original";
+"article.toc" = "Contents";
+"article.drafts" = "Drafts";
+"article.drafts.empty" = "No article drafts";
+"article.untitled" = "Untitled";
+"article.draft.delete.title" = "Delete draft?";
+"article.draft.delete.message" = "This draft will be permanently deleted.";
+"article.title" = "Title";
+"article.tags" = "Tags, separated by commas or spaces";
+"article.tag.remove" = "Remove %@";
+"article.content" = "Content";
+"article.content.placeholder" = "Write your article in Markdown...";
+"article.slug" = "Slug";
+"article.slugHelp" = "Used for the article URL.";
+"article.language" = "Language";
+"article.languageHelp" = "Detected from the title and content. You can override it.";
+"article.allowLlmTranslation" = "Allow LLM translation";
+"article.allowLlmTranslationHelp" = "Let the server prepare translated versions when available.";
+"article.publish" = "Publish";
+"article.publishOptions" = "Publish";
+"article.publishOptions.title" = "Ready to publish?";
+"article.publishOptions.message" = "Review how this article will appear before publishing it.";
+"article.publishing" = "Publishing...";
+"article.update" = "Update";
+"article.updateOptions" = "Update";
+"article.updateFailed" = "Failed to update article.";
+"article.updateLanguageFailed" = "Cannot change the language because translations already exist.";
+"article.saveDraft" = "Save Draft";
+"article.saving" = "Saving...";
+"article.saveFailed" = "Failed to save article draft.";
+"article.publishFailed" = "Failed to publish article.";
+"common.compose" = "Compose";

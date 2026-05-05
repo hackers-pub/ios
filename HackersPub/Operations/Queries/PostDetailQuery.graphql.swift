@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PostDetailQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url iri visibility viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
+        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url iri visibility viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasNextPage endCursor } } } ... on Article { uuid slug language allowLlmTranslation tags contents { __typename id language title content rawContent summary toc url } } } }"#
       ))
 
     public var id: ID
@@ -53,12 +53,14 @@ public extension HackersPub {
         @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
           .field("__typename", String.self),
           .inlineFragment(AsPost.self),
+          .inlineFragment(AsArticle.self),
         ] }
         @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
           PostDetailQuery.Data.Node.self
         ] }
 
         public var asPost: AsPost? { _asInlineFragment() }
+        public var asArticle: AsArticle? { _asInlineFragment() }
 
         /// Node.AsPost
         ///
@@ -1545,6 +1547,109 @@ public extension HackersPub {
               public var endCursor: String? { __data["endCursor"] }
             }
           }
+        }
+
+        /// Node.AsArticle
+        ///
+        /// Parent Type: `Article`
+        public struct AsArticle: HackersPub.InlineFragment {
+          @_spi(Unsafe) public let __data: DataDict
+          @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+          public typealias RootEntityType = PostDetailQuery.Data.Node
+          @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Article }
+          @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+            .field("uuid", HackersPub.UUID.self),
+            .field("slug", String.self),
+            .field("language", String?.self),
+            .field("allowLlmTranslation", Bool.self),
+            .field("tags", [String].self),
+            .field("contents", [Content].self),
+          ] }
+          @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+            PostDetailQuery.Data.Node.self,
+            PostDetailQuery.Data.Node.AsArticle.self,
+            PostDetailQuery.Data.Node.AsPost.self
+          ] }
+
+          public var uuid: HackersPub.UUID { __data["uuid"] }
+          public var slug: String { __data["slug"] }
+          public var language: String? { __data["language"] }
+          public var allowLlmTranslation: Bool { __data["allowLlmTranslation"] }
+          public var tags: [String] { __data["tags"] }
+          public var contents: [Content] { __data["contents"] }
+          public var id: HackersPub.ID { __data["id"] }
+          public var name: String? { __data["name"] }
+          public var published: HackersPub.DateTime { __data["published"] }
+          public var summary: String? { __data["summary"] }
+          public var content: HackersPub.HTML { __data["content"] }
+          public var excerpt: String { __data["excerpt"] }
+          public var url: HackersPub.URL? { __data["url"] }
+          public var iri: HackersPub.URL { __data["iri"] }
+          public var visibility: GraphQLEnum<HackersPub.PostVisibility> { __data["visibility"] }
+          public var viewerHasShared: Bool { __data["viewerHasShared"] }
+          public var actor: Actor { __data["actor"] }
+          public var media: [Medium] { __data["media"] }
+          public var replyTarget: ReplyTarget? { __data["replyTarget"] }
+          public var sharedPost: SharedPost? { __data["sharedPost"] }
+          public var quotedPost: QuotedPost? { __data["quotedPost"] }
+          public var mentions: Mentions { __data["mentions"] }
+          public var engagementStats: EngagementStats { __data["engagementStats"] }
+          public var reactionGroups: [ReactionGroup] { __data["reactionGroups"] }
+          public var replies: Replies { __data["replies"] }
+
+          /// Node.AsArticle.Content
+          ///
+          /// Parent Type: `ArticleContent`
+          public struct Content: HackersPub.SelectionSet {
+            @_spi(Unsafe) public let __data: DataDict
+            @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+            @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.ArticleContent }
+            @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+              .field("__typename", String.self),
+              .field("id", HackersPub.ID.self),
+              .field("language", HackersPub.Locale.self),
+              .field("title", String.self),
+              .field("content", HackersPub.HTML.self),
+              .field("rawContent", HackersPub.Markdown.self),
+              .field("summary", String?.self),
+              .field("toc", HackersPub.JSON.self),
+              .field("url", HackersPub.URL.self),
+            ] }
+            @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+              PostDetailQuery.Data.Node.AsArticle.Content.self
+            ] }
+
+            public var id: HackersPub.ID { __data["id"] }
+            public var language: HackersPub.Locale { __data["language"] }
+            public var title: String { __data["title"] }
+            public var content: HackersPub.HTML { __data["content"] }
+            /// The raw markdown content for editing.
+            public var rawContent: HackersPub.Markdown { __data["rawContent"] }
+            public var summary: String? { __data["summary"] }
+            /// Table of contents for the article content.
+            public var toc: HackersPub.JSON { __data["toc"] }
+            public var url: HackersPub.URL { __data["url"] }
+          }
+
+          public typealias Actor = AsPost.Actor
+
+          public typealias Medium = AsPost.Medium
+
+          public typealias ReplyTarget = AsPost.ReplyTarget
+
+          public typealias SharedPost = AsPost.SharedPost
+
+          public typealias QuotedPost = AsPost.QuotedPost
+
+          public typealias Mentions = AsPost.Mentions
+
+          public typealias EngagementStats = AsPost.EngagementStats
+
+          public typealias ReactionGroup = AsPost.ReactionGroup
+
+          public typealias Replies = AsPost.Replies
         }
       }
     }

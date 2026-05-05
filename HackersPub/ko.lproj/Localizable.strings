@@ -249,3 +249,43 @@
 
 /* Truncation */
 "truncate.readMore" = "더 보기";
+
+/* Articles */
+"article.new" = "새 아티클";
+"article.edit" = "아티클 편집";
+"article.editDraft" = "드래프트 편집";
+"article.read" = "아티클 읽기";
+"article.readOnWeb" = "웹에서 읽기";
+"article.translate" = "번역";
+"article.showOriginal" = "원문 보기";
+"article.toc" = "목차";
+"article.drafts" = "드래프트";
+"article.drafts.empty" = "아티클 드래프트가 없습니다";
+"article.untitled" = "제목 없음";
+"article.draft.delete.title" = "드래프트를 삭제할까요?";
+"article.draft.delete.message" = "이 드래프트는 영구적으로 삭제됩니다.";
+"article.title" = "제목";
+"article.tags" = "태그, 쉼표나 공백으로 구분";
+"article.tag.remove" = "%@ 삭제";
+"article.content" = "내용";
+"article.content.placeholder" = "Markdown으로 아티클을 작성하세요...";
+"article.slug" = "슬러그";
+"article.slugHelp" = "아티클 URL에 사용됩니다.";
+"article.language" = "언어";
+"article.languageHelp" = "제목과 본문에서 추론했습니다. 직접 바꿀 수 있습니다.";
+"article.allowLlmTranslation" = "LLM 번역 허용";
+"article.allowLlmTranslationHelp" = "가능한 경우 서버가 번역본을 준비할 수 있게 합니다.";
+"article.publish" = "발행";
+"article.publishOptions" = "발행";
+"article.publishOptions.title" = "발행할까요?";
+"article.publishOptions.message" = "발행하기 전에 아티클이 어떻게 공개될지 확인하세요.";
+"article.publishing" = "발행 중...";
+"article.update" = "수정";
+"article.updateOptions" = "수정";
+"article.updateFailed" = "아티클 수정에 실패했습니다.";
+"article.updateLanguageFailed" = "이미 번역이 있어 언어를 변경할 수 없습니다.";
+"article.saveDraft" = "드래프트 저장";
+"article.saving" = "저장 중...";
+"article.saveFailed" = "아티클 드래프트 저장에 실패했습니다.";
+"article.publishFailed" = "아티클 발행에 실패했습니다.";
+"common.compose" = "작성";

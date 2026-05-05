@@ -69,5 +69,6 @@ struct ArticleDetailView<P: PostProtocol>: View {
         }
         .navigationTitle("Article")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 }

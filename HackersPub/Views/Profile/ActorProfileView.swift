@@ -242,6 +242,7 @@ struct ActorProfileView: View {
                 await fetchProfile(cachePolicy: .networkFirst)
             }
         }
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private func performRelationshipAction(_ action: ActorRelationshipAction) {

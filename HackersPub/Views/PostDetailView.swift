@@ -10,6 +10,7 @@ struct PostDetailView: View {
         case shares
         case quotesList
         case reactionPicker
+        case editArticle
 
         var id: String {
             switch self {
@@ -25,6 +26,8 @@ struct PostDetailView: View {
                 return "quotesList"
             case .reactionPicker:
                 return "reactionPicker"
+            case .editArticle:
+                return "editArticle"
             }
         }
     }
@@ -69,7 +72,16 @@ struct PostDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var isDeleting = false
     @State private var deleteErrorMessage: String?
+    @State private var articleContents: [HackersPub.PostDetailQuery.Data.Node.AsArticle.Content] = []
+    @State private var translatedArticleContent: HackersPub.ArticleTranslationQuery.Data.Node.AsArticle.Content?
+    @State private var isLoadingArticleTranslation = false
+    @State private var showingOriginalArticle = true
+    @State private var translatedArticleLanguage: String?
+    @State private var articleTags: [String] = []
+    @State private var articleLanguage: String?
+    @State private var articleAllowLlmTranslation = true
     @Environment(AuthManager.self) private var authManager
+    @Environment(ExternalURLRouter.self) private var externalURLRouter
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
@@ -87,22 +99,87 @@ struct PostDetailView: View {
         return isViewerAuthor && post.sharedPost == nil
     }
 
+    private var selectedArticleContentHTML: String? {
+        if !showingOriginalArticle, let translatedArticleContent {
+            return translatedArticleContent.content
+        }
+        return nil
+    }
+
+    private var selectedArticleTOC: [ArticleTOCItem] {
+        guard showingOriginalArticle else { return [] }
+        let rawTOC = matchingOriginalArticleContent?.toc ?? articleContents.first?.toc
+        return rawTOC.map(ArticleTOCParser.parse) ?? []
+    }
+
+    private var selectedArticleTitle: String? {
+        if !showingOriginalArticle, let translatedArticleContent {
+            return translatedArticleContent.title
+        }
+        return nil
+    }
+
+    private var originalArticleRawContent: String? {
+        matchingOriginalArticleContent?.rawContent ?? articleContents.first?.rawContent
+    }
+
+    private func normalizeLanguageIdentifier(_ language: String) -> String {
+        language
+            .replacingOccurrences(of: "_", with: "-")
+            .lowercased()
+    }
+
+    private var articleTranslationLanguageOptions: [String] {
+        var options = Locale.preferredLanguages.map(normalizeLanguageIdentifier)
+        if let currentLanguageCode = Locale.current.language.languageCode?.identifier {
+            options.append(normalizeLanguageIdentifier(currentLanguageCode))
+        }
+        options.append("en")
+
+        var seen: Set<String> = []
+        return options.compactMap { language in
+            let baseLanguage = String(language.split(separator: "-").first ?? Substring(language))
+            guard !baseLanguage.isEmpty, seen.insert(baseLanguage).inserted else { return nil }
+            return baseLanguage
+        }
+    }
+
+    private func localizedLanguageName(for language: String) -> String {
+        Locale.current.localizedString(forIdentifier: language) ?? language
+    }
+
+    private var matchingOriginalArticleContent: HackersPub.PostDetailQuery.Data.Node.AsArticle.Content? {
+        guard let post else { return articleContents.first }
+
+        if let exactContentMatch = articleContents.first(where: { $0.content == post.content }) {
+            return exactContentMatch
+        }
+
+        if let postName = post.name,
+           let titleMatch = articleContents.first(where: { $0.title == postName }) {
+            return titleMatch
+        }
+
+        return articleContents.first
+    }
+
     var body: some View {
-        ScrollView {
-            if isLoading {
-                ProgressView()
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                if isLoading {
+                    ProgressView()
+                        .padding()
+                } else if let error = errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text(error)
+                            .foregroundStyle(.secondary)
+                    }
                     .padding()
-            } else if let error = errorMessage {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
-                    Text(error)
-                        .foregroundStyle(.secondary)
-                }
-                .padding()
-            } else if let post = post {
-                VStack(alignment: .leading, spacing: 16) {
+                } else if let post = post {
+                    VStack(alignment: .leading, spacing: 16) {
                     // Display parent post if this is a reply
                     if let replyTarget = post.replyTarget {
                         VStack(alignment: .leading, spacing: 12) {
@@ -313,19 +390,77 @@ struct PostDetailView: View {
                         .padding(.horizontal)
 
                         // Post title if present
-                        if let name = post.name {
-                            Text(name)
-                                .font(.title2)
+                        if let title = post.isArticle ? selectedArticleTitle ?? post.name : post.name {
+                            Text(title)
+                                .font(post.isArticle ? .largeTitle : .title2)
                                 .fontWeight(.bold)
                                 .padding(.horizontal)
                         }
 
-                        // Post content
-                        PostContentDetailView(
-                            html: post.content,
-                            media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
-                        )
-                        .padding(.horizontal)
+                        if post.isArticle {
+                            ArticleContentPane(
+                                html: selectedArticleContentHTML ?? post.content,
+                                toc: selectedArticleTOC,
+                                media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) },
+                                onAnchorSelected: { anchorID in
+                                    withAnimation(.easeInOut) {
+                                        scrollProxy.scrollTo(anchorID, anchor: .top)
+                                    }
+                                }
+                            )
+                            .padding(.horizontal)
+
+                            HStack(spacing: 12) {
+                                if isLoadingArticleTranslation {
+                                    ProgressView()
+                                } else if showingOriginalArticle {
+                                    Menu {
+                                        ForEach(articleTranslationLanguageOptions, id: \.self) { language in
+                                            Button {
+                                                Task {
+                                                    await loadArticleTranslation(postId: post.id, language: language)
+                                                }
+                                            } label: {
+                                                Text(localizedLanguageName(for: language))
+                                            }
+                                        }
+                                    } label: {
+                                        Label(NSLocalizedString("article.translate", comment: "Translate article"), systemImage: "translate")
+                                    }
+                                } else {
+                                    Button {
+                                        showingOriginalArticle = true
+                                    } label: {
+                                        Label(NSLocalizedString("article.showOriginal", comment: "Show original article"), systemImage: "doc.text")
+                                    }
+                                }
+
+                                if let url = post.resolvedShareURL {
+                                    Button {
+                                        externalURLRouter.open(url)
+                                    } label: {
+                                        Label(NSLocalizedString("article.readOnWeb", comment: "Read on web"), systemImage: "safari")
+                                    }
+                                }
+
+                                if canDelete(post: post) {
+                                    Button {
+                                        activeSheet = .editArticle
+                                    } label: {
+                                        Label(NSLocalizedString("article.edit", comment: "Edit article"), systemImage: "pencil")
+                                    }
+                                }
+                            }
+                            .font(.caption)
+                            .padding(.horizontal)
+                        } else {
+                            // Post content
+                            PostContentDetailView(
+                                html: post.content,
+                                media: post.media.map { MediaItem(url: $0.url, thumbnailUrl: $0.thumbnailUrl, alt: $0.alt, width: $0.width, height: $0.height) }
+                            )
+                            .padding(.horizontal)
+                        }
 
                         if let quotedPost = post.quotedPost {
                             QuotedPostCard(
@@ -509,12 +644,14 @@ struct PostDetailView: View {
                             }
                         }
                     }
+                    }
+                    .padding(.vertical)
                 }
-                .padding(.vertical)
             }
         }
         .navigationTitle("Post")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .task {
             await fetchPost()
         }
@@ -625,6 +762,24 @@ struct PostDetailView: View {
                     }
                 }
                 .presentationDetents([.height(reactionSheetHeight)])
+            case .editArticle:
+                if let post = post {
+                    ArticleEditorView(
+                        seed: ArticleEditSeed(
+                            title: matchingOriginalArticleContent?.title ?? post.name ?? "",
+                            content: originalArticleRawContent ?? "",
+                            tags: articleTags,
+                            sourceArticleId: post.id,
+                            language: matchingOriginalArticleContent?.language ?? articleLanguage,
+                            allowLlmTranslation: articleAllowLlmTranslation
+                        )
+                    ) {
+                        activeSheet = nil
+                        Task {
+                            await refreshPost()
+                        }
+                    }
+                }
             }
         }
         .popover(
@@ -727,7 +882,7 @@ struct PostDetailView: View {
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.PostDetailQuery(id: postId, repliesAfter: nil),
-                cachePolicy: .networkFirst
+                cachePolicy: .networkOnly
             )
 
             if let errors = response.errors, !errors.isEmpty {
@@ -741,6 +896,14 @@ struct PostDetailView: View {
             }
 
             post = fetchedPost
+            let article = response.data?.node?.asArticle
+            articleContents = article?.contents ?? []
+            articleTags = article?.tags ?? []
+            articleLanguage = article?.language
+            articleAllowLlmTranslation = article?.allowLlmTranslation ?? true
+            translatedArticleContent = nil
+            translatedArticleLanguage = nil
+            showingOriginalArticle = true
             replyEdges = fetchedPost.replies.edges
             hasMoreReplies = fetchedPost.replies.pageInfo.hasNextPage
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
@@ -749,6 +912,9 @@ struct PostDetailView: View {
             reactionsCount = fetchedPost.engagementStats.reactions
             reactionGroups = fetchedPost.reactionGroupsSnapshot
         } catch {
+            #if DEBUG
+            NSLog("PostDetail fetch failed for id \(postId): \(String(describing: error))")
+            #endif
             errorMessage = "Failed to load post: \(error.localizedDescription)"
         }
     }
@@ -798,6 +964,14 @@ struct PostDetailView: View {
             }
 
             post = fetchedPost
+            let article = response.data?.node?.asArticle
+            articleContents = article?.contents ?? []
+            articleTags = article?.tags ?? []
+            articleLanguage = article?.language
+            articleAllowLlmTranslation = article?.allowLlmTranslation ?? true
+            translatedArticleContent = nil
+            translatedArticleLanguage = nil
+            showingOriginalArticle = true
             replyEdges = fetchedPost.replies.edges
             hasMoreReplies = fetchedPost.replies.pageInfo.hasNextPage
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
@@ -806,7 +980,35 @@ struct PostDetailView: View {
             reactionsCount = fetchedPost.engagementStats.reactions
             reactionGroups = fetchedPost.reactionGroupsSnapshot
         } catch {
+            #if DEBUG
+            NSLog("PostDetail refresh failed for id \(postId): \(String(describing: error))")
+            #endif
             errorMessage = "Failed to load post: \(error.localizedDescription)"
+        }
+    }
+
+    private func loadArticleTranslation(postId: String, language: String) async {
+        let normalizedLanguage = normalizeLanguageIdentifier(language)
+        if translatedArticleLanguage == normalizedLanguage, translatedArticleContent != nil {
+            showingOriginalArticle = false
+            return
+        }
+
+        isLoadingArticleTranslation = true
+        defer { isLoadingArticleTranslation = false }
+
+        do {
+            let response = try await apolloClient.fetch(
+                query: HackersPub.ArticleTranslationQuery(id: postId, language: normalizedLanguage),
+                cachePolicy: .networkOnly
+            )
+            if let content = response.data?.node?.asArticle?.contents.first {
+                translatedArticleContent = content
+                translatedArticleLanguage = normalizedLanguage
+                showingOriginalArticle = false
+            }
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

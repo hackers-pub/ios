@@ -309,7 +309,7 @@ final class HTMLHeightCache: @unchecked Sendable {
             context.coordinator.webView = webView
             // Build a content key that captures every variable affecting the rendered output
             let contentKey = HTMLContentKey(
-                measurementVersion: 6,
+                measurementVersion: 7,
                 html: html,
                 fontName: fontSettings.selectedFontName,
                 sizeMultiplier: fontSettings.fontSizeMultiplier,

@@ -61,11 +61,27 @@ public extension HackersPub {
     }
 
     private static func foundationObject(from value: JSONValue) -> Any {
+      foundationObject(fromAny: value)
+    }
+
+    private static func foundationObject(fromAny value: Any) -> Any {
       if let object = value as? JSONObject {
-        return object.mapValues { foundationObject(from: $0) }
+        return object.mapValues { foundationObject(fromAny: $0) }
       }
-      if let array = value as? [JSONValue] {
-        return array.map { foundationObject(from: $0) }
+      if let object = value as? [AnyHashable: Any] {
+        let pairs = object.map { key, value in
+          (String(describing: key.base), foundationObject(fromAny: value))
+        }
+        return Dictionary(uniqueKeysWithValues: pairs)
+      }
+      if let object = value as? [String: Any] {
+        return object.mapValues { foundationObject(fromAny: $0) }
+      }
+      if let array = value as? [Any] {
+        return array.map { foundationObject(fromAny: $0) }
+      }
+      if let hashable = value as? AnyHashable {
+        return hashable.base
       }
       if value is NSNull {
         return NSNull()

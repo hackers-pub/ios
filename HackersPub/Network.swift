@@ -42,10 +42,9 @@ struct LoggingInterceptor: GraphQLInterceptor {
 struct CustomInterceptorProvider: InterceptorProvider {
     func graphQLInterceptors<Operation: GraphQLOperation>(for operation: Operation) -> [any GraphQLInterceptor] {
         return [
-            LoggingInterceptor()
-        ] + DefaultInterceptorProvider.shared.graphQLInterceptors(for: operation) + [
+            LoggingInterceptor(),
             AuthInterceptor()
-        ]
+        ] + DefaultInterceptorProvider.shared.graphQLInterceptors(for: operation)
     }
 }
 

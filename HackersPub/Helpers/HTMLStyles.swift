@@ -58,9 +58,19 @@ enum HTMLStyles {
             border-left: 3px solid light-dark(rgba(128, 128, 128, 0.3), rgba(128, 128, 128, 0.5));
             color: light-dark(rgba(0, 0, 0, 0.7), rgba(255, 255, 255, 0.7));
         }
-        ul, ol {
+        ul {
             margin: 0.25em 0;
             padding-left: 1.5em;
+        }
+        ol {
+            margin: 0.25em 0;
+            padding-left: 2.75em;
+        }
+        li {
+            padding-left: 0.15em;
+        }
+        li::marker {
+            font-variant-numeric: tabular-nums;
         }
         a {
             color: #007AFF;
@@ -138,9 +148,19 @@ enum HTMLStyles {
             border-left: 3px solid light-dark(rgba(128, 128, 128, 0.3), rgba(128, 128, 128, 0.5));
             color: light-dark(rgba(0, 0, 0, 0.7), rgba(255, 255, 255, 0.7));
         }
-        ul, ol {
+        ul {
             margin: 0.5em 0;
             padding-left: 2em;
+        }
+        ol {
+            margin: 0.5em 0;
+            padding-left: 2.75em;
+        }
+        li {
+            padding-left: 0.15em;
+        }
+        li::marker {
+            font-variant-numeric: tabular-nums;
         }
         a {
             color: #007AFF;
