@@ -2,6 +2,13 @@ import Foundation
 @preconcurrency import Apollo
 import ApolloAPI
 
+struct PasskeyInfo: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let created: String
+    let lastUsed: String?
+}
+
 @Observable
 @MainActor
 class AuthManager {
@@ -9,6 +16,8 @@ class AuthManager {
 
     private(set) var sessionToken: String?
     private(set) var currentAccount: HackersPub.ViewerQuery.Data.Viewer?
+    private(set) var passkeys: [PasskeyInfo] = []
+    private(set) var isLoadingPasskeys = false
     private(set) var isAuthenticated = false
     private(set) var isLoading = true
 
@@ -139,6 +148,96 @@ class AuthManager {
         await fetchViewer()
     }
 
+    func signInWithPasskey() async throws {
+        let sessionId = UUID().uuidString
+        let optionsResponse = try await apolloClient.perform(
+            mutation: HackersPub.GetPasskeyAuthenticationOptionsMutation(sessionId: sessionId)
+        )
+        guard let optionsJSON = optionsResponse.data?.getPasskeyAuthenticationOptions else {
+            throw AuthError.passkeyFailed
+        }
+
+        let options = try PasskeyAuthenticationOptions(json: optionsJSON)
+        let authenticationResponse = try await PasskeyService.shared.authenticate(options: options)
+        let loginResponse = try await apolloClient.perform(
+            mutation: HackersPub.LoginByPasskeyMutation(
+                sessionId: sessionId,
+                authenticationResponse: authenticationResponse
+            )
+        )
+
+        guard let session = loginResponse.data?.loginByPasskey else {
+            throw AuthError.passkeyFailed
+        }
+
+        sessionToken = session.id
+        try await KeychainHelper.shared.save(key: "sessionToken", value: session.id)
+        await fetchViewer()
+    }
+
+    func loadPasskeys() async {
+        guard isAuthenticated else {
+            passkeys = []
+            return
+        }
+
+        isLoadingPasskeys = true
+        defer { isLoadingPasskeys = false }
+
+        do {
+            let response = try await apolloClient.fetch(
+                query: HackersPub.ViewerPasskeysQuery(),
+                cachePolicy: .networkOnly
+            )
+            passkeys = response.data?.viewer?.passkeys.edges.map {
+                PasskeyInfo(
+                    id: $0.node.id,
+                    name: $0.node.name,
+                    created: $0.node.created,
+                    lastUsed: $0.node.lastUsed
+                )
+            } ?? []
+        } catch {
+            print("Error loading passkeys: \(error)")
+        }
+    }
+
+    func registerPasskey(name: String) async throws {
+        guard let accountId = currentAccount?.id else {
+            throw AuthError.passkeyFailed
+        }
+
+        let optionsResponse = try await apolloClient.perform(
+            mutation: HackersPub.GetPasskeyRegistrationOptionsMutation(accountId: accountId)
+        )
+        guard let optionsJSON = optionsResponse.data?.getPasskeyRegistrationOptions else {
+            throw AuthError.passkeyFailed
+        }
+
+        let options = try PasskeyRegistrationOptions(json: optionsJSON)
+        let registrationResponse = try await PasskeyService.shared.register(options: options)
+        let response = try await apolloClient.perform(
+            mutation: HackersPub.VerifyPasskeyRegistrationMutation(
+                accountId: accountId,
+                name: name,
+                registrationResponse: registrationResponse
+            )
+        )
+
+        guard response.data?.verifyPasskeyRegistration.verified == true else {
+            throw AuthError.passkeyFailed
+        }
+
+        await loadPasskeys()
+    }
+
+    func revokePasskey(id: String) async throws {
+        _ = try await apolloClient.perform(
+            mutation: HackersPub.RevokePasskeyMutation(passkeyId: id)
+        )
+        passkeys.removeAll { $0.id == id }
+    }
+
     func signOut() async {
         // Try to revoke the session on the server
         if let token = sessionToken {
@@ -155,6 +254,7 @@ class AuthManager {
         // Clear local state
         sessionToken = nil
         currentAccount = nil
+        passkeys = []
         isAuthenticated = false
 
         // Clear from keychain
@@ -172,6 +272,7 @@ enum AuthError: LocalizedError {
     case loginFailed
     case accountNotFound
     case verificationFailed
+    case passkeyFailed
 
     var errorDescription: String? {
         switch self {
@@ -181,6 +282,8 @@ enum AuthError: LocalizedError {
             return "Account not found. Please check your username."
         case .verificationFailed:
             return "Verification failed. Please check your code."
+        case .passkeyFailed:
+            return NSLocalizedString("passkey.error.failed", comment: "Passkey operation failed error")
         }
     }
 }

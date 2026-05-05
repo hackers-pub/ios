@@ -34,6 +34,8 @@ public extension HackersPub {
       case "AccountNotFoundError": return HackersPub.Objects.AccountNotFoundError
       case "AccountNotificationsConnection": return HackersPub.Objects.AccountNotificationsConnection
       case "AccountNotificationsConnectionEdge": return HackersPub.Objects.AccountNotificationsConnectionEdge
+      case "AccountPasskeysConnection": return HackersPub.Objects.AccountPasskeysConnection
+      case "AccountPasskeysConnectionEdge": return HackersPub.Objects.AccountPasskeysConnectionEdge
       case "Actor": return HackersPub.Objects.Actor
       case "ActorPostsConnection": return HackersPub.Objects.ActorPostsConnection
       case "ActorPostsConnectionEdge": return HackersPub.Objects.ActorPostsConnectionEdge
@@ -61,6 +63,7 @@ public extension HackersPub {
       case "NotificationActorsConnectionEdge": return HackersPub.Objects.NotificationActorsConnectionEdge
       case "PageInfo": return HackersPub.Objects.PageInfo
       case "Passkey": return HackersPub.Objects.Passkey
+      case "PasskeyRegistrationResult": return HackersPub.Objects.PasskeyRegistrationResult
       case "Poll": return HackersPub.Objects.Poll
       case "PostEngagementStats": return HackersPub.Objects.PostEngagementStats
       case "PostLink": return HackersPub.Objects.PostLink

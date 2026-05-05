@@ -25,6 +25,7 @@
 "signIn.verificationCode" = "인증 코드";
 "signIn.verify" = "확인";
 "signIn.useDifferentUsername" = "다른 사용자 이름 사용";
+"signIn.passkey" = "패스키로 로그인";
 "signIn.unexpectedError" = "예기치 않은 오류가 발생했습니다. 다시 시도해 주세요.";
 
 /* Settings */
@@ -40,6 +41,18 @@
 "settings.clearCacheAlert.cancel" = "취소";
 "settings.clearCacheAlert.clear" = "삭제";
 "settings.done" = "완료";
+"settings.passkeys" = "패스키";
+"settings.passkeys.loading" = "패스키를 불러오는 중...";
+"settings.passkeys.empty" = "등록된 패스키가 없습니다";
+"settings.passkeys.add" = "패스키 추가";
+"settings.passkeys.name" = "패스키 이름";
+"settings.passkeys.addMessage" = "이 기기에서 해커스펍 계정에 사용할 패스키를 생성합니다.";
+"settings.passkeys.remove" = "패스키 삭제";
+"settings.passkeys.removeMessage" = "\"%@\" 패스키를 계정에서 삭제할까요?";
+"settings.passkeys.created" = "%@에 생성됨";
+"settings.passkeys.lastUsed" = "%@에 마지막 사용";
+"settings.passkeys.footer" = "패스키를 사용하면 지원되는 Apple 기기에서 이메일 코드 없이 로그인할 수 있습니다.";
+"settings.passkeys.errorTitle" = "패스키 오류";
 
 /* Compose */
 "compose.placeholder" = "무슨 생각을 하고 계신가요?";
@@ -114,6 +127,14 @@
 "common.newPost" = "새 글";
 "common.error" = "오류";
 "common.cancel" = "취소";
+
+/* Passkeys */
+"passkey.error.failed" = "패스키 작업에 실패했습니다. 다시 시도해주세요.";
+"passkey.error.invalidOptions" = "서버가 올바르지 않은 패스키 옵션을 반환했습니다.";
+"passkey.error.invalidChallenge" = "서버가 올바르지 않은 패스키 챌린지를 반환했습니다.";
+"passkey.error.invalidUserID" = "서버가 올바르지 않은 패스키 사용자 ID를 반환했습니다.";
+"passkey.error.unsupportedCredential" = "지원하지 않는 패스키 응답입니다.";
+"passkey.error.authorizationFailed" = "패스키 인증에 실패했습니다.";
 
 /* Date formatting */
 "date.lessThanMinute" = "1분 미만 전";

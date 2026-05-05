@@ -25,6 +25,7 @@
 "signIn.verificationCode" = "Verification Code";
 "signIn.verify" = "Verify";
 "signIn.useDifferentUsername" = "Use Different Username";
+"signIn.passkey" = "Sign in with Passkey";
 "signIn.unexpectedError" = "An unexpected error occurred. Please try again.";
 
 /* Settings */
@@ -40,6 +41,18 @@
 "settings.clearCacheAlert.cancel" = "Cancel";
 "settings.clearCacheAlert.clear" = "Clear";
 "settings.done" = "Done";
+"settings.passkeys" = "Passkeys";
+"settings.passkeys.loading" = "Loading passkeys...";
+"settings.passkeys.empty" = "No passkeys registered";
+"settings.passkeys.add" = "Add Passkey";
+"settings.passkeys.name" = "Passkey name";
+"settings.passkeys.addMessage" = "Create a passkey on this device for your Hackers' Pub account.";
+"settings.passkeys.remove" = "Remove Passkey";
+"settings.passkeys.removeMessage" = "Remove \"%@\" from your account?";
+"settings.passkeys.created" = "Created %@";
+"settings.passkeys.lastUsed" = "Last used %@";
+"settings.passkeys.footer" = "Passkeys let you sign in without an email code on supported Apple devices.";
+"settings.passkeys.errorTitle" = "Passkey Error";
 
 /* Compose */
 "compose.placeholder" = "What are you thinking?";
@@ -114,6 +127,14 @@
 "common.newPost" = "New Post";
 "common.error" = "Error";
 "common.cancel" = "Cancel";
+
+/* Passkeys */
+"passkey.error.failed" = "Passkey operation failed. Please try again.";
+"passkey.error.invalidOptions" = "The server returned invalid passkey options.";
+"passkey.error.invalidChallenge" = "The server returned an invalid passkey challenge.";
+"passkey.error.invalidUserID" = "The server returned an invalid passkey user ID.";
+"passkey.error.unsupportedCredential" = "This passkey response is not supported.";
+"passkey.error.authorizationFailed" = "Passkey authorization failed.";
 
 /* Date formatting */
 "date.lessThanMinute" = "less than a minute ago";
