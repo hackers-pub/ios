@@ -8,6 +8,7 @@ enum PasskeyServiceError: LocalizedError {
     case invalidChallenge
     case invalidUserID
     case unsupportedCredential
+    case authorizationUnavailable
     case authorizationFailed
 
     var errorDescription: String? {
@@ -20,6 +21,8 @@ enum PasskeyServiceError: LocalizedError {
             return NSLocalizedString("passkey.error.invalidUserID", comment: "Invalid passkey user ID error")
         case .unsupportedCredential:
             return NSLocalizedString("passkey.error.unsupportedCredential", comment: "Unsupported passkey credential error")
+        case .authorizationUnavailable:
+            return NSLocalizedString("passkey.error.authorizationUnavailable", comment: "Passkey authorization unavailable error")
         case .authorizationFailed:
             return NSLocalizedString("passkey.error.authorizationFailed", comment: "Passkey authorization failed error")
         }
@@ -148,6 +151,8 @@ final class PasskeyService: NSObject {
     static let shared = PasskeyService()
 
     private var continuation: CheckedContinuation<ASAuthorization, Error>?
+    private var authorizationController: ASAuthorizationController?
+    private var presentationAnchor: ASPresentationAnchor?
 
     private override init() {}
 
@@ -217,14 +222,29 @@ final class PasskeyService: NSObject {
         guard continuation == nil else {
             throw PasskeyServiceError.authorizationFailed
         }
+        guard let presentationAnchor = Self.currentPresentationAnchor() else {
+            throw PasskeyServiceError.authorizationFailed
+        }
 
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
+            self.presentationAnchor = presentationAnchor
             let controller = ASAuthorizationController(authorizationRequests: [request])
             controller.delegate = self
             controller.presentationContextProvider = self
+            self.authorizationController = controller
             controller.performRequests()
         }
+    }
+
+    private static func currentPresentationAnchor() -> ASPresentationAnchor? {
+        let windowScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+        if let keyWindow = windowScenes.flatMap(\.windows).first(where: \.isKeyWindow) {
+            return keyWindow
+        }
+        return windowScenes.first.map(ASPresentationAnchor.init(windowScene:))
     }
 }
 
@@ -233,32 +253,31 @@ extension PasskeyService: ASAuthorizationControllerDelegate {
         Task { @MainActor in
             continuation?.resume(returning: authorization)
             continuation = nil
+            authorizationController = nil
+            presentationAnchor = nil
         }
     }
 
     nonisolated func authorizationController(controller _: ASAuthorizationController, didCompleteWithError error: Error) {
         Task { @MainActor in
-            continuation?.resume(throwing: error)
+            let serviceError: PasskeyServiceError
+            if let authorizationError = error as? ASAuthorizationError,
+               authorizationError.code == .failed {
+                serviceError = .authorizationUnavailable
+            } else {
+                serviceError = .authorizationFailed
+            }
+            continuation?.resume(throwing: serviceError)
             continuation = nil
+            authorizationController = nil
+            presentationAnchor = nil
         }
     }
 }
 
 extension PasskeyService: ASAuthorizationControllerPresentationContextProviding {
-    nonisolated func presentationAnchor(for _: ASAuthorizationController) -> ASPresentationAnchor {
-        if Thread.isMainThread {
-            return Self.currentPresentationAnchor()
-        }
-        return DispatchQueue.main.sync {
-            Self.currentPresentationAnchor()
-        }
-    }
-
-    nonisolated private static func currentPresentationAnchor() -> ASPresentationAnchor {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+    func presentationAnchor(for _: ASAuthorizationController) -> ASPresentationAnchor {
+        presentationAnchor ?? Self.currentPresentationAnchor()!
     }
 }
 

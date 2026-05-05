@@ -156,6 +156,7 @@ struct SignInView: View {
     }
 
     private func signInWithPasskey() async {
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -163,6 +164,8 @@ struct SignInView: View {
         do {
             try await authManager.signInWithPasskey()
         } catch let error as AuthError {
+            errorMessage = error.localizedDescription
+        } catch let error as PasskeyServiceError {
             errorMessage = error.localizedDescription
         } catch {
             errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")

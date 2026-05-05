@@ -58,7 +58,7 @@ struct ContentView: View {
                         .textInputAutocapitalization(.never)
                 }
 
-                Tab(NSLocalizedString("tab.signIn", comment: "Sign in tab"), systemImage: "rectangle.portrait.and.arrow.right", value: "timeline") {
+                Tab(NSLocalizedString("tab.signIn", comment: "Sign in tab"), systemImage: "rectangle.portrait.and.arrow.right", value: "signIn") {
                     SignInView()
                 }
             }
@@ -79,7 +79,9 @@ struct ContentView: View {
     }
 
     private func updateCurrentTab() {
-        navigationCoordinator.setCurrentTab(AppTab(rawValue: selectedTab) ?? .timeline)
+        let tab = AppTab(rawValue: selectedTab) ?? .timeline
+        guard navigationCoordinator.currentTab != tab else { return }
+        navigationCoordinator.setCurrentTab(tab)
     }
 }
 

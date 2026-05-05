@@ -134,6 +134,7 @@
 "passkey.error.invalidChallenge" = "The server returned an invalid passkey challenge.";
 "passkey.error.invalidUserID" = "The server returned an invalid passkey user ID.";
 "passkey.error.unsupportedCredential" = "This passkey response is not supported.";
+"passkey.error.authorizationUnavailable" = "Passkeys are unavailable in this build. Check app signing and Associated Domains.";
 "passkey.error.authorizationFailed" = "Passkey authorization failed.";
 
 /* Date formatting */
