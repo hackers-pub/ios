@@ -48,8 +48,10 @@ class AuthManager {
         }
 
         do {
-            // Fetch viewer data (will use cache if available, then network)
-            let response = try await apolloClient.fetch(query: HackersPub.ViewerQuery())
+            let response = try await apolloClient.fetch(
+                query: HackersPub.ViewerQuery(),
+                cachePolicy: .networkOnly
+            )
             currentAccount = response.data?.viewer
             isAuthenticated = currentAccount != nil
         } catch {
@@ -157,6 +159,12 @@ class AuthManager {
 
         // Clear from keychain
         try? await KeychainHelper.shared.delete(key: "sessionToken")
+
+        do {
+            try await apolloClient.clearCache()
+        } catch {
+            print("Error clearing Apollo cache: \(error)")
+        }
     }
 }
 
