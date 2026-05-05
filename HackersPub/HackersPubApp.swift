@@ -76,6 +76,7 @@ enum AppTab: String {
 }
 
 @Observable
+@MainActor
 class NavigationCoordinator {
     var paths: [AppTab: [NavigationDestination]] = [:]
     var currentTab: AppTab = .timeline
@@ -83,6 +84,13 @@ class NavigationCoordinator {
     var path: [NavigationDestination] {
         get { paths[currentTab] ?? [] }
         set { paths[currentTab] = newValue }
+    }
+
+    func pathBinding(for tab: AppTab) -> Binding<[NavigationDestination]> {
+        Binding(
+            get: { self.paths[tab] ?? [] },
+            set: { self.paths[tab] = $0 }
+        )
     }
 
     func navigateToProfile(handle: String) {

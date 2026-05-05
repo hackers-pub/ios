@@ -23,7 +23,7 @@ struct NotificationsView: View {
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
-        NavigationStack(path: Bindable(navigationCoordinator).path) {
+        NavigationStack(path: navigationCoordinator.pathBinding(for: .notifications)) {
             Group {
                 if isLoading && notifications.isEmpty {
                     ProgressView()

@@ -161,7 +161,7 @@ struct TimelineView: View {
     }
 
     var body: some View {
-        NavigationStack(path: Bindable(navigationCoordinator).path) {
+        NavigationStack(path: navigationCoordinator.pathBinding(for: .global)) {
             Group {
                 if isLoading && posts.isEmpty {
                     ProgressView()
@@ -321,7 +321,7 @@ struct PersonalTimelineView: View {
     }
 
     var body: some View {
-        NavigationStack(path: Bindable(navigationCoordinator).path) {
+        NavigationStack(path: navigationCoordinator.pathBinding(for: .timeline)) {
             Group {
                 if isLoading && posts.isEmpty {
                     ProgressView()
@@ -480,7 +480,7 @@ struct LocalTimelineView: View {
     }
 
     var body: some View {
-        NavigationStack(path: Bindable(navigationCoordinator).path) {
+        NavigationStack(path: navigationCoordinator.pathBinding(for: .local)) {
             Group {
                 if isLoading && posts.isEmpty {
                     ProgressView()

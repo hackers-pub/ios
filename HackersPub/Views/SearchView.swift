@@ -53,7 +53,7 @@ struct SearchView: View {
     }
 
     var body: some View {
-        NavigationStack(path: Bindable(navigationCoordinator).path) {
+        NavigationStack(path: navigationCoordinator.pathBinding(for: .search)) {
             Group {
                 if searchText.isEmpty {
                     if !recentSearches.isEmpty {

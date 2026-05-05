@@ -25,7 +25,7 @@ struct ExploreView: View {
     }
 
     var body: some View {
-        NavigationStack(path: Bindable(navigationCoordinator).path) {
+        NavigationStack(path: navigationCoordinator.pathBinding(for: .explore)) {
             Group {
                 switch selectedScope {
                 case .local:
