@@ -9,12 +9,21 @@ enum HTMLContentRenderMode {
 }
 
 struct MediaItem: Identifiable {
-    let id = UUID()
+    let id: String
     let url: String
     let thumbnailUrl: String?
     let alt: String?
     let width: Int?
     let height: Int?
+
+    init(id: String? = nil, url: String, thumbnailUrl: String?, alt: String?, width: Int?, height: Int?) {
+        self.url = url
+        self.thumbnailUrl = thumbnailUrl
+        self.alt = alt
+        self.width = width
+        self.height = height
+        self.id = id ?? url
+    }
 }
 
 struct HTMLContentView: View {

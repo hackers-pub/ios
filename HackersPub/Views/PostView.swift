@@ -847,6 +847,22 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
     }
 }
 
+struct PostEngagementSnapshot: Equatable {
+    let hasShared: Bool
+    let shares: Int
+    let reactions: Int
+    let reactionGroups: [ReactionGroupSnapshot]
+}
+
+extension PostEngagementSnapshot {
+    init<P: PostProtocol & ReactionCapablePostProtocol>(post: P) {
+        hasShared = post.viewerHasShared
+        shares = post.engagementStats.shares
+        reactions = post.engagementStats.reactions
+        reactionGroups = post.reactionGroupsSnapshot
+    }
+}
+
 struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     private enum ActiveSheet: Identifiable {
         case reply
@@ -941,6 +957,10 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         reactionGroups.contains(where: { $0.viewerHasReacted })
     }
 
+    private var engagementSnapshot: PostEngagementSnapshot {
+        PostEngagementSnapshot(post: post)
+    }
+
     private var canDeleteCurrentPost: Bool {
         guard let viewerHandle = authManager.currentAccount?.handle else { return false }
         let isViewerAuthor = viewerHandle.caseInsensitiveCompare(post.actor.handle) == .orderedSame
@@ -967,6 +987,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     private func mediaItems<M: MediaProtocol>(from media: [M]) -> [MediaItem] {
         media.map {
             MediaItem(
+                id: $0.url,
                 url: $0.url,
                 thumbnailUrl: $0.thumbnailUrl,
                 alt: $0.alt,
@@ -1581,6 +1602,12 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             sharesCount = post.engagementStats.shares
             reactionsCount = post.engagementStats.reactions
             reactionGroups = post.reactionGroupsSnapshot
+        }
+        .onChange(of: engagementSnapshot) { _, snapshot in
+            hasShared = snapshot.hasShared
+            sharesCount = snapshot.shares
+            reactionsCount = snapshot.reactions
+            reactionGroups = snapshot.reactionGroups
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
