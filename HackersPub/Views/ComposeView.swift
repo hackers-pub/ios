@@ -3,6 +3,7 @@ import SwiftUI
 import Kingfisher
 import Markdown
 import NaturalLanguage
+import PhotosUI
 import UIKit
 
 struct ComposeView: View {
@@ -23,6 +24,10 @@ struct ComposeView: View {
     @State private var mentionSuggestions: [HackersPub.SearchActorsByHandleQuery.Data.SearchActorsByHandle] = []
     @State private var isLoadingMentionSuggestions = false
     @State private var mentionSearchTask: Task<Void, Never>?
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var pendingPhotoAttachments: [PendingPhotoAttachment] = []
+    @State private var editingPhotoAttachment: PendingPhotoAttachmentEditorTarget?
+    @State private var isLoadingPhotoAttachments = false
     @AppStorage("lastSelectedLocale") private var lastSelectedLocale: String = {
         Locale.current.language.languageCode?.identifier ?? "en"
     }()
@@ -34,7 +39,11 @@ struct ComposeView: View {
     }
 
     private var isBusy: Bool {
-        isPosting
+        isPosting || isLoadingPhotoAttachments
+    }
+
+    private var canPost: Bool {
+        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingPhotoAttachments.isEmpty
     }
 
     private var shouldShowMentionSuggestions: Bool {
@@ -202,6 +211,10 @@ struct ComposeView: View {
                 .animation(.easeInOut(duration: 0.25), value: showPreview)
                 .animation(.easeInOut(duration: 0.25), value: isLoadingPreview)
 
+                if !pendingPhotoAttachments.isEmpty || isLoadingPhotoAttachments {
+                    photoAttachmentsSection
+                }
+
                 Divider()
 
                 // Settings
@@ -241,6 +254,13 @@ struct ComposeView: View {
                     clearMentionSuggestions()
                 }
             }
+            .onChange(of: selectedPhotoItems) { _, newItems in
+                guard !newItems.isEmpty else { return }
+                Task {
+                    await loadPhotoAttachments(from: newItems)
+                    selectedPhotoItems = []
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -253,13 +273,29 @@ struct ComposeView: View {
                     .disabled(isBusy)
                 }
 
+                ToolbarItem(placement: .topBarTrailing) {
+                    PhotosPicker(
+                        selection: $selectedPhotoItems,
+                        maxSelectionCount: 10,
+                        matching: .images
+                    ) {
+                        Image(systemName: "photo.badge.plus")
+                    }
+                    .accessibilityLabel(NSLocalizedString("compose.photos.add", comment: "Add photos button"))
+                    .disabled(isBusy)
+                }
+
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(NSLocalizedString("compose.post", comment: "Post button")) {
+                    Button {
                         Task {
                             await post()
                         }
+                    } label: {
+                        Label(NSLocalizedString("compose.post", comment: "Post button"), systemImage: "paperplane")
+                            .labelStyle(.iconOnly)
                     }
-                    .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isBusy)
+                    .accessibilityLabel(NSLocalizedString("compose.post", comment: "Post button"))
+                    .disabled(!canPost || isBusy)
                 }
             }
             .alert(NSLocalizedString("compose.error.title", comment: "Error alert title"), isPresented: .constant(errorMessage != nil)) {
@@ -276,10 +312,51 @@ struct ComposeView: View {
                     ProgressView()
                         .padding()
                         .background(.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            .sheet(item: $editingPhotoAttachment) { target in
+                if let index = pendingPhotoAttachments.firstIndex(where: { $0.id == target.id }) {
+                    PhotoAttachmentDetailsSheet(attachment: $pendingPhotoAttachments[index])
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var photoAttachmentsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(NSLocalizedString("compose.photos.title", comment: "Selected photos title"), systemImage: "photo")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if isLoadingPhotoAttachments {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 12) {
+                    ForEach($pendingPhotoAttachments) { $attachment in
+                        PendingPhotoAttachmentView(
+                            attachment: $attachment,
+                            onEdit: {
+                                editingPhotoAttachment = PendingPhotoAttachmentEditorTarget(id: attachment.id)
+                            },
+                            onDelete: {
+                                removePhotoAttachment(id: attachment.id)
+                            }
+                        )
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(Color.secondary.opacity(0.06))
     }
 
     @ViewBuilder
@@ -658,16 +735,55 @@ struct ComposeView: View {
         }
     }
 
+    private func loadPhotoAttachments(from items: [PhotosPickerItem]) async {
+        isLoadingPhotoAttachments = true
+        defer { isLoadingPhotoAttachments = false }
+
+        for item in items {
+            do {
+                guard let data = try await item.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data)
+                else {
+                    continue
+                }
+                pendingPhotoAttachments.append(PendingPhotoAttachment(data: data, image: image))
+            } catch {
+                print("Error loading photo attachment: \(error)")
+                errorMessage = String(format: NSLocalizedString("compose.photos.error.loadFailed", comment: "Photo load failure"), error.localizedDescription)
+            }
+        }
+    }
+
+    private func removePhotoAttachment(id: PendingPhotoAttachment.ID) {
+        pendingPhotoAttachments.removeAll { $0.id == id }
+    }
+
+    private func uploadPhotoAttachments() async throws -> [HackersPub.CreateNoteMediumInput] {
+        var media: [HackersPub.CreateNoteMediumInput] = []
+        for attachment in pendingPhotoAttachments {
+            let uploaded = try await MediumUploadService.shared.uploadImageData(attachment.data)
+            media.append(
+                HackersPub.CreateNoteMediumInput(
+                    alt: attachment.alt.trimmingCharacters(in: .whitespacesAndNewlines),
+                    mediumId: uploaded.id
+                )
+            )
+        }
+        return media
+    }
+
     private func post() async {
         isPosting = true
         defer { isPosting = false }
 
         do {
+            let media = try await uploadPhotoAttachments()
             let response = try await apolloClient.perform(
                 mutation: HackersPub.CreateNoteMutation(
                     content: content,
                     language: lastSelectedLocale,
                     visibility: visibility,
+                    media: media.isEmpty ? [] : .some(media),
                     replyTargetId: replyToPostId.map { .some($0) } ?? nil,
                     quotedPostId: quotedPostId.map { .some($0) } ?? nil
                 )
@@ -688,6 +804,111 @@ struct ComposeView: View {
         } catch {
             print("Error creating note: \(error)")
             errorMessage = String(format: NSLocalizedString("compose.error.failedWithDetails", comment: "Failed to create post error with details"), error.localizedDescription)
+        }
+    }
+}
+
+private struct PendingPhotoAttachment: Identifiable, Equatable {
+    let id = UUID()
+    let data: Data
+    let image: UIImage
+    var alt = ""
+}
+
+private struct PendingPhotoAttachmentEditorTarget: Identifiable {
+    let id: PendingPhotoAttachment.ID
+}
+
+private struct PendingPhotoAttachmentView: View {
+    @Binding var attachment: PendingPhotoAttachment
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack(alignment: .topTrailing) {
+                Image(uiImage: attachment.image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 156, height: 132)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipped()
+
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.62))
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
+                .padding(6)
+                .accessibilityLabel(NSLocalizedString("compose.photos.delete", comment: "Delete photo button"))
+            }
+
+            Button(action: onEdit) {
+                HStack(spacing: 6) {
+                    SwiftUI.Image(systemName: attachment.alt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "text.badge.plus" : "checkmark.circle.fill")
+                        .foregroundStyle(attachment.alt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? SwiftUI.Color.secondary : SwiftUI.Color.green)
+                    Text(
+                        attachment.alt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            ? NSLocalizedString("compose.photos.alt.add", comment: "Add alt text")
+                            : attachment.alt
+                    )
+                    .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(Color(.tertiarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .frame(width: 176, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+private struct PhotoAttachmentDetailsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var attachment: PendingPhotoAttachment
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Image(uiImage: attachment.image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                }
+
+                Section {
+                    TextField(
+                        NSLocalizedString("compose.photos.altPlaceholder", comment: "Photo alt text placeholder"),
+                        text: $attachment.alt,
+                        axis: .vertical
+                    )
+                    .lineLimit(3...6)
+                } footer: {
+                    Text(NSLocalizedString("compose.photos.alt.footer", comment: "Alt text guidance"))
+                }
+            }
+            .navigationTitle(NSLocalizedString("compose.photos.details", comment: "Photo details title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(NSLocalizedString("settings.done", comment: "Done button")) {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
