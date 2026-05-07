@@ -120,9 +120,7 @@ struct SignInView: View {
         defer { isLoading = false }
 
         do {
-            // Use a simple URI template for the verification link
-            // In a real app, this would be a deep link like myapp://verify?token={token}&code={code}
-            let verifyUrl = "https://hackers.pub/verify?token={token}&code={code}"
+            let verifyUrl = "https://hackers.pub/sign/in/{token}?code={code}"
 
             let token = try await authManager.loginByUsername(
                 username: username,

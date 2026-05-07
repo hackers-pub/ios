@@ -4,6 +4,7 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
+		<string>applinks:hackers.pub</string>
 		<string>webcredentials:hackers.pub</string>
 	</array>
 </dict>

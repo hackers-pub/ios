@@ -2,6 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>pub.hackers.HackersPub</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>hackerspub</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>이미지를 저장하려면 사진 보관함 접근 권한이 필요합니다.</string>
 </dict>

@@ -44,19 +44,62 @@ struct HackersPubApp: App {
     }
 
     private func handleURL(_ url: URL) {
-        // Handle hackers.pub URLs like https://hackers.pub/@username
-        guard url.host == "hackers.pub" else { return }
+        guard let route = HackersPubURLRouter.resolve(url) else {
+            if HackersPubURLRouter.isHackersPubWebURL(url) {
+                externalURLRouter.open(url)
+            }
+            return
+        }
 
-        let urlPath = url.path
-        if urlPath.hasPrefix("/@") {
-            let handle = String(urlPath.dropFirst(2)) // Remove /@
-            navigationCoordinator.navigateToProfile(handle: handle)
+        switch route {
+        case .profile(let handle):
+            navigationCoordinator.navigateToProfile(
+                handle: handle,
+                on: authManager.isAuthenticated ? .timeline : .local
+            )
+
+        case .postURL(let urlString):
+            let tab: AppTab = authManager.isAuthenticated ? .timeline : .local
+            navigationCoordinator.setCurrentTab(tab, requested: true)
+            Task {
+                do {
+                    if let postID = try await DeepLinkPostResolver.resolvePostID(for: urlString) {
+                        await MainActor.run {
+                            navigationCoordinator.navigateToPost(id: postID, on: tab)
+                        }
+                    } else {
+                        openFallbackURL(urlString)
+                    }
+                } catch {
+                    print("Error resolving post URL: \(error)")
+                    openFallbackURL(urlString)
+                }
+            }
+
+        case .signInVerification(let token, let code):
+            navigationCoordinator.setCurrentTab(.signIn, requested: true)
+            Task {
+                do {
+                    try await authManager.completeLoginChallenge(token: token, code: code)
+                } catch {
+                    print("Error completing sign-in link: \(error)")
+                }
+            }
+
+        case .tagSearch(let tag):
+            navigationCoordinator.openSearch(query: tag)
         }
     }
 
     private func setupImageCache() {
         let cache = Kingfisher.ImageCache.default
         cache.memoryStorage.config.countLimit = 50
+    }
+
+    @MainActor
+    private func openFallbackURL(_ urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+        externalURLRouter.open(url)
     }
 }
 
@@ -80,6 +123,8 @@ enum AppTab: String {
 class NavigationCoordinator {
     var paths: [AppTab: [NavigationDestination]] = [:]
     var currentTab: AppTab = .timeline
+    var requestedSearchText: String?
+    private(set) var hasRequestedTab = false
 
     var path: [NavigationDestination] {
         get { paths[currentTab] ?? [] }
@@ -94,18 +139,62 @@ class NavigationCoordinator {
     }
 
     func navigateToProfile(handle: String) {
-        path.append(.profile(handle: handle))
+        append(.profile(handle: handle), to: currentTab)
+    }
+
+    func navigateToProfile(handle: String, on tab: AppTab) {
+        append(.profile(handle: handle), to: tab, requested: true)
     }
 
     func navigateToPost(id: String) {
-        path.append(.post(id: id))
+        append(.post(id: id), to: currentTab)
+    }
+
+    func navigateToPost(id: String, on tab: AppTab) {
+        append(.post(id: id), to: tab)
     }
 
     func popToRoot() {
         path.removeAll()
     }
 
-    func setCurrentTab(_ tab: AppTab) {
+    func setCurrentTab(_ tab: AppTab, requested: Bool = false) {
+        if requested {
+            hasRequestedTab = true
+        }
         currentTab = tab
+    }
+
+    func openSearch(query: String) {
+        requestedSearchText = query
+        setCurrentTab(.search, requested: true)
+    }
+
+    func consumeRequestedTab() {
+        hasRequestedTab = false
+    }
+
+    func hasPath(for tab: AppTab) -> Bool {
+        !(paths[tab]?.isEmpty ?? true)
+    }
+
+    func movePath(from source: AppTab, to destination: AppTab) {
+        guard let sourcePath = paths[source], !sourcePath.isEmpty else {
+            setCurrentTab(destination)
+            return
+        }
+        var destinationPath = paths[destination] ?? []
+        destinationPath.append(contentsOf: sourcePath)
+        paths[destination] = destinationPath
+        paths[source] = []
+        setCurrentTab(destination)
+    }
+
+    private func append(_ destination: NavigationDestination, to tab: AppTab, requested: Bool = false) {
+        setCurrentTab(tab, requested: requested)
+        var tabPath = paths[tab] ?? []
+        guard tabPath.last != destination else { return }
+        tabPath.append(destination)
+        paths[tab] = tabPath
     }
 }

@@ -65,16 +65,36 @@ struct ContentView: View {
         }
         .task {
             // Set default tab based on auth state
-            selectedTab = authManager.isAuthenticated ? "timeline" : "local"
-            updateCurrentTab()
+            if navigationCoordinator.hasRequestedTab {
+                selectedTab = navigationCoordinator.currentTab.rawValue
+                navigationCoordinator.consumeRequestedTab()
+            } else {
+                selectedTab = authManager.isAuthenticated ? "timeline" : "local"
+                updateCurrentTab()
+            }
+            applyRequestedSearchText()
         }
         .onChange(of: authManager.isAuthenticated) { _, isAuth in
             // Switch to appropriate tab when auth state changes
-            selectedTab = isAuth ? "timeline" : "local"
-            updateCurrentTab()
+            if navigationCoordinator.hasRequestedTab {
+                selectedTab = navigationCoordinator.currentTab.rawValue
+                navigationCoordinator.consumeRequestedTab()
+            } else if migrateDeepLinkPathIfNeeded(isAuthenticated: isAuth) {
+                return
+            } else {
+                selectedTab = isAuth ? "timeline" : "local"
+                updateCurrentTab()
+            }
         }
         .onChange(of: selectedTab) { _, _ in
             updateCurrentTab()
+        }
+        .onChange(of: navigationCoordinator.currentTab) { _, tab in
+            guard selectedTab != tab.rawValue else { return }
+            selectedTab = tab.rawValue
+        }
+        .onChange(of: navigationCoordinator.requestedSearchText) { _, _ in
+            applyRequestedSearchText()
         }
     }
 
@@ -82,6 +102,27 @@ struct ContentView: View {
         let tab = AppTab(rawValue: selectedTab) ?? .timeline
         guard navigationCoordinator.currentTab != tab else { return }
         navigationCoordinator.setCurrentTab(tab)
+    }
+
+    private func applyRequestedSearchText() {
+        guard let query = navigationCoordinator.requestedSearchText else { return }
+        searchText = query
+    }
+
+    private func migrateDeepLinkPathIfNeeded(isAuthenticated: Bool) -> Bool {
+        if isAuthenticated, navigationCoordinator.hasPath(for: .local) {
+            navigationCoordinator.movePath(from: .local, to: .timeline)
+            selectedTab = AppTab.timeline.rawValue
+            return true
+        }
+
+        if !isAuthenticated, navigationCoordinator.hasPath(for: .timeline) {
+            navigationCoordinator.movePath(from: .timeline, to: .local)
+            selectedTab = AppTab.local.rawValue
+            return true
+        }
+
+        return false
     }
 }
 
