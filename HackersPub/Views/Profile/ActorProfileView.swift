@@ -64,6 +64,14 @@ private struct ActorProfileActionMenu: View {
     }
 }
 
+private struct EditableProfileAccount: Identifiable {
+    let account: HackersPub.ViewerQuery.Data.Viewer
+
+    var id: String {
+        account.id
+    }
+}
+
 struct ActorProfileView: View {
     let actor: HackersPub.ActorByHandleQuery.Data.ActorByHandle
 
@@ -76,6 +84,7 @@ struct ActorProfileView: View {
     @State private var endCursor: String?
     @State private var isPerformingAction = false
     @State private var relationshipActionErrorMessage: String?
+    @State private var editableProfileAccount: EditableProfileAccount?
 
     init(actor: HackersPub.ActorByHandleQuery.Data.ActorByHandle) {
         self.actor = actor
@@ -128,7 +137,14 @@ struct ActorProfileView: View {
                         }
                     }
 
-                    if canShowRelationshipControls {
+                    if relationshipState.isViewer {
+                        Button {
+                            presentProfileEditor()
+                        } label: {
+                            Label(NSLocalizedString("profile.edit.title", comment: "Edit profile button"), systemImage: "pencil")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    } else if canShowRelationshipControls {
                         if relationshipState.viewerFollows {
                             Button {
                                 performRelationshipAction(.unfollow)
@@ -230,6 +246,15 @@ struct ActorProfileView: View {
         } message: {
             Text(relationshipActionErrorMessage ?? "")
         }
+        .sheet(item: $editableProfileAccount) { item in
+            NavigationStack {
+                EditProfileView(account: item.account) {
+                    Task {
+                        await fetchProfile(cachePolicy: .networkOnly)
+                    }
+                }
+            }
+        }
         .refreshable {
             await refreshProfile()
         }
@@ -259,6 +284,16 @@ struct ActorProfileView: View {
             } catch {
                 relationshipActionErrorMessage = error.localizedDescription
             }
+        }
+    }
+
+    private func presentProfileEditor() {
+        Task {
+            if authManager.currentAccount == nil {
+                await authManager.fetchViewer()
+            }
+            guard let account = authManager.currentAccount else { return }
+            editableProfileAccount = EditableProfileAccount(account: account)
         }
     }
 
