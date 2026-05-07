@@ -14,7 +14,7 @@
 "nav.search" = "Search";
 "nav.timeline" = "Timeline";
 "nav.notifications" = "Notifications";
-"nav.newPost" = "New Post";
+"nav.newPost" = "New Note";
 "nav.reply" = "Reply";
 
 /* Sign In */
@@ -41,6 +41,8 @@
 "settings.clearCacheAlert.cancel" = "Cancel";
 "settings.clearCacheAlert.clear" = "Clear";
 "settings.done" = "Done";
+"settings.profile" = "Profile";
+"settings.profile.edit" = "Edit Profile";
 "settings.passkeys" = "Passkeys";
 "settings.passkeys.loading" = "Loading passkeys...";
 "settings.passkeys.empty" = "No passkeys registered";
@@ -63,21 +65,35 @@
 "compose.language" = "Language";
 "compose.replyingTo" = "Replying to %@";
 "compose.quoting" = "Quoting";
-"compose.quotingLoading" = "Loading quoted post...";
-"compose.quotingUnavailable" = "Unable to load quoted post.";
+"compose.quotingLoading" = "Loading quoted note...";
+"compose.quotingUnavailable" = "Unable to load quoted note.";
 "compose.mode.edit" = "Edit";
 "compose.mode.preview" = "Preview";
-"compose.post" = "Post";
+"compose.post" = "Publish Note";
 "compose.cancel" = "Cancel";
 "compose.error.title" = "Error";
 "compose.error.invalidInput" = "Invalid input: %@";
-"compose.error.notAuthenticated" = "You must be signed in to post";
-"compose.error.failed" = "Failed to create post";
-"compose.error.failedWithDetails" = "Failed to create post: %@";
+"compose.error.notAuthenticated" = "You must be signed in to publish notes";
+"compose.error.failed" = "Failed to create note";
+"compose.error.failedWithDetails" = "Failed to create note: %@";
 "compose.error.ok" = "OK";
 "compose.preview.empty" = "Content is empty.";
 "compose.preview.rendering" = "Loading Preview...";
 "compose.mentions.searching" = "Searching accounts...";
+"compose.photos.add" = "Add photos";
+"compose.photos.title" = "Photos";
+"compose.photos.delete" = "Remove photo";
+"compose.photos.altPlaceholder" = "Alt text";
+"compose.photos.alt.add" = "Add alt text";
+"compose.photos.alt.footer" = "Describe the important visual details for people using screen readers. Leave blank only when the image is decorative.";
+"compose.photos.details" = "Photo Details";
+"compose.photos.error.loadFailed" = "Failed to load photo: %@";
+"mediaUpload.error.invalidImage" = "The selected image could not be read.";
+"mediaUpload.error.invalidInput" = "The server rejected the image: %@";
+"mediaUpload.error.notAuthenticated" = "You must be signed in to upload images.";
+"mediaUpload.error.uploadTargetFailed" = "Image upload failed with status %d.";
+"mediaUpload.error.failed" = "Image upload failed.";
+"mediaUpload.error.unexpectedResponse" = "Image upload returned an unexpected response during %@.";
 
 /* Timeline */
 "timeline.fediverse" = "Fediverse";
@@ -89,11 +105,11 @@
 "notifications.empty.description" = "When you receive notifications, they'll appear here";
 "notifications.followedYou" = " followed you";
 "notifications.mentionedYou" = " mentioned you";
-"notifications.repliedToPost" = " replied to your post";
-"notifications.quotedPost" = " quoted your post";
-"notifications.reactedToPost" = " reacted to your post";
-"notifications.sharedPost" = " shared your post";
-"notifications.postUnavailable" = "(Post unavailable)";
+"notifications.repliedToPost" = " replied to your note";
+"notifications.quotedPost" = " quoted your note";
+"notifications.reactedToPost" = " reacted to your note";
+"notifications.sharedPost" = " shared your note";
+"notifications.postUnavailable" = "(Note unavailable)";
 "notifications.unknownType" = "Unknown notification type";
 "notifications.and" = " and ";
 "notifications.andOthers" = " and %d others";
@@ -121,11 +137,11 @@
 "search.recentSearches" = "Recent Searches";
 "search.accounts" = "Accounts";
 "search.relatedAccounts" = "Related Accounts";
-"search.posts" = "Posts";
+"search.posts" = "Notes";
 
 /* Common */
 "common.settings" = "Settings";
-"common.newPost" = "New Post";
+"common.newPost" = "New Note";
 "common.error" = "Error";
 "common.cancel" = "Cancel";
 
@@ -191,8 +207,50 @@
 "settings.links" = "Links";
 "settings.links.useInAppBrowser" = "Use in-app browser";
 "settings.links.footer" = "Turn off to open links with your default browser app.";
+"settings.articleComposer.open" = "Write article";
+
+/* Article Composer */
+"articleComposer.title" = "New Article";
+"articleComposer.title.placeholder" = "Title";
+"articleComposer.slug.placeholder" = "Slug";
+"articleComposer.tags.placeholder" = "Tags";
+"articleComposer.language" = "Language";
+"articleComposer.content" = "Content";
+"articleComposer.photo" = "Photo";
+"articleComposer.photo.pick" = "Choose Photo";
+"articleComposer.photo.alt.placeholder" = "Alt text";
+"articleComposer.photo.insert" = "Upload and Insert";
+"articleComposer.photo.footer" = "Images are attached to the saved draft and inserted as Markdown.";
+"articleComposer.saveDraft" = "Save Draft";
+"articleComposer.publish" = "Publish";
+"articleComposer.status.saved" = "Draft saved.";
+"articleComposer.status.photoInserted" = "Photo inserted.";
+"articleComposer.error.saveFailed" = "Failed to save draft.";
+"articleComposer.error.saveFailedWithDetails" = "Failed to save draft: %@";
+"articleComposer.error.attachFailed" = "Failed to attach photo.";
+"articleComposer.error.photoFailedWithDetails" = "Failed to upload photo: %@";
+"articleComposer.error.publishFailed" = "Failed to publish article.";
+"articleComposer.error.publishFailedWithDetails" = "Failed to publish article: %@";
 
 /* Profile Relationship */
+"profile.edit.title" = "Edit Profile";
+"profile.edit.avatar" = "Avatar";
+"profile.edit.avatar.choose" = "Choose Photo";
+"profile.edit.avatar.discard" = "Discard Selected Photo";
+"profile.edit.details" = "Profile Details";
+"profile.edit.name" = "Display Name";
+"profile.edit.bio" = "Bio";
+"profile.edit.save" = "Save";
+"profile.edit.error.title" = "Profile Update Failed";
+"profile.edit.links" = "Links";
+"profile.edit.link.name" = "Link name";
+"profile.edit.link.url" = "URL";
+"profile.edit.link.add" = "Add Link";
+"profile.edit.link.remove" = "Remove Link";
+"profile.edit.link.error.incomplete" = "Enter both a name and URL for each profile link.";
+"article.photos.title" = "Photos";
+"article.photos.add" = "Add photos";
+"article.photos.insert" = "Upload and Insert";
 "profile.tag.followsViewer" = "Follows you";
 "profile.tag.viewerBlocks" = "Blocked";
 "profile.action.follow" = "Follow";
@@ -210,7 +268,7 @@
 
 /* Sneak Peek */
 "sneakpeek.menu.user" = "User";
-"sneakpeek.action.sharePost" = "Share post";
+"sneakpeek.action.sharePost" = "Share note";
 "sneakpeek.action.follow" = "Follow";
 "sneakpeek.action.unfollow" = "Unfollow";
 "sneakpeek.action.block" = "Block";
@@ -231,21 +289,21 @@
 "image.download.error.permissionDenied" = "Photo library permission is required to save images.";
 
 /* Share Confirmation */
-"share.confirm.shareTitle" = "Share this post?";
+"share.confirm.shareTitle" = "Share this note?";
 "share.confirm.shareAction" = "Share";
-"share.confirm.unshareTitle" = "Undo share for this post?";
+"share.confirm.unshareTitle" = "Undo share for this note?";
 "share.confirm.unshareAction" = "Undo Share";
 
 /* Delete */
-"post.action.delete" = "Delete post";
-"delete.confirm.title" = "Delete this post?";
+"post.action.delete" = "Delete note";
+"delete.confirm.title" = "Delete this note?";
 "delete.confirm.action" = "Delete";
 "delete.error.title" = "Delete failed";
-"delete.error.notAuthenticated" = "You must be signed in to delete posts.";
+"delete.error.notAuthenticated" = "You must be signed in to delete notes.";
 "delete.error.invalidInput" = "Invalid input: %@";
-"delete.error.sharedPostNotAllowed" = "Shared posts cannot be deleted.";
-"delete.error.failed" = "Failed to delete post.";
-"delete.error.failedWithDetails" = "Failed to delete post: %@";
+"delete.error.sharedPostNotAllowed" = "Shared notes cannot be deleted.";
+"delete.error.failed" = "Failed to delete note.";
+"delete.error.failedWithDetails" = "Failed to delete note: %@";
 
 /* Truncation */
 "truncate.readMore" = "Read more";

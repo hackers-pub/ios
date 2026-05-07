@@ -18,7 +18,11 @@ enum ExploreScope: CaseIterable {
 struct ExploreView: View {
     @Binding var showingComposeView: Bool
     @State private var selectedScope: ExploreScope = .local
+    @State private var showingSettings = false
+    @State private var showingArticleEditor = false
+    @State private var showingArticleDrafts = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @Environment(AuthManager.self) private var authManager
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
         self._showingComposeView = showingComposeView
@@ -35,7 +39,18 @@ struct ExploreView: View {
                 }
             }
             .navigationTitle(NSLocalizedString("nav.explore", comment: "Explore navigation title"))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    ViewerProfileButton()
+
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
+                    }
+                }
+
                 ToolbarItem(placement: .principal) {
                     Picker(NSLocalizedString("explore.scope", comment: "Scope picker"), selection: $selectedScope) {
                         ForEach(ExploreScope.allCases, id: \.self) { scope in
@@ -44,6 +59,41 @@ struct ExploreView: View {
                     }
                     .pickerStyle(.segmented)
                 }
+
+                if authManager.isAuthenticated {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button {
+                                showingComposeView = true
+                            } label: {
+                                Label(NSLocalizedString("common.newPost", comment: "New note button"), systemImage: "square.and.pencil")
+                            }
+                            Button {
+                                showingArticleEditor = true
+                            } label: {
+                                Label(NSLocalizedString("article.new", comment: "New article"), systemImage: "doc.badge.plus")
+                            }
+                            Button {
+                                showingArticleDrafts = true
+                            } label: {
+                                Label(NSLocalizedString("article.drafts", comment: "Article drafts"), systemImage: "tray.full")
+                            }
+                        } label: {
+                            Label(NSLocalizedString("common.compose", comment: "Compose menu"), systemImage: "plus")
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
+            .sheet(isPresented: $showingArticleEditor) {
+                ArticleEditorView {
+                    showingArticleEditor = false
+                }
+            }
+            .sheet(isPresented: $showingArticleDrafts) {
+                ArticleDraftListView()
             }
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {
@@ -66,8 +116,6 @@ struct LocalTimelineContent: View {
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
-    @State private var showingSettings = false
-    @Environment(AuthManager.self) private var authManager
 
     var body: some View {
         Group {
@@ -126,32 +174,6 @@ struct LocalTimelineContent: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshTimeline"))) { _ in
             shouldRefresh = true
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                ViewerProfileButton()
-            }
-
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
-                }
-            }
-
-            if authManager.isAuthenticated {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingComposeView = true
-                    } label: {
-                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
         }
     }
 
@@ -203,8 +225,6 @@ struct GlobalTimelineContent: View {
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
-    @State private var showingSettings = false
-    @Environment(AuthManager.self) private var authManager
 
     var body: some View {
         Group {
@@ -263,32 +283,6 @@ struct GlobalTimelineContent: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshTimeline"))) { _ in
             shouldRefresh = true
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                ViewerProfileButton()
-            }
-
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
-                }
-            }
-
-            if authManager.isAuthenticated {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingComposeView = true
-                    } label: {
-                        Label(NSLocalizedString("common.newPost", comment: "New post button"), systemImage: "square.and.pencil")
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
         }
     }
 
