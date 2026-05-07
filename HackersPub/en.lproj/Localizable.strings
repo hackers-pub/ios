@@ -28,6 +28,10 @@
 "signIn.passkey" = "Sign in with Passkey";
 "signIn.unexpectedError" = "An unexpected error occurred. Please try again.";
 
+/* Common */
+"common.retry" = "Retry";
+"error.loadFailed.title" = "Unable to load";
+
 /* Settings */
 "settings.version" = "Version";
 "settings.appIcon" = "App Icon";
@@ -138,6 +142,7 @@
 "search.accounts" = "Accounts";
 "search.relatedAccounts" = "Related Accounts";
 "search.posts" = "Notes";
+"search.resolvedPost" = "Matched note";
 
 /* Common */
 "common.settings" = "Settings";

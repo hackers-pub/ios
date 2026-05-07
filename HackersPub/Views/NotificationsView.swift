@@ -17,6 +17,7 @@ struct NotificationsView: View {
     @State private var notifications: [NotificationItem] = []
     @State private var hasLoadedInitial = false
     @State private var isLoading = true
+    @State private var errorMessage: String?
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var showingSettings = false
@@ -27,6 +28,12 @@ struct NotificationsView: View {
             Group {
                 if isLoading && notifications.isEmpty {
                     ProgressView()
+                } else if let errorMessage, notifications.isEmpty {
+                    LoadFailureView(message: errorMessage) {
+                        Task {
+                            await fetchNotifications()
+                        }
+                    }
                 } else if notifications.isEmpty {
                     ContentUnavailableView(
                         NSLocalizedString("notifications.empty.title", comment: "No notifications title"),
@@ -58,6 +65,14 @@ struct NotificationsView: View {
                                     Spacer()
                                 }
                                 .padding()
+                            }
+
+                            if let errorMessage, !notifications.isEmpty {
+                                InlineLoadFailureView(message: errorMessage) {
+                                    Task {
+                                        await refreshNotifications()
+                                    }
+                                }
                             }
                         }
                     }
@@ -123,7 +138,10 @@ struct NotificationsView: View {
             notifications = fetchedNotifications
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadMore() async {
@@ -138,7 +156,10 @@ struct NotificationsView: View {
             notifications.append(contentsOf: newNotifications)
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func refreshNotifications() async {
@@ -151,7 +172,10 @@ struct NotificationsView: View {
             notifications = fetchedNotifications
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 

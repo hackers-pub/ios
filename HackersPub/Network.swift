@@ -64,15 +64,29 @@ private let urlSession: URLSession = {
 }()
 
 // Create a persistent SQLite cache
-private let documentsPath = NSSearchPathForDirectoriesInDomains(
-    .documentDirectory,
-    .userDomainMask,
-    true
-).first!
-private let documentsURL = URL(fileURLWithPath: documentsPath)
-private let sqliteFileURL = documentsURL.appendingPathComponent("apollo_cache.sqlite")
-private let sqliteCache = try! SQLiteNormalizedCache(fileURL: sqliteFileURL)
-private let store = ApolloStore(cache: sqliteCache)
+private let store = ApolloStore(cache: makeNormalizedCache())
+
+private func makeNormalizedCache() -> any NormalizedCache {
+    guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+        return InMemoryNormalizedCache()
+    }
+
+    let sqliteFileURL = documentsURL.appendingPathComponent("apollo_cache.sqlite")
+
+    do {
+        return try SQLiteNormalizedCache(fileURL: sqliteFileURL)
+    } catch {
+        print("Failed to open Apollo SQLite cache, recreating it: \(error)")
+        try? FileManager.default.removeItem(at: sqliteFileURL)
+    }
+
+    do {
+        return try SQLiteNormalizedCache(fileURL: sqliteFileURL)
+    } catch {
+        print("Failed to recreate Apollo SQLite cache, falling back to memory cache: \(error)")
+        return InMemoryNormalizedCache()
+    }
+}
 
 private let networkTransport = RequestChainNetworkTransport(
     urlSession: urlSession,

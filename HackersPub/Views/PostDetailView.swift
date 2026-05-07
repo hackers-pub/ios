@@ -99,6 +99,10 @@ struct PostDetailView: View {
         return isViewerAuthor && post.sharedPost == nil
     }
 
+    private var canPerformEngagementActions: Bool {
+        authManager.isAuthenticated
+    }
+
     private var selectedArticleContentHTML: String? {
         if !showingOriginalArticle, let translatedArticleContent {
             return translatedArticleContent.content
@@ -493,31 +497,33 @@ struct PostDetailView: View {
                         .padding(.horizontal)
 
                     HStack(spacing: 16) {
-                        EngagementToolbarButton(
-                            icon: viewerHasReacted ? "heart.fill" : "heart",
-                            count: reactionsCount,
-                            showsZeroCount: true,
-                            tint: viewerHasReacted ? .red : .secondary,
-                            isLoading: isReacting,
-                            onTap: {
-                                if useReactionPopover {
-                                    showingReactionPicker = true
-                                } else {
-                                    refreshPostOnSheetDismiss = false
-                                    activeSheet = .reactionPicker
+                        if canPerformEngagementActions {
+                            EngagementToolbarButton(
+                                icon: viewerHasReacted ? "heart.fill" : "heart",
+                                count: reactionsCount,
+                                showsZeroCount: true,
+                                tint: viewerHasReacted ? .red : .secondary,
+                                isLoading: isReacting,
+                                onTap: {
+                                    if useReactionPopover {
+                                        showingReactionPicker = true
+                                    } else {
+                                        refreshPostOnSheetDismiss = false
+                                        activeSheet = .reactionPicker
+                                    }
                                 }
-                            }
-                        )
+                            )
 
-                        EngagementToolbarButton(
-                            icon: "arrowshape.turn.up.left",
-                            count: post.engagementStats.replies,
-                            showsZeroCount: true,
-                            onTap: {
-                                refreshPostOnSheetDismiss = true
-                                activeSheet = .reply
-                            }
-                        )
+                            EngagementToolbarButton(
+                                icon: "arrowshape.turn.up.left",
+                                count: post.engagementStats.replies,
+                                showsZeroCount: true,
+                                onTap: {
+                                    refreshPostOnSheetDismiss = true
+                                    activeSheet = .reply
+                                }
+                            )
+                        }
 
                         EngagementToolbarButton(
                             icon: "arrow.2.squarepath",
@@ -1187,7 +1193,10 @@ struct PostDetailView: View {
     }
 
     private func requestShareToggle() {
-        guard AuthManager.shared.currentAccount != nil else { return }
+        guard AuthManager.shared.currentAccount != nil else {
+            presentSharesSheet()
+            return
+        }
         if confirmBeforeShare {
             showingShareConfirmation = true
         } else {
@@ -1274,6 +1283,10 @@ struct PostDetailView: View {
     }
 
     private func presentQuoteComposer() {
+        guard AuthManager.shared.currentAccount != nil else {
+            presentQuotesSheet()
+            return
+        }
         refreshPostOnSheetDismiss = true
         activeSheet = .quote
     }

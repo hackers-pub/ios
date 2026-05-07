@@ -113,6 +113,7 @@ struct LocalTimelineContent: View {
     @State private var edges: [HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge] = []
     @State private var hasLoadedInitial = false
     @State private var isLoading = false
+    @State private var errorMessage: String?
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
@@ -121,6 +122,12 @@ struct LocalTimelineContent: View {
         Group {
             if isLoading && edges.isEmpty {
                 ProgressView()
+            } else if let errorMessage, edges.isEmpty {
+                LoadFailureView(message: errorMessage) {
+                    Task {
+                        await fetchPosts()
+                    }
+                }
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -151,6 +158,14 @@ struct LocalTimelineContent: View {
                                 Spacer()
                             }
                             .padding()
+                        }
+
+                        if let errorMessage, !edges.isEmpty {
+                            InlineLoadFailureView(message: errorMessage) {
+                                Task {
+                                    await refreshPosts()
+                                }
+                            }
                         }
                     }
                 }
@@ -186,7 +201,10 @@ struct LocalTimelineContent: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadMore() async {
@@ -200,7 +218,10 @@ struct LocalTimelineContent: View {
             edges.append(contentsOf: response.data?.publicTimeline.edges ?? [])
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func refreshPosts() async {
@@ -212,7 +233,10 @@ struct LocalTimelineContent: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -222,6 +246,7 @@ struct GlobalTimelineContent: View {
     @State private var edges: [HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge] = []
     @State private var hasLoadedInitial = false
     @State private var isLoading = false
+    @State private var errorMessage: String?
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
@@ -230,6 +255,12 @@ struct GlobalTimelineContent: View {
         Group {
             if isLoading && edges.isEmpty {
                 ProgressView()
+            } else if let errorMessage, edges.isEmpty {
+                LoadFailureView(message: errorMessage) {
+                    Task {
+                        await fetchPosts()
+                    }
+                }
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -260,6 +291,14 @@ struct GlobalTimelineContent: View {
                                 Spacer()
                             }
                             .padding()
+                        }
+
+                        if let errorMessage, !edges.isEmpty {
+                            InlineLoadFailureView(message: errorMessage) {
+                                Task {
+                                    await refreshPosts()
+                                }
+                            }
                         }
                     }
                 }
@@ -295,7 +334,10 @@ struct GlobalTimelineContent: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadMore() async {
@@ -309,7 +351,10 @@ struct GlobalTimelineContent: View {
             edges.append(contentsOf: response.data?.publicTimeline.edges ?? [])
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func refreshPosts() async {
@@ -321,6 +366,9 @@ struct GlobalTimelineContent: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

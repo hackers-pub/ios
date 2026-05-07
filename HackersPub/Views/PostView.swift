@@ -960,6 +960,10 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         return isViewerAuthor && post.sharedPost == nil && timelineSharer == nil
     }
 
+    private var canPerformEngagementActions: Bool {
+        authManager.isAuthenticated
+    }
+
     private var repostIndicatorActor: (any ActorProtocol)? {
         timelineSharer ?? (post.sharedPost == nil ? nil : post.actor)
     }
@@ -1057,7 +1061,10 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     }
 
     private func requestShareToggle() {
-        guard AuthManager.shared.currentAccount != nil else { return }
+        guard AuthManager.shared.currentAccount != nil else {
+            presentSharesSheet()
+            return
+        }
         if confirmBeforeShare {
             showingShareConfirmation = true
         } else {
@@ -1143,6 +1150,10 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     }
 
     private func presentQuoteComposer() {
+        guard AuthManager.shared.currentAccount != nil else {
+            presentQuotesSheet()
+            return
+        }
         activeSheet = .quote
     }
 
@@ -1550,29 +1561,31 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                 )
 
                 HStack(spacing: 16) {
-                    EngagementToolbarButton(
-                        icon: viewerHasReacted ? "heart.fill" : "heart",
-                        count: reactionsCount,
-                        showsZeroCount: false,
-                        tint: viewerHasReacted ? .red : .secondary,
-                        isLoading: isReacting,
-                        onTap: {
-                            if useReactionPopover {
-                                showingReactionPicker = true
-                            } else {
-                                activeSheet = .reactionPicker
+                    if canPerformEngagementActions {
+                        EngagementToolbarButton(
+                            icon: viewerHasReacted ? "heart.fill" : "heart",
+                            count: reactionsCount,
+                            showsZeroCount: false,
+                            tint: viewerHasReacted ? .red : .secondary,
+                            isLoading: isReacting,
+                            onTap: {
+                                if useReactionPopover {
+                                    showingReactionPicker = true
+                                } else {
+                                    activeSheet = .reactionPicker
+                                }
                             }
-                        }
-                    )
+                        )
 
-                    EngagementToolbarButton(
-                        icon: "arrowshape.turn.up.left",
-                        count: post.engagementStats.replies,
-                        showsZeroCount: false,
-                        onTap: {
-                            activeSheet = .reply
-                        }
-                    )
+                        EngagementToolbarButton(
+                            icon: "arrowshape.turn.up.left",
+                            count: post.engagementStats.replies,
+                            showsZeroCount: false,
+                            onTap: {
+                                activeSheet = .reply
+                            }
+                        )
+                    }
 
                     EngagementToolbarButton(
                         icon: "arrow.2.squarepath",

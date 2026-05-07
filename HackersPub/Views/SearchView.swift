@@ -5,11 +5,13 @@ import Kingfisher
 enum SearchResultType: Identifiable, Hashable {
     case post(HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node)
     case actor(HackersPub.ActorByHandleQuery.Data.ActorByHandle)
+    case resolvedPost(id: String, url: String)
 
     var id: String {
         switch self {
         case .post(let post): return "post-\(post.id)"
         case .actor(let actor): return "actor-\(actor.id)"
+        case .resolvedPost(let id, _): return "resolved-post-\(id)"
         }
     }
 }
@@ -145,7 +147,8 @@ struct SearchView: View {
                                 sectionHeader(NSLocalizedString("search.posts", comment: "Posts section"))
 
                                 ForEach(posts, id: \.id) { result in
-                                    if case .post(let post) = result {
+                                    switch result {
+                                    case .post(let post):
                                         if post.isArticle {
                                             SearchResultRow(result: result)
                                                 .padding()
@@ -155,6 +158,13 @@ struct SearchView: View {
                                                     .padding()
                                             }
                                         }
+                                    case .resolvedPost(let id, _):
+                                        NavigationLink(value: NavigationDestination.post(id: id)) {
+                                            SearchResultRow(result: result)
+                                                .padding()
+                                        }
+                                    case .actor:
+                                        EmptyView()
                                     }
                                     Divider()
                                 }
@@ -370,10 +380,28 @@ struct SearchView: View {
     }
 
     private func handleSearchedObjectUrl(_ url: String, seenActors: ActorTracker) async {
-        // This is a placeholder for handling fetched URLs
-        // The URL could point to an actor profile or a post
-        // You could parse the URL and extract relevant information
-        print("Found object URL: \(url)")
+        if let resolvedURL = URL(string: url),
+           case .profile(let handle) = HackersPubURLRouter.resolve(resolvedURL),
+           let actor = await searchActor(handle: handle),
+           await seenActors.insert(actor.id) {
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self.directActors.append(.actor(actor))
+            }
+            return
+        }
+
+        do {
+            guard let postID = try await DeepLinkPostResolver.resolvePostID(for: url) else { return }
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                if !self.posts.contains(where: { $0.id == "resolved-post-\(postID)" || $0.id == "post-\(postID)" }) {
+                    self.posts.append(.resolvedPost(id: postID, url: url))
+                }
+            }
+        } catch {
+            print("Error resolving searched object URL: \(error)")
+        }
     }
 
     private func searchActor(handle: String) async -> HackersPub.ActorByHandleQuery.Data.ActorByHandle? {
@@ -395,6 +423,23 @@ struct SearchResultRow: View {
         switch result {
         case .post(let post):
             PostView(post: post, contentRenderMode: .lightweightText)
+
+        case .resolvedPost(_, let url):
+            HStack(spacing: 12) {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 50, height: 50)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("search.resolvedPost", comment: "Resolved search post result title"))
+                        .font(.headline)
+                    Text(url)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
 
         case .actor(let actor):
             HStack(spacing: 12) {
@@ -440,6 +485,9 @@ struct SearchDetailView: View {
                 PostView(post: post, contentRenderMode: .lightweightText)
                     .padding()
             }
+
+        case .resolvedPost(let id, _):
+            PostDetailView(postId: id)
 
         case .actor(let actor):
             ActorProfileView(actor: actor)

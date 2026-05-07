@@ -161,6 +161,7 @@ struct TimelineView: View {
     @State private var edges: [HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge] = []
     @State private var hasLoadedInitial = false
     @State private var isLoading = false
+    @State private var errorMessage: String?
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
@@ -177,6 +178,12 @@ struct TimelineView: View {
             Group {
                 if isLoading && edges.isEmpty {
                     ProgressView()
+                } else if let errorMessage, edges.isEmpty {
+                    LoadFailureView(message: errorMessage) {
+                        Task {
+                            await fetchPosts()
+                        }
+                    }
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
@@ -209,6 +216,14 @@ struct TimelineView: View {
                                     Spacer()
                                 }
                                 .padding()
+                            }
+
+                            if let errorMessage, !edges.isEmpty {
+                                InlineLoadFailureView(message: errorMessage) {
+                                    Task {
+                                        await refreshPosts()
+                                    }
+                                }
                             }
                         }
                         .padding(.top, 8)
@@ -286,7 +301,10 @@ struct TimelineView: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadMore() async {
@@ -300,7 +318,10 @@ struct TimelineView: View {
             edges.append(contentsOf: response.data?.publicTimeline.edges ?? [])
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func refreshPosts() async {
@@ -312,7 +333,10 @@ struct TimelineView: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -321,6 +345,7 @@ struct PersonalTimelineView: View {
     @State private var edges: [HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge] = []
     @State private var hasLoadedInitial = false
     @State private var isLoading = false
+    @State private var errorMessage: String?
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
@@ -338,6 +363,12 @@ struct PersonalTimelineView: View {
             Group {
                 if isLoading && edges.isEmpty {
                     ProgressView()
+                } else if let errorMessage, edges.isEmpty {
+                    LoadFailureView(message: errorMessage) {
+                        Task {
+                            await fetchPosts()
+                        }
+                    }
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
@@ -370,6 +401,14 @@ struct PersonalTimelineView: View {
                                     Spacer()
                                 }
                                 .padding()
+                            }
+
+                            if let errorMessage, !edges.isEmpty {
+                                InlineLoadFailureView(message: errorMessage) {
+                                    Task {
+                                        await refreshPosts()
+                                    }
+                                }
                             }
                         }
                         .padding(.top, 8)
@@ -470,7 +509,10 @@ struct PersonalTimelineView: View {
             edges = response.data?.personalTimeline.edges ?? []
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadMore() async {
@@ -484,7 +526,10 @@ struct PersonalTimelineView: View {
             edges.append(contentsOf: response.data?.personalTimeline.edges ?? [])
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func refreshPosts() async {
@@ -496,7 +541,10 @@ struct PersonalTimelineView: View {
             edges = response.data?.personalTimeline.edges ?? []
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -505,6 +553,7 @@ struct LocalTimelineView: View {
     @State private var edges: [HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge] = []
     @State private var hasLoadedInitial = false
     @State private var isLoading = false
+    @State private var errorMessage: String?
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var shouldRefresh = false
@@ -521,6 +570,12 @@ struct LocalTimelineView: View {
             Group {
                 if isLoading && edges.isEmpty {
                     ProgressView()
+                } else if let errorMessage, edges.isEmpty {
+                    LoadFailureView(message: errorMessage) {
+                        Task {
+                            await fetchPosts()
+                        }
+                    }
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
@@ -553,6 +608,14 @@ struct LocalTimelineView: View {
                                     Spacer()
                                 }
                                 .padding()
+                            }
+
+                            if let errorMessage, !edges.isEmpty {
+                                InlineLoadFailureView(message: errorMessage) {
+                                    Task {
+                                        await refreshPosts()
+                                    }
+                                }
                             }
                         }
                         .padding(.top, 8)
@@ -630,7 +693,10 @@ struct LocalTimelineView: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadMore() async {
@@ -644,7 +710,10 @@ struct LocalTimelineView: View {
             edges.append(contentsOf: response.data?.publicTimeline.edges ?? [])
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func refreshPosts() async {
@@ -656,7 +725,10 @@ struct LocalTimelineView: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
-        } catch {}
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 

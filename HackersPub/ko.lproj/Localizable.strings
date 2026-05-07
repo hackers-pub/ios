@@ -28,6 +28,10 @@
 "signIn.passkey" = "패스키로 로그인";
 "signIn.unexpectedError" = "예기치 않은 오류가 발생했습니다. 다시 시도해 주세요.";
 
+/* Common */
+"common.retry" = "다시 시도";
+"error.loadFailed.title" = "불러올 수 없음";
+
 /* Settings */
 "settings.version" = "버전";
 "settings.appIcon" = "앱 아이콘";
@@ -138,6 +142,7 @@
 "search.accounts" = "계정";
 "search.relatedAccounts" = "관련 계정";
 "search.posts" = "단문";
+"search.resolvedPost" = "일치한 단문";
 
 /* Common */
 "common.settings" = "설정";

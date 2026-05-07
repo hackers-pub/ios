@@ -91,16 +91,14 @@ enum HTMLTextRenderer {
                 )
             }
 
-            let parsed = try await Task.detached(priority: .utility) {
-                try NSAttributedString(
-                    data: data,
-                    options: [
-                        .documentType: NSAttributedString.DocumentType.html,
-                        .characterEncoding: String.Encoding.utf8.rawValue,
-                    ],
-                    documentAttributes: nil
-                )
-            }.value
+            let parsed = try NSAttributedString(
+                data: data,
+                options: [
+                    .documentType: NSAttributedString.DocumentType.html,
+                    .characterEncoding: String.Encoding.utf8.rawValue,
+                ],
+                documentAttributes: nil
+            )
             rendered = styledAttributedString(from: parsed, uiFont: uiFont, uiColor: uiColor)
         }
 
