@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "ViewerQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query ViewerQuery { viewer { __typename id username name bio avatarUrl handle } }"#
+        #"query ViewerQuery { viewer { __typename id username name bio avatarMediumId avatarUrl handle links { __typename id name url } } }"#
       ))
 
     public init() {}
@@ -42,8 +42,10 @@ public extension HackersPub {
           .field("username", String.self),
           .field("name", String.self),
           .field("bio", HackersPub.Markdown.self),
+          .field("avatarMediumId", HackersPub.UUID?.self),
           .field("avatarUrl", HackersPub.URL.self),
           .field("handle", String.self),
+          .field("links", [Link].self),
         ] }
         @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
           ViewerQuery.Data.Viewer.self
@@ -53,8 +55,35 @@ public extension HackersPub {
         public var username: String { __data["username"] }
         public var name: String { __data["name"] }
         public var bio: HackersPub.Markdown { __data["bio"] }
+        /// UUID of the medium used as this account's avatar.
+        public var avatarMediumId: HackersPub.UUID? { __data["avatarMediumId"] }
+        @available(*, deprecated, message: "Use avatarMediumId instead.")
         public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
         public var handle: String { __data["handle"] }
+        public var links: [Link] { __data["links"] }
+
+        /// Viewer.Link
+        ///
+        /// Parent Type: `AccountLink`
+        public struct Link: HackersPub.SelectionSet {
+          @_spi(Unsafe) public let __data: DataDict
+          @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+          @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.AccountLink }
+          @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+            .field("__typename", String.self),
+            .field("id", HackersPub.ID.self),
+            .field("name", String.self),
+            .field("url", HackersPub.URL.self),
+          ] }
+          @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+            ViewerQuery.Data.Viewer.Link.self
+          ] }
+
+          public var id: HackersPub.ID { __data["id"] }
+          public var name: String { __data["name"] }
+          public var url: HackersPub.URL { __data["url"] }
+        }
       }
     }
   }

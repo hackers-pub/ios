@@ -89,6 +89,7 @@ public extension HackersPub {
           public var id: HackersPub.ID { __data["id"] }
           public var username: String { __data["username"] }
           public var name: String { __data["name"] }
+          @available(*, deprecated, message: "Use avatarMediumId instead.")
           public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
           public var handle: String { __data["handle"] }
         }

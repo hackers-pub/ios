@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "ArticleDraftsQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query ArticleDraftsQuery { viewer { __typename id articleDrafts(first: 50) { __typename edges { __typename node { __typename id title content contentHtml tags created updated } } } } }"#
+        #"query ArticleDraftsQuery { viewer { __typename id articleDrafts(first: 50) { __typename edges { __typename node { __typename id uuid title content contentHtml tags created updated } } } } }"#
       ))
 
     public init() {}
@@ -95,6 +95,7 @@ public extension HackersPub {
               @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
                 .field("__typename", String.self),
                 .field("id", HackersPub.ID.self),
+                .field("uuid", HackersPub.UUID.self),
                 .field("title", String.self),
                 .field("content", HackersPub.Markdown.self),
                 .field("contentHtml", HackersPub.HTML.self),
@@ -107,6 +108,7 @@ public extension HackersPub {
               ] }
 
               public var id: HackersPub.ID { __data["id"] }
+              public var uuid: HackersPub.UUID { __data["uuid"] }
               public var title: String { __data["title"] }
               public var content: HackersPub.Markdown { __data["content"] }
               /// The rendered HTML of the draft's markdown content.

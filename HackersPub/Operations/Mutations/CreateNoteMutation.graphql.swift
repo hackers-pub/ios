@@ -9,12 +9,13 @@ public extension HackersPub {
     public static let operationName: String = "CreateNoteMutation"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"mutation CreateNoteMutation($content: Markdown!, $language: Locale!, $visibility: PostVisibility!, $replyTargetId: ID, $quotedPostId: ID) { createNote( input: { content: $content language: $language visibility: $visibility replyTargetId: $replyTargetId quotedPostId: $quotedPostId } ) { __typename ... on CreateNotePayload { note { __typename id content published } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
+        #"mutation CreateNoteMutation($content: Markdown!, $language: Locale!, $visibility: PostVisibility!, $media: [CreateNoteMediumInput!] = [], $replyTargetId: ID, $quotedPostId: ID) { createNote( input: { content: $content language: $language visibility: $visibility media: $media replyTargetId: $replyTargetId quotedPostId: $quotedPostId } ) { __typename ... on CreateNotePayload { note { __typename id content published } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
       ))
 
     public var content: Markdown
     public var language: Locale
     public var visibility: GraphQLEnum<PostVisibility>
+    public var media: GraphQLNullable<[CreateNoteMediumInput]>
     public var replyTargetId: GraphQLNullable<ID>
     public var quotedPostId: GraphQLNullable<ID>
 
@@ -22,12 +23,14 @@ public extension HackersPub {
       content: Markdown,
       language: Locale,
       visibility: GraphQLEnum<PostVisibility>,
+      media: GraphQLNullable<[CreateNoteMediumInput]> = [],
       replyTargetId: GraphQLNullable<ID>,
       quotedPostId: GraphQLNullable<ID>
     ) {
       self.content = content
       self.language = language
       self.visibility = visibility
+      self.media = media
       self.replyTargetId = replyTargetId
       self.quotedPostId = quotedPostId
     }
@@ -36,6 +39,7 @@ public extension HackersPub {
       "content": content,
       "language": language,
       "visibility": visibility,
+      "media": media,
       "replyTargetId": replyTargetId,
       "quotedPostId": quotedPostId
     ] }
@@ -50,6 +54,7 @@ public extension HackersPub {
           "content": .variable("content"),
           "language": .variable("language"),
           "visibility": .variable("visibility"),
+          "media": .variable("media"),
           "replyTargetId": .variable("replyTargetId"),
           "quotedPostId": .variable("quotedPostId")
         ]]),

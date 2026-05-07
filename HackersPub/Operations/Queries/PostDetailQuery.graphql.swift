@@ -1560,10 +1560,10 @@ public extension HackersPub {
           @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Article }
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
             .field("uuid", HackersPub.UUID.self),
-            .field("slug", String.self),
+            .field("slug", String?.self),
             .field("language", String?.self),
-            .field("allowLlmTranslation", Bool.self),
-            .field("tags", [String].self),
+            .field("allowLlmTranslation", Bool?.self),
+            .field("tags", [String]?.self),
             .field("contents", [Content].self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
@@ -1573,10 +1573,10 @@ public extension HackersPub {
           ] }
 
           public var uuid: HackersPub.UUID { __data["uuid"] }
-          public var slug: String { __data["slug"] }
+          public var slug: String? { __data["slug"] }
           public var language: String? { __data["language"] }
-          public var allowLlmTranslation: Bool { __data["allowLlmTranslation"] }
-          public var tags: [String] { __data["tags"] }
+          public var allowLlmTranslation: Bool? { __data["allowLlmTranslation"] }
+          public var tags: [String]? { __data["tags"] }
           public var contents: [Content] { __data["contents"] }
           public var id: HackersPub.ID { __data["id"] }
           public var name: String? { __data["name"] }

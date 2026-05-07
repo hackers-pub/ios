@@ -17,6 +17,8 @@ public extension HackersPub.Interfaces {
       "CustomEmoji",
       "FollowNotification",
       "Instance",
+      "InvitationLink",
+      "Medium",
       "MentionNotification",
       "Note",
       "Passkey",

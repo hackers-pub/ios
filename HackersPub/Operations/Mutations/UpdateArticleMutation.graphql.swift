@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "UpdateArticleMutation"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"mutation UpdateArticleMutation($articleId: ID!, $title: String!, $content: Markdown!, $tags: [String!]!, $language: Locale!, $allowLlmTranslation: Boolean!) { updateArticle( input: { articleId: $articleId title: $title content: $content tags: $tags language: $language allowLlmTranslation: $allowLlmTranslation } ) { __typename ... on UpdateArticlePayload { article { __typename id name url } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
+        #"mutation UpdateArticleMutation($articleId: ID!, $title: String!, $content: Markdown!, $tags: [String!]!, $language: Locale!, $allowLlmTranslation: Boolean!, $media: [UpdateArticleMediumInput!]) { updateArticle( input: { articleId: $articleId title: $title content: $content tags: $tags language: $language allowLlmTranslation: $allowLlmTranslation media: $media } ) { __typename ... on UpdateArticlePayload { article { __typename id name url } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
       ))
 
     public var articleId: ID
@@ -18,6 +18,7 @@ public extension HackersPub {
     public var tags: [String]
     public var language: Locale
     public var allowLlmTranslation: Bool
+    public var media: GraphQLNullable<[UpdateArticleMediumInput]>
 
     public init(
       articleId: ID,
@@ -25,7 +26,8 @@ public extension HackersPub {
       content: Markdown,
       tags: [String],
       language: Locale,
-      allowLlmTranslation: Bool
+      allowLlmTranslation: Bool,
+      media: GraphQLNullable<[UpdateArticleMediumInput]>
     ) {
       self.articleId = articleId
       self.title = title
@@ -33,6 +35,7 @@ public extension HackersPub {
       self.tags = tags
       self.language = language
       self.allowLlmTranslation = allowLlmTranslation
+      self.media = media
     }
 
     @_spi(Unsafe) public var __variables: Variables? { [
@@ -41,7 +44,8 @@ public extension HackersPub {
       "content": content,
       "tags": tags,
       "language": language,
-      "allowLlmTranslation": allowLlmTranslation
+      "allowLlmTranslation": allowLlmTranslation,
+      "media": media
     ] }
 
     public struct Data: HackersPub.SelectionSet {
@@ -56,7 +60,8 @@ public extension HackersPub {
           "content": .variable("content"),
           "tags": .variable("tags"),
           "language": .variable("language"),
-          "allowLlmTranslation": .variable("allowLlmTranslation")
+          "allowLlmTranslation": .variable("allowLlmTranslation"),
+          "media": .variable("media")
         ]]),
       ] }
       @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [

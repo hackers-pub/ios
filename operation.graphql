@@ -560,6 +560,12 @@ query SearchObjectQuery($query: String!) {
   }
 }
 
+query PostByUrlQuery($url: String!) {
+  postByUrl(url: $url) {
+    id
+  }
+}
+
 query ActorByHandleQuery($handle: String!, $after: String) {
   actorByHandle(handle: $handle, allowLocalHandle: true) {
     id
@@ -722,8 +728,14 @@ query ViewerQuery {
     username
     name
     bio
+    avatarMediumId
     avatarUrl
     handle
+    links {
+      id
+      name
+      url
+    }
   }
 }
 
@@ -804,14 +816,70 @@ mutation RevokePasskeyMutation($passkeyId: ID!) {
   revokePasskey(passkeyId: $passkeyId)
 }
 
-mutation CreateNoteMutation($content: Markdown!, $language: Locale!, $visibility: PostVisibility!, $replyTargetId: ID, $quotedPostId: ID) {
-  createNote(input: { content: $content, language: $language, visibility: $visibility, replyTargetId: $replyTargetId, quotedPostId: $quotedPostId }) {
+mutation StartMediumUploadMutation($contentType: MediaType!, $contentLength: Int!) {
+  startMediumUpload(input: { contentType: $contentType, contentLength: $contentLength }) {
+    ... on StartMediumUploadPayload {
+      uploadId
+      uploadUrl
+      method
+      headers {
+        name
+        value
+      }
+      expires
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation FinishMediumUploadMutation($uploadId: UUID!) {
+  finishMediumUpload(input: { uploadId: $uploadId }) {
+    ... on FinishMediumUploadPayload {
+      medium {
+        uuid
+        url
+        type
+        width
+        height
+        contentHash
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation CreateNoteMutation($content: Markdown!, $language: Locale!, $visibility: PostVisibility!, $media: [CreateNoteMediumInput!] = [], $replyTargetId: ID, $quotedPostId: ID) {
+  createNote(input: { content: $content, language: $language, visibility: $visibility, media: $media, replyTargetId: $replyTargetId, quotedPostId: $quotedPostId }) {
     ... on CreateNotePayload {
       note {
         id
         content
         published
       }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation AttachArticleDraftMediumMutation($draftId: UUID!, $mediumId: UUID!, $key: String) {
+  attachArticleDraftMedium(input: { draftId: $draftId, mediumId: $mediumId, key: $key }) {
+    ... on AttachArticleDraftMediumPayload {
+      __typename
     }
     ... on InvalidInputError {
       inputPath
@@ -1779,6 +1847,7 @@ query ArticleDraftsQuery {
       edges {
         node {
           id
+          uuid
           title
           content
           contentHtml
@@ -1794,6 +1863,7 @@ query ArticleDraftsQuery {
 query ArticleDraftQuery($id: ID!) {
   articleDraft(id: $id) {
     id
+    uuid
     title
     content
     contentHtml
@@ -1808,6 +1878,7 @@ mutation SaveArticleDraftMutation($title: String!, $content: Markdown!, $tags: [
     ... on SaveArticleDraftPayload {
       draft {
         id
+        uuid
         title
         content
         contentHtml
@@ -1825,8 +1896,8 @@ mutation SaveArticleDraftMutation($title: String!, $content: Markdown!, $tags: [
   }
 }
 
-mutation UpdateArticleMutation($articleId: ID!, $title: String!, $content: Markdown!, $tags: [String!]!, $language: Locale!, $allowLlmTranslation: Boolean!) {
-  updateArticle(input: { articleId: $articleId, title: $title, content: $content, tags: $tags, language: $language, allowLlmTranslation: $allowLlmTranslation }) {
+mutation UpdateArticleMutation($articleId: ID!, $title: String!, $content: Markdown!, $tags: [String!]!, $language: Locale!, $allowLlmTranslation: Boolean!, $media: [UpdateArticleMediumInput!]) {
+  updateArticle(input: { articleId: $articleId, title: $title, content: $content, tags: $tags, language: $language, allowLlmTranslation: $allowLlmTranslation, media: $media }) {
     ... on UpdateArticlePayload {
       article {
         id
@@ -1872,6 +1943,25 @@ mutation PublishArticleDraftMutation($id: ID!, $slug: String!, $language: Locale
     }
     ... on NotAuthenticatedError {
       notAuthenticated
+    }
+  }
+}
+
+mutation UpdateAccountMutation($id: ID!, $name: String, $bio: String, $avatarMediumId: UUID, $links: [AccountLinkInput!]) {
+  updateAccount(input: { id: $id, name: $name, bio: $bio, avatarMediumId: $avatarMediumId, links: $links }) {
+    account {
+      id
+      username
+      name
+      bio
+      avatarMediumId
+      avatarUrl
+      handle
+      links {
+        id
+        name
+        url
+      }
     }
   }
 }
