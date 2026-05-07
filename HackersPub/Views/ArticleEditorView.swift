@@ -1,5 +1,6 @@
 import Markdown
 import NaturalLanguage
+import PhotosUI
 import SwiftUI
 import UIKit
 @preconcurrency import Apollo
@@ -25,6 +26,7 @@ struct ArticleEditorView: View {
     @State private var tags: [String] = []
     @State private var tagInput = ""
     @State private var savedDraftId: String?
+    @State private var savedDraftUUID: String?
     @State private var slug = ""
     @State private var language = Locale.current.language.languageCode?.identifier ?? "en"
     @State private var didSelectLanguageManually = false
@@ -33,6 +35,12 @@ struct ArticleEditorView: View {
     @State private var isLoading = false
     @State private var isSaving = false
     @State private var isPublishing = false
+    @State private var isLoadingPhotoAttachments = false
+    @State private var isUploadingPhotoAttachments = false
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var photoAttachments: [ArticlePhotoAttachment] = []
+    @State private var editingPhotoAttachment: ArticlePhotoAttachmentEditorTarget?
+    @State private var publishedArticleMedia: [HackersPub.UpdateArticleMediumInput] = []
     @State private var showPreview = false
     @State private var errorMessage: String?
 
@@ -49,8 +57,13 @@ struct ArticleEditorView: View {
         )
     }
 
-    private var canSave: Bool {
+    private var hasTitleForPublish: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving && !isPublishing
+            && !isUploadingPhotoAttachments
+    }
+
+    private var canSave: Bool {
+        hasTitleForPublish
     }
 
     private var isEditingPublishedArticle: Bool {
@@ -164,6 +177,24 @@ struct ArticleEditorView: View {
                                         onTitleChange: handleTitleChange
                                     )
 
+                                    ArticlePhotoAttachmentEditor(
+                                        attachments: $photoAttachments,
+                                        isLoading: isLoadingPhotoAttachments,
+                                        isUploading: isUploadingPhotoAttachments,
+                                        selectedItems: $selectedPhotoItems,
+                                        onRemove: { id in
+                                            photoAttachments.removeAll { $0.id == id }
+                                        },
+                                        onEdit: { id in
+                                            editingPhotoAttachment = ArticlePhotoAttachmentEditorTarget(id: id)
+                                        },
+                                        onUpload: {
+                                            Task {
+                                                await uploadPhotoAttachments()
+                                            }
+                                        }
+                                    )
+
                                     VStack(alignment: .leading, spacing: 10) {
                                         Text(NSLocalizedString("article.content", comment: "Article content"))
                                             .font(.headline)
@@ -262,6 +293,18 @@ struct ArticleEditorView: View {
             .task {
                 await initialize()
             }
+            .onChange(of: selectedPhotoItems) { _, newItems in
+                guard !newItems.isEmpty else { return }
+                Task {
+                    await loadPhotoAttachments(from: newItems)
+                    selectedPhotoItems = []
+                }
+            }
+            .sheet(item: $editingPhotoAttachment) { target in
+                if let index = photoAttachments.firstIndex(where: { $0.id == target.id }) {
+                    ArticlePhotoDetailsSheet(attachment: $photoAttachments[index])
+                }
+            }
             .alert(
                 NSLocalizedString("compose.error.title", comment: "Error"),
                 isPresented: Binding(
@@ -288,6 +331,7 @@ struct ArticleEditorView: View {
             content = seed.content
             tags = seed.tags
             savedDraftId = nil
+            savedDraftUUID = nil
             slug = Self.generateSlug(seed.title)
             if let seedLanguage = seed.language, !seedLanguage.isEmpty {
                 language = seedLanguage
@@ -312,6 +356,7 @@ struct ArticleEditorView: View {
             content = draft.content
             tags = draft.tags
             savedDraftId = draft.id
+            savedDraftUUID = draft.uuid
             slug = Self.generateSlug(draft.title)
             detectLanguageFromCurrentDraft()
         } catch {
@@ -321,16 +366,24 @@ struct ArticleEditorView: View {
 
     @discardableResult
     private func saveDraft() async -> String? {
-        guard canSave else { return savedDraftId }
-        let draftTags = commitPendingTags()
+        guard hasTitleForPublish else { return savedDraftId }
+        return await saveDraft(
+            title: title,
+            content: content,
+            tags: commitPendingTags()
+        )
+    }
+
+    @discardableResult
+    private func saveDraft(title draftTitle: String, content draftContent: String, tags draftTags: [String]) async -> String? {
         isSaving = true
         defer { isSaving = false }
 
         do {
             let response = try await apolloClient.perform(
                 mutation: HackersPub.SaveArticleDraftMutation(
-                    title: title,
-                    content: content,
+                    title: draftTitle,
+                    content: draftContent,
                     tags: draftTags,
                     id: savedDraftId.map(GraphQLNullable.some) ?? .none
                 )
@@ -338,6 +391,7 @@ struct ArticleEditorView: View {
 
             if let payload = response.data?.saveArticleDraft.asSaveArticleDraftPayload {
                 savedDraftId = payload.draft.id
+                savedDraftUUID = payload.draft.uuid
                 return payload.draft.id
             }
 
@@ -350,6 +404,27 @@ struct ArticleEditorView: View {
             errorMessage = error.localizedDescription
         }
         return nil
+    }
+
+    @discardableResult
+    private func ensureDraftForMedia() async -> String? {
+        if let savedDraftUUID {
+            return savedDraftUUID
+        }
+        let fallbackTitle = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? NSLocalizedString("article.untitled", comment: "Untitled article")
+            : title
+        let fallbackContent = content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? " "
+            : content
+        guard await saveDraft(
+            title: fallbackTitle,
+            content: fallbackContent,
+            tags: ArticleTagNormalizer.merged(existing: tags, input: tagInput)
+        ) != nil else {
+            return nil
+        }
+        return savedDraftUUID
     }
 
     private func publish() async {
@@ -402,7 +477,8 @@ struct ArticleEditorView: View {
                     content: content,
                     tags: updatedTags,
                     language: language,
-                    allowLlmTranslation: allowLlmTranslation
+                    allowLlmTranslation: allowLlmTranslation,
+                    media: publishedArticleMedia.isEmpty ? .none : .some(publishedArticleMedia)
                 )
             )
 
@@ -453,6 +529,97 @@ struct ArticleEditorView: View {
         }
     }
 
+    private func loadPhotoAttachments(from items: [PhotosPickerItem]) async {
+        isLoadingPhotoAttachments = true
+        defer { isLoadingPhotoAttachments = false }
+
+        for item in items {
+            do {
+                guard let data = try await item.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data)
+                else {
+                    throw MediumUploadError.invalidImage
+                }
+                photoAttachments.append(ArticlePhotoAttachment(data: data, image: image))
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func uploadPhotoAttachments() async {
+        guard !photoAttachments.isEmpty, !isUploadingPhotoAttachments else { return }
+
+        let draftId: String?
+        if isEditingPublishedArticle {
+            draftId = nil
+        } else {
+            draftId = await ensureDraftForMedia()
+            guard draftId != nil else { return }
+        }
+
+        isUploadingPhotoAttachments = true
+        defer { isUploadingPhotoAttachments = false }
+
+        do {
+            var uploadedAttachmentIDs: Set<ArticlePhotoAttachment.ID> = []
+            for attachment in photoAttachments {
+                let uploaded = try await MediumUploadService.shared.uploadImageData(attachment.data)
+                let key = uploaded.id
+                let attachedKey: String
+                if let draftId {
+                    let response = try await apolloClient.perform(
+                        mutation: HackersPub.AttachArticleDraftMediumMutation(
+                            draftId: draftId,
+                            mediumId: uploaded.id,
+                            key: .some(key)
+                        )
+                    )
+                    if let error = response.errors?.first {
+                        throw MediumUploadError.server(error.localizedDescription)
+                    }
+                    if let payload = response.data?.attachArticleDraftMedium.asAttachArticleDraftMediumPayload {
+                        _ = payload
+                        attachedKey = key
+                    } else if let invalid = response.data?.attachArticleDraftMedium.asInvalidInputError {
+                        throw MediumUploadError.invalidInput(invalid.inputPath)
+                    } else if response.data?.attachArticleDraftMedium.asNotAuthenticatedError != nil {
+                        throw MediumUploadError.notAuthenticated
+                    } else {
+                        throw MediumUploadError.missingPayload("attach")
+                    }
+                } else {
+                    publishedArticleMedia.append(
+                        HackersPub.UpdateArticleMediumInput(
+                            key: .some(key),
+                            mediumId: uploaded.id
+                        )
+                    )
+                    attachedKey = key
+                }
+
+                insertMarkdownImage(alt: attachment.alt, key: attachedKey)
+                uploadedAttachmentIDs.insert(attachment.id)
+            }
+            photoAttachments.removeAll { uploadedAttachmentIDs.contains($0.id) }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func insertMarkdownImage(alt: String, key: String) {
+        let escapedAlt = alt
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "]", with: "\\]")
+        let imageMarkdown = "![\(escapedAlt)](hp-medium:\(key))"
+        if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            content = imageMarkdown
+        } else {
+            content += "\n\n\(imageMarkdown)"
+        }
+        detectLanguageFromCurrentDraft()
+    }
+
     static func generateSlug(_ title: String) -> String {
         title
             .lowercased()
@@ -487,6 +654,178 @@ private struct ArticleMetadataEditor: View {
         .padding(16)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+private struct ArticlePhotoAttachment: Identifiable, Equatable {
+    let id = UUID()
+    let data: Data
+    let image: UIImage
+    var alt = ""
+}
+
+private struct ArticlePhotoAttachmentEditorTarget: Identifiable {
+    let id: ArticlePhotoAttachment.ID
+}
+
+private struct ArticlePhotoAttachmentEditor: View {
+    @Binding var attachments: [ArticlePhotoAttachment]
+    let isLoading: Bool
+    let isUploading: Bool
+    @Binding var selectedItems: [PhotosPickerItem]
+    let onRemove: (ArticlePhotoAttachment.ID) -> Void
+    let onEdit: (ArticlePhotoAttachment.ID) -> Void
+    let onUpload: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label(NSLocalizedString("article.photos.title", comment: "Article photos section title"), systemImage: "photo")
+                    .font(.headline)
+                Spacer()
+                if isLoading || isUploading {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                PhotosPicker(
+                    selection: $selectedItems,
+                    maxSelectionCount: 10,
+                    matching: .images
+                ) {
+                    Image(systemName: "photo.badge.plus")
+                }
+                .accessibilityLabel(NSLocalizedString("article.photos.add", comment: "Add article photos button"))
+                .disabled(isLoading || isUploading)
+            }
+
+            if !attachments.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 12) {
+                        ForEach($attachments) { $attachment in
+                            ArticlePendingPhotoView(
+                                attachment: $attachment,
+                                onEdit: {
+                                    onEdit(attachment.id)
+                                },
+                                onDelete: {
+                                    onRemove(attachment.id)
+                                }
+                            )
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+
+                Button {
+                    onUpload()
+                } label: {
+                    if isUploading {
+                        ProgressView()
+                    } else {
+                        Label(NSLocalizedString("article.photos.insert", comment: "Insert uploaded article photos button"), systemImage: "text.badge.plus")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isLoading || isUploading)
+            }
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+private struct ArticlePendingPhotoView: View {
+    @Binding var attachment: ArticlePhotoAttachment
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack(alignment: .topTrailing) {
+                Image(uiImage: attachment.image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 156, height: 132)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipped()
+
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.62))
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
+                .padding(6)
+                .accessibilityLabel(NSLocalizedString("compose.photos.delete", comment: "Delete photo button"))
+            }
+
+            Button(action: onEdit) {
+                HStack(spacing: 6) {
+                    SwiftUI.Image(systemName: attachment.alt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "text.badge.plus" : "checkmark.circle.fill")
+                        .foregroundStyle(attachment.alt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? SwiftUI.Color.secondary : SwiftUI.Color.green)
+                    Text(
+                        attachment.alt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            ? NSLocalizedString("compose.photos.alt.add", comment: "Add alt text")
+                            : attachment.alt
+                    )
+                    .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(Color(.tertiarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .frame(width: 176, alignment: .leading)
+        .background(Color(.systemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+private struct ArticlePhotoDetailsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var attachment: ArticlePhotoAttachment
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Image(uiImage: attachment.image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                }
+
+                Section {
+                    TextField(
+                        NSLocalizedString("compose.photos.altPlaceholder", comment: "Photo alt text placeholder"),
+                        text: $attachment.alt,
+                        axis: .vertical
+                    )
+                    .lineLimit(3...6)
+                } footer: {
+                    Text(NSLocalizedString("compose.photos.alt.footer", comment: "Alt text guidance"))
+                }
+            }
+            .navigationTitle(NSLocalizedString("compose.photos.details", comment: "Photo details title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(NSLocalizedString("settings.done", comment: "Done button")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
