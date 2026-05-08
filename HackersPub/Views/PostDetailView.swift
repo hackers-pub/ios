@@ -19,7 +19,7 @@ struct PostDetailView: View {
             case .quote:
                 return "quote"
             case .reactors(let reaction):
-                return "reactors-\(reaction.id.uuidString)"
+                return "reactors-\(reaction.id)"
             case .shares:
                 return "shares"
             case .quotesList:
@@ -51,7 +51,6 @@ struct PostDetailView: View {
     @State private var hasBookmarked = false
     @State private var sharesCount = 0
     @State private var reactionsCount = 0
-    @State private var reactionSheetHeight: CGFloat = 180
     @State private var reactionGroups: [ReactionGroupSnapshot] = []
     @State private var reactionErrorMessage: String?
     @State private var shareActors: [ShareActorInfo] = []
@@ -505,22 +504,6 @@ struct PostDetailView: View {
                     HStack(spacing: 16) {
                         if canPerformEngagementActions {
                             EngagementToolbarButton(
-                                icon: viewerHasReacted ? "heart.fill" : "heart",
-                                count: reactionsCount,
-                                showsZeroCount: true,
-                                tint: viewerHasReacted ? .red : .secondary,
-                                isLoading: isReacting,
-                                onTap: {
-                                    if useReactionPopover {
-                                        showingReactionPicker = true
-                                    } else {
-                                        refreshPostOnSheetDismiss = false
-                                        activeSheet = .reactionPicker
-                                    }
-                                }
-                            )
-
-                            EngagementToolbarButton(
                                 icon: "arrowshape.turn.up.left",
                                 count: post.engagementStats.replies,
                                 showsZeroCount: true,
@@ -529,19 +512,35 @@ struct PostDetailView: View {
                                     activeSheet = .reply
                                 }
                             )
+
+                            EngagementToolbarButton(
+                                icon: "arrow.2.squarepath",
+                                count: sharesCount,
+                                showsZeroCount: true,
+                                tint: hasShared ? .green : .secondary,
+                                isLoading: isSharing,
+                                onTap: {
+                                    handleShareTap()
+                                },
+                                onLongPress: {
+                                    handleShareLongPress()
+                                }
+                            )
                         }
 
                         EngagementToolbarButton(
-                            icon: "arrow.2.squarepath",
-                            count: sharesCount,
+                            icon: viewerHasReacted ? "heart.fill" : "heart",
+                            count: reactionsCount,
                             showsZeroCount: true,
-                            tint: hasShared ? .green : .secondary,
-                            isLoading: isSharing,
+                            tint: viewerHasReacted ? .red : .secondary,
+                            isLoading: isReacting,
                             onTap: {
-                                handleShareTap()
-                            },
-                            onLongPress: {
-                                handleShareLongPress()
+                                if useReactionPopover {
+                                    showingReactionPicker = true
+                                } else {
+                                    refreshPostOnSheetDismiss = false
+                                    activeSheet = .reactionPicker
+                                }
                             }
                         )
 
@@ -558,22 +557,6 @@ struct PostDetailView: View {
                         )
 
                         Spacer()
-
-                        if canDelete(post: post) {
-                            Button {
-                                requestDeletePost(post: post)
-                            } label: {
-                                if isDeleting {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                } else {
-                                    Image(systemName: "trash")
-                                }
-                            }
-                            .buttonStyle(.borderless)
-                            .foregroundStyle(.red)
-                            .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
-                        }
 
                         if canPerformEngagementActions {
                             Button {
@@ -604,43 +587,25 @@ struct PostDetailView: View {
                             }
                             .buttonStyle(.borderless)
                         }
+
+                        if canDelete(post: post) {
+                            Button {
+                                requestDeletePost(post: post)
+                            } label: {
+                                if isDeleting {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                } else {
+                                    Image(systemName: "trash")
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(.red)
+                            .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
+                        }
                     }
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
-
-                    // Reactions section
-                    if !post.reactionGroups.isEmpty {
-                        Divider()
-                            .padding(.horizontal)
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(ReactionL10n.title)
-                                .font(.headline)
-                                .padding(.horizontal)
-
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(Array(post.reactionGroups.enumerated()), id: \.offset) { index, group in
-                                        let _ = print("🔴 Reaction group \(index):")
-                                        let _ = {
-                                            if let emoji = group.asEmojiReactionGroup {
-                                                print("   Emoji: \(emoji.emoji), Count: \(emoji.reactors.totalCount), Reactors: \(emoji.reactors.edges.count)")
-                                            } else if let custom = group.asCustomEmojiReactionGroup {
-                                                print("   Custom: \(custom.customEmoji.name), Count: \(custom.reactors.totalCount), Reactors: \(custom.reactors.edges.count)")
-                                            }
-                                        }()
-                                        ReactionGroupView(group: group, onTap: {
-                                            let info = reactionGroupInfo(from: group)
-                                            print("🔴 Opening reactors sheet - Emoji: \(info.emoji), Total: \(info.totalCount), Reactors in list: \(info.reactors.count)")
-                                            refreshPostOnSheetDismiss = false
-                                            activeSheet = .reactors(info)
-                                        })
-                                    }
-                                }
-                                .padding(.horizontal)
-                            }
-                        }
-                    }
 
                     // Replies section - only show if there are replies or more to load
                     if !replyEdges.isEmpty || hasMoreReplies {
@@ -777,25 +742,26 @@ struct PostDetailView: View {
                     }
                 }
             case .reactionPicker:
-                ReactionPickerView(
+                PostReactionSheetView(
                     reactionGroups: reactionGroups,
+                    reactionInfos: post?.reactionGroups.map { reactionGroupInfo(from: $0) } ?? [],
+                    isLoadingReactionInfos: false,
                     isSubmitting: isReacting,
                     onEmojiSelect: { emoji in
                         Task {
                             await toggleReaction(emoji: emoji)
+                            await refreshPost()
                         }
+                    },
+                    onReactorSelected: { handle in
+                        activeSheet = nil
+                        navigationCoordinator.navigateToProfile(handle: handle)
                     },
                     onClose: {
                         activeSheet = nil
                     }
                 )
-                .trackReactionPickerHeight { contentHeight in
-                    let targetHeight = min(max(contentHeight + 24, 160), 340)
-                    if abs(reactionSheetHeight - targetHeight) > 1 {
-                        reactionSheetHeight = targetHeight
-                    }
-                }
-                .presentationDetents([.height(reactionSheetHeight)])
+                .presentationDetents([.medium, .large])
             case .editArticle:
                 if let post = post {
                     ArticleEditorView(
@@ -827,13 +793,20 @@ struct PostDetailView: View {
             ),
             arrowEdge: .bottom
         ) {
-            ReactionPickerView(
+            PostReactionSheetView(
                 reactionGroups: reactionGroups,
+                reactionInfos: post?.reactionGroups.map { reactionGroupInfo(from: $0) } ?? [],
+                isLoadingReactionInfos: false,
                 isSubmitting: isReacting,
                 onEmojiSelect: { emoji in
                     Task {
                         await toggleReaction(emoji: emoji)
+                        await refreshPost()
                     }
+                },
+                onReactorSelected: { handle in
+                    showingReactionPicker = false
+                    navigationCoordinator.navigateToProfile(handle: handle)
                 },
                 onClose: {
                     showingReactionPicker = false
@@ -1565,11 +1538,17 @@ struct ReactorInfo: Identifiable {
 }
 
 struct ReactionGroupInfo: Identifiable {
-    let id = UUID()
     let emoji: String
     let customEmojiUrl: String?
     let reactors: [ReactorInfo]
     let totalCount: Int
+
+    var id: String {
+        if let customEmojiUrl {
+            return "custom:\(emoji):\(customEmojiUrl)"
+        }
+        return "emoji:\(emoji)"
+    }
 }
 
 struct ReactorsListView: View {
@@ -1621,6 +1600,264 @@ struct ReactorsListView: View {
                     .accessibilityLabel(ReactionL10n.close)
                 }
             }
+        }
+    }
+}
+
+struct PostReactionSheetView: View {
+    let reactionGroups: [ReactionGroupSnapshot]
+    let reactionInfos: [ReactionGroupInfo]
+    let isLoadingReactionInfos: Bool
+    let isSubmitting: Bool
+    let onEmojiSelect: (String) -> Void
+    let onReactorSelected: (String) -> Void
+    let onClose: () -> Void
+
+    private var sortedReactionInfos: [ReactionGroupInfo] {
+        reactionInfos.sorted { lhs, rhs in
+            if lhs.totalCount != rhs.totalCount {
+                return lhs.totalCount > rhs.totalCount
+            }
+            return lhs.emoji < rhs.emoji
+        }
+    }
+
+    private var standardGroupsByEmoji: [String: ReactionGroupSnapshot] {
+        Dictionary(
+            uniqueKeysWithValues: reactionGroups.compactMap { group in
+                guard let emoji = group.emoji else { return nil }
+                return (emoji, group)
+            }
+        )
+    }
+
+    private let reactionColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 7)
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Text(ReactionL10n.title)
+                    .font(.headline)
+
+                Spacer()
+
+                Button {
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 30, height: 30)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.28), lineWidth: 0.7)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ReactionL10n.close)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(NSLocalizedString(
+                            "reaction.sheet.addReaction",
+                            comment: "Add reaction section title"
+                        ))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                        LazyVGrid(columns: reactionColumns, spacing: 8) {
+                            ForEach(supportedReactionEmojis, id: \.self) { emoji in
+                                let existingGroup = standardGroupsByEmoji[emoji]
+                                ReactionEmojiButton(
+                                    emoji: emoji,
+                                    count: existingGroup?.totalCount ?? 0,
+                                    isSelected: existingGroup?.viewerHasReacted == true,
+                                    isDisabled: isSubmitting,
+                                    onTap: {
+                                        onEmojiSelect(emoji)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(NSLocalizedString(
+                            "reaction.sheet.reactors",
+                            comment: "Reaction reactors section title"
+                        ))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                        if isLoadingReactionInfos {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text(NSLocalizedString(
+                                    "reaction.sheet.loadingReactors",
+                                    comment: "Loading reaction reactors message"
+                                ))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 18)
+                        } else if sortedReactionInfos.isEmpty {
+                            ContentUnavailableView(
+                                NSLocalizedString(
+                                    "reaction.empty",
+                                    comment: "No reactions yet message"
+                                ),
+                                systemImage: "heart"
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                        } else {
+                            LazyVStack(alignment: .leading, spacing: 14) {
+                                ForEach(sortedReactionInfos) { reaction in
+                                    ReactionReactorsGroupView(
+                                        reaction: reaction,
+                                        onReactorSelected: onReactorSelected
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+            }
+        }
+    }
+}
+
+private struct ReactionEmojiButton: View {
+    let emoji: String
+    let count: Int
+    let isSelected: Bool
+    let isDisabled: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 3) {
+                Text(emoji)
+                    .font(.title3)
+
+                Text("\(count)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .background(isSelected ? Color.accentColor.opacity(0.18) : Color.gray.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.45) : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.55 : 1)
+        .accessibilityLabel(String(format: ReactionL10n.reactedWithFormat, emoji))
+    }
+}
+
+private struct ReactionReactorsGroupView: View {
+    let reaction: ReactionGroupInfo
+    let onReactorSelected: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                reactionIcon
+
+                Text("\(reaction.totalCount)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+
+            if reaction.reactors.isEmpty {
+                Text(NSLocalizedString(
+                    "reaction.reactors.notLoaded",
+                    comment: "Reaction reactors unavailable message"
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+            } else {
+                LazyVStack(spacing: 0) {
+                    ForEach(reaction.reactors) { reactor in
+                        Button {
+                            onReactorSelected(reactor.handle)
+                        } label: {
+                            HStack(spacing: 12) {
+                                KFImage(URL(string: reactor.avatarUrl))
+                                    .placeholder {
+                                        Color.gray.opacity(0.2)
+                                    }
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 34, height: 34)
+                                    .clipShape(Circle())
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    if let name = reactor.name {
+                                        HTMLTextView(html: name, font: .subheadline)
+                                            .lineLimit(1)
+                                    }
+                                    Text(reactor.handle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+
+                                Spacer()
+                            }
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.plain)
+
+                        if reactor.id != reaction.reactors.last?.id {
+                            Divider()
+                                .padding(.leading, 46)
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+            }
+        }
+        .background(Color.gray.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private var reactionIcon: some View {
+        if let customEmojiUrl = reaction.customEmojiUrl, let url = URL(string: customEmojiUrl) {
+            KFImage(url)
+                .placeholder {
+                    Text(reaction.emoji)
+                        .font(.title3)
+                }
+                .resizable()
+                .scaledToFit()
+                .frame(width: 28, height: 28)
+        } else {
+            Text(reaction.emoji)
+                .font(.title3)
         }
     }
 }

@@ -897,8 +897,9 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     @State private var hasBookmarked: Bool
     @State private var sharesCount: Int
     @State private var reactionsCount: Int
-    @State private var reactionSheetHeight: CGFloat = 180
     @State private var reactionGroups: [ReactionGroupSnapshot]
+    @State private var reactionInfos: [ReactionGroupInfo] = []
+    @State private var isLoadingReactionInfos = false
     @State private var reactionErrorMessage: String?
     @State private var shareActors: [ShareActorInfo] = []
     @State private var isLoadingShares = false
@@ -1226,6 +1227,19 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         }
     }
 
+    private func presentReactionPicker() {
+        reactionInfos = []
+        if useReactionPopover {
+            showingReactionPicker = true
+        } else {
+            activeSheet = .reactionPicker
+        }
+
+        Task {
+            await fetchReactionInfos()
+        }
+    }
+
     private func applyReactionLocally(emoji: String, add: Bool) {
         if let existingIndex = reactionGroups.firstIndex(where: { $0.emoji == emoji }) {
             var group = reactionGroups[existingIndex]
@@ -1250,6 +1264,64 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             )
         }
         reactionsCount = max(0, reactionsCount + (add ? 1 : -1))
+    }
+
+    private func reactionGroupInfo(from group: HackersPub.PostDetailQuery.Data.Node.AsPost.ReactionGroup) -> ReactionGroupInfo {
+        if let emojiGroup = group.asEmojiReactionGroup {
+            return ReactionGroupInfo(
+                emoji: emojiGroup.emoji,
+                customEmojiUrl: nil,
+                reactors: emojiGroup.reactors.edges.map { edge in
+                    ReactorInfo(
+                        id: edge.node.id,
+                        name: edge.node.name,
+                        handle: edge.node.handle,
+                        avatarUrl: edge.node.avatarUrl
+                    )
+                },
+                totalCount: emojiGroup.reactors.totalCount
+            )
+        } else if let customGroup = group.asCustomEmojiReactionGroup {
+            return ReactionGroupInfo(
+                emoji: customGroup.customEmoji.name,
+                customEmojiUrl: customGroup.customEmoji.imageUrl,
+                reactors: customGroup.reactors.edges.map { edge in
+                    ReactorInfo(
+                        id: edge.node.id,
+                        name: edge.node.name,
+                        handle: edge.node.handle,
+                        avatarUrl: edge.node.avatarUrl
+                    )
+                },
+                totalCount: customGroup.reactors.totalCount
+            )
+        }
+        return ReactionGroupInfo(emoji: "?", customEmojiUrl: nil, reactors: [], totalCount: 0)
+    }
+
+    private func fetchReactionInfos() async {
+        guard !isLoadingReactionInfos else { return }
+        isLoadingReactionInfos = true
+        defer { isLoadingReactionInfos = false }
+
+        do {
+            let response = try await apolloClient.fetch(
+                query: HackersPub.PostDetailQuery(id: post.id, repliesAfter: nil),
+                cachePolicy: .networkOnly
+            )
+
+            guard let fetchedPost = response.data?.node?.asPost else {
+                reactionInfos = []
+                return
+            }
+
+            reactionInfos = fetchedPost.reactionGroups.map { reactionGroupInfo(from: $0) }
+            reactionGroups = fetchedPost.reactionGroupsSnapshot
+            reactionsCount = fetchedPost.engagementStats.reactions
+        } catch {
+            reactionInfos = []
+            print("Error fetching reaction info: \(error)")
+        }
     }
 
     private func toggleReaction(emoji: String) async {
@@ -1616,21 +1688,6 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                 HStack(spacing: 16) {
                     if canPerformEngagementActions {
                         EngagementToolbarButton(
-                            icon: viewerHasReacted ? "heart.fill" : "heart",
-                            count: reactionsCount,
-                            showsZeroCount: false,
-                            tint: viewerHasReacted ? .red : .secondary,
-                            isLoading: isReacting,
-                            onTap: {
-                                if useReactionPopover {
-                                    showingReactionPicker = true
-                                } else {
-                                    activeSheet = .reactionPicker
-                                }
-                            }
-                        )
-
-                        EngagementToolbarButton(
                             icon: "arrowshape.turn.up.left",
                             count: post.engagementStats.replies,
                             showsZeroCount: false,
@@ -1638,19 +1695,30 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                                 activeSheet = .reply
                             }
                         )
+
+                        EngagementToolbarButton(
+                            icon: "arrow.2.squarepath",
+                            count: sharesCount,
+                            showsZeroCount: false,
+                            tint: hasShared ? .green : .secondary,
+                            isLoading: isSharing,
+                            onTap: {
+                                handleShareTap()
+                            },
+                            onLongPress: {
+                                handleShareLongPress()
+                            }
+                        )
                     }
 
                     EngagementToolbarButton(
-                        icon: "arrow.2.squarepath",
-                        count: sharesCount,
+                        icon: viewerHasReacted ? "heart.fill" : "heart",
+                        count: reactionsCount,
                         showsZeroCount: false,
-                        tint: hasShared ? .green : .secondary,
-                        isLoading: isSharing,
+                        tint: viewerHasReacted ? .red : .secondary,
+                        isLoading: isReacting,
                         onTap: {
-                            handleShareTap()
-                        },
-                        onLongPress: {
-                            handleShareLongPress()
+                            presentReactionPicker()
                         }
                     )
 
@@ -1667,22 +1735,6 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     )
 
                     Spacer()
-
-                    if canDeleteCurrentPost {
-                        Button {
-                            requestDeletePost()
-                        } label: {
-                            if isDeleting {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                            } else {
-                                Image(systemName: "trash")
-                            }
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(.red)
-                        .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
-                    }
 
                     if canPerformEngagementActions {
                         Button {
@@ -1713,6 +1765,22 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         }
                         .buttonStyle(.borderless)
                     }
+
+                    if canDeleteCurrentPost {
+                        Button {
+                            requestDeletePost()
+                        } label: {
+                            if isDeleting {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                            } else {
+                                Image(systemName: "trash")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.red)
+                        .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
+                    }
                 }
                 .foregroundStyle(.secondary)
             }
@@ -1723,6 +1791,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             sharesCount = post.engagementStats.shares
             reactionsCount = post.engagementStats.reactions
             reactionGroups = post.reactionGroupsSnapshot
+            reactionInfos = []
         }
         .onChange(of: engagementSnapshot) { _, snapshot in
             hasShared = snapshot.hasShared
@@ -1730,6 +1799,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             sharesCount = snapshot.shares
             reactionsCount = snapshot.reactions
             reactionGroups = snapshot.reactionGroups
+            reactionInfos = []
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -1803,25 +1873,26 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     }
                 }
             case .reactionPicker:
-                ReactionPickerView(
+                PostReactionSheetView(
                     reactionGroups: reactionGroups,
+                    reactionInfos: reactionInfos,
+                    isLoadingReactionInfos: isLoadingReactionInfos,
                     isSubmitting: isReacting,
                     onEmojiSelect: { emoji in
                         Task {
                             await toggleReaction(emoji: emoji)
+                            await fetchReactionInfos()
                         }
+                    },
+                    onReactorSelected: { handle in
+                        activeSheet = nil
+                        navigationCoordinator.navigateToProfile(handle: handle)
                     },
                     onClose: {
                         activeSheet = nil
                     }
                 )
-                .trackReactionPickerHeight { contentHeight in
-                    let targetHeight = min(max(contentHeight + 24, 160), 340)
-                    if abs(reactionSheetHeight - targetHeight) > 1 {
-                        reactionSheetHeight = targetHeight
-                    }
-                }
-                .presentationDetents([.height(reactionSheetHeight)])
+                .presentationDetents([.medium, .large])
             }
         }
         .popover(
@@ -1835,13 +1906,20 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             ),
             arrowEdge: .bottom
         ) {
-            ReactionPickerView(
+            PostReactionSheetView(
                 reactionGroups: reactionGroups,
+                reactionInfos: reactionInfos,
+                isLoadingReactionInfos: isLoadingReactionInfos,
                 isSubmitting: isReacting,
                 onEmojiSelect: { emoji in
                     Task {
                         await toggleReaction(emoji: emoji)
+                        await fetchReactionInfos()
                     }
+                },
+                onReactorSelected: { handle in
+                    showingReactionPicker = false
+                    navigationCoordinator.navigateToProfile(handle: handle)
                 },
                 onClose: {
                     showingReactionPicker = false

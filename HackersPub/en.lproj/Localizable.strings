@@ -128,6 +128,11 @@
 "reaction.error.unableToAdd" = "Unable to add reaction. Please try again.";
 "reaction.error.unableToRemove" = "Unable to remove reaction. Please try again.";
 "reaction.reactors.titleFormat" = "Reacted with %@";
+"reaction.empty" = "No reactions yet.";
+"reaction.reactors.notLoaded" = "No reactor details available.";
+"reaction.sheet.addReaction" = "Add reaction";
+"reaction.sheet.reactors" = "Who reacted";
+"reaction.sheet.loadingReactors" = "Loading reactions...";
 
 /* Explore */
 "explore.title" = "Explore";
