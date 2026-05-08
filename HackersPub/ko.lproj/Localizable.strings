@@ -238,6 +238,13 @@
 "articleComposer.error.publishFailedWithDetails" = "게시글을 게시하지 못했습니다: %@";
 
 /* Profile Relationship */
+"profile.tab.selector" = "프로필 섹션";
+"profile.tab.posts" = "전체";
+"profile.tab.notes" = "단문";
+"profile.tab.articles" = "게시글";
+"profile.empty.posts" = "글이 없습니다";
+"profile.empty.notes" = "단문이 없습니다";
+"profile.empty.articles" = "게시글이 없습니다";
 "profile.edit.title" = "프로필 편집";
 "profile.edit.avatar" = "아바타";
 "profile.edit.avatar.choose" = "사진 선택";

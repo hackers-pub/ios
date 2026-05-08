@@ -39,6 +39,10 @@ public extension HackersPub {
       case "AccountPasskeysConnection": return HackersPub.Objects.AccountPasskeysConnection
       case "AccountPasskeysConnectionEdge": return HackersPub.Objects.AccountPasskeysConnectionEdge
       case "Actor": return HackersPub.Objects.Actor
+      case "ActorArticlesConnection": return HackersPub.Objects.ActorArticlesConnection
+      case "ActorArticlesConnectionEdge": return HackersPub.Objects.ActorArticlesConnectionEdge
+      case "ActorNotesConnection": return HackersPub.Objects.ActorNotesConnection
+      case "ActorNotesConnectionEdge": return HackersPub.Objects.ActorNotesConnectionEdge
       case "ActorPostsConnection": return HackersPub.Objects.ActorPostsConnection
       case "ActorPostsConnectionEdge": return HackersPub.Objects.ActorPostsConnectionEdge
       case "AddReactionToPostPayload": return HackersPub.Objects.AddReactionToPostPayload

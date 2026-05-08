@@ -238,6 +238,13 @@
 "articleComposer.error.publishFailedWithDetails" = "Failed to publish article: %@";
 
 /* Profile Relationship */
+"profile.tab.selector" = "Profile section";
+"profile.tab.posts" = "Posts";
+"profile.tab.notes" = "Notes";
+"profile.tab.articles" = "Articles";
+"profile.empty.posts" = "No posts";
+"profile.empty.notes" = "No notes";
+"profile.empty.articles" = "No articles";
 "profile.edit.title" = "Edit Profile";
 "profile.edit.avatar" = "Avatar";
 "profile.edit.avatar.choose" = "Choose Photo";

@@ -43,6 +43,8 @@ extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.EngagementStats: 
 extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.EngagementStats: EngagementStatsProtocol {}
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.ProfilePostFields.EngagementStats: EngagementStatsProtocol {}
+extension HackersPub.ProfilePostFields.SharedPost.EngagementStats: EngagementStatsProtocol {}
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post.EngagementStats: EngagementStatsProtocol {}
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReplyNotification.Post.EngagementStats: EngagementStatsProtocol {}
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post.EngagementStats: EngagementStatsProtocol {}
@@ -148,6 +150,66 @@ extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.Quote
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.QuotedPost.Medium: MediaProtocol {}
 
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle: Identifiable {}
+
+// MARK: - Profile Tab Post Extensions
+
+extension HackersPub.ProfilePostFields.Actor: ActorProtocol {}
+
+extension HackersPub.ProfilePostFields.Medium: MediaProtocol {}
+
+extension HackersPub.ProfilePostFields.SharedPost: PostProtocol {
+    typealias SharedPostType = HackersPub.ProfilePostFields.SharedPost
+    typealias QuotedPostType = HackersPub.ProfilePostFields.SharedPost
+    typealias EngagementStatsType = HackersPub.ProfilePostFields.SharedPost.EngagementStats
+    var sharedPost: HackersPub.ProfilePostFields.SharedPost? { nil }
+    var quotedPost: HackersPub.ProfilePostFields.SharedPost? { nil }
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
+}
+
+extension HackersPub.ProfilePostFields.SharedPost.Actor: ActorProtocol {}
+
+extension HackersPub.ProfilePostFields.SharedPost.Medium: MediaProtocol {}
+
+extension HackersPub.ProfilePostFields.QuotedPost: QuotedPostProtocol {}
+
+extension HackersPub.ProfilePostFields.QuotedPost.Actor: ActorProtocol {}
+
+extension HackersPub.ProfilePostFields.QuotedPost.Medium: MediaProtocol {}
+
+extension HackersPub.ActorNotesQuery.Data.ActorByHandle.Notes.Edge.Node: PostProtocol {
+    typealias SharedPostType = HackersPub.ProfilePostFields.SharedPost
+    typealias QuotedPostType = HackersPub.ProfilePostFields.QuotedPost
+    typealias EngagementStatsType = HackersPub.ProfilePostFields.EngagementStats
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
+}
+
+extension HackersPub.ActorArticlesQuery.Data.ActorByHandle.Articles.Edge.Node: PostProtocol {
+    typealias SharedPostType = HackersPub.ProfilePostFields.SharedPost
+    typealias QuotedPostType = HackersPub.ProfilePostFields.QuotedPost
+    typealias EngagementStatsType = HackersPub.ProfilePostFields.EngagementStats
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
+}
 
 // MARK: - Notifications Extensions
 
@@ -504,6 +566,60 @@ extension HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node: ReactionCapableP
 }
 
 extension HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.ActorNotesQuery.Data.ActorByHandle.Notes.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.ActorArticlesQuery.Data.ActorByHandle.Articles.Edge.Node: ReactionCapablePostProtocol {
     var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
         reactionGroups.compactMap { group in
             if let emojiGroup = group.asEmojiReactionGroup {

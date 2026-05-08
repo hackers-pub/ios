@@ -566,6 +566,165 @@ query PostByUrlQuery($url: String!) {
   }
 }
 
+fragment ProfilePostFields on Post {
+  __typename
+  id
+  name
+  published
+  summary
+  content
+  excerpt
+  url
+  iri
+  viewerHasShared
+  actor {
+    id
+    name
+    handle
+    avatarUrl
+  }
+  media {
+    url
+    thumbnailUrl
+    alt
+    height
+    width
+  }
+  sharedPost {
+    __typename
+    id
+    name
+    published
+    summary
+    content
+    excerpt
+    url
+    iri
+    viewerHasShared
+    actor {
+      id
+      name
+      handle
+      avatarUrl
+    }
+    media {
+      url
+      thumbnailUrl
+      alt
+      height
+      width
+    }
+    engagementStats {
+      replies
+      reactions
+      shares
+      quotes
+    }
+    mentions(first: 20) {
+      edges {
+        node {
+          handle
+        }
+      }
+    }
+  }
+  quotedPost {
+    __typename
+    id
+    name
+    published
+    summary
+    content
+    excerpt
+    url
+    iri
+    actor {
+      id
+      name
+      handle
+      avatarUrl
+    }
+    media {
+      url
+      thumbnailUrl
+      alt
+      height
+      width
+    }
+  }
+  engagementStats {
+    replies
+    reactions
+    shares
+    quotes
+  }
+  reactionGroups {
+    __typename
+    ... on EmojiReactionGroup {
+      emoji
+      reactors {
+        totalCount
+        viewerHasReacted
+      }
+    }
+    ... on CustomEmojiReactionGroup {
+      customEmoji {
+        id
+        name
+        imageUrl
+      }
+      reactors {
+        totalCount
+        viewerHasReacted
+      }
+    }
+  }
+  mentions(first: 20) {
+    edges {
+      node {
+        id
+        handle
+      }
+    }
+  }
+}
+
+query ActorNotesQuery($handle: String!, $after: String) {
+  actorByHandle(handle: $handle, allowLocalHandle: true) {
+    id
+    notes(first: 20, after: $after) {
+      edges {
+        cursor
+        node {
+          ...ProfilePostFields
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
+query ActorArticlesQuery($handle: String!, $after: String) {
+  actorByHandle(handle: $handle, allowLocalHandle: true) {
+    id
+    articles(first: 20, after: $after) {
+      edges {
+        cursor
+        node {
+          ...ProfilePostFields
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
 query ActorByHandleQuery($handle: String!, $after: String) {
   actorByHandle(handle: $handle, allowLocalHandle: true) {
     id
