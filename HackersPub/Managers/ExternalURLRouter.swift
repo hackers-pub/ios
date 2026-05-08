@@ -41,6 +41,15 @@ final class ExternalURLRouter {
         }
     }
 
+    func openInApp(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) else {
+            UIApplication.shared.open(url)
+            return
+        }
+
+        destination = InAppBrowserDestination(url: url)
+    }
+
     func dismissBrowser() {
         destination = nil
     }

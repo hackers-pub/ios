@@ -32,6 +32,10 @@ struct HackersPubApp: App {
                 .onOpenURL { url in
                     handleURL(url)
                 }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    guard let url = activity.webpageURL else { return }
+                    handleURL(url)
+                }
                 .sheet(
                     item: Binding(
                         get: { externalURLRouter.destination },
@@ -44,51 +48,12 @@ struct HackersPubApp: App {
     }
 
     private func handleURL(_ url: URL) {
-        guard let route = HackersPubURLRouter.resolve(url) else {
-            if HackersPubURLRouter.isHackersPubWebURL(url) {
-                externalURLRouter.open(url)
-            }
-            return
-        }
-
-        switch route {
-        case .profile(let handle):
-            navigationCoordinator.navigateToProfile(
-                handle: handle,
-                on: authManager.isAuthenticated ? .timeline : .local
-            )
-
-        case .postURL(let urlString):
-            let tab: AppTab = authManager.isAuthenticated ? .timeline : .local
-            navigationCoordinator.setCurrentTab(tab, requested: true)
-            Task {
-                do {
-                    if let postID = try await DeepLinkPostResolver.resolvePostID(for: urlString) {
-                        await MainActor.run {
-                            navigationCoordinator.navigateToPost(id: postID, on: tab)
-                        }
-                    } else {
-                        openFallbackURL(urlString)
-                    }
-                } catch {
-                    print("Error resolving post URL: \(error)")
-                    openFallbackURL(urlString)
-                }
-            }
-
-        case .signInVerification(let token, let code):
-            navigationCoordinator.setCurrentTab(.signIn, requested: true)
-            Task {
-                do {
-                    try await authManager.completeLoginChallenge(token: token, code: code)
-                } catch {
-                    print("Error completing sign-in link: \(error)")
-                }
-            }
-
-        case .tagSearch(let tag):
-            navigationCoordinator.openSearch(query: tag)
-        }
+        DeepLinkNavigator.open(
+            url,
+            authManager: authManager,
+            navigationCoordinator: navigationCoordinator,
+            externalURLRouter: externalURLRouter
+        )
     }
 
     private func setupImageCache() {
@@ -96,11 +61,6 @@ struct HackersPubApp: App {
         cache.memoryStorage.config.countLimit = 50
     }
 
-    @MainActor
-    private func openFallbackURL(_ urlString: String) {
-        guard let url = URL(string: urlString) else { return }
-        externalURLRouter.open(url)
-    }
 }
 
 enum NavigationDestination: Hashable {
@@ -152,7 +112,7 @@ class NavigationCoordinator {
     }
 
     func navigateToPost(id: String, on tab: AppTab) {
-        append(.post(id: id), to: tab)
+        append(.post(id: id), to: tab, requested: true)
     }
 
     func popToRoot() {

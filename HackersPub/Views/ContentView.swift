@@ -88,10 +88,7 @@ struct ContentView: View {
         }
         .task {
             // Set default tab based on auth state
-            if navigationCoordinator.hasRequestedTab {
-                selectedTab = navigationCoordinator.currentTab.rawValue
-                navigationCoordinator.consumeRequestedTab()
-            } else {
+            if !applyRequestedTabIfAvailable(isAuthenticated: authManager.isAuthenticated) {
                 selectedTab = authManager.isAuthenticated ? "timeline" : "local"
                 updateCurrentTab()
             }
@@ -99,9 +96,8 @@ struct ContentView: View {
         }
         .onChange(of: authManager.isAuthenticated) { _, isAuth in
             // Switch to appropriate tab when auth state changes
-            if navigationCoordinator.hasRequestedTab {
-                selectedTab = navigationCoordinator.currentTab.rawValue
-                navigationCoordinator.consumeRequestedTab()
+            if applyRequestedTabIfAvailable(isAuthenticated: isAuth) {
+                return
             } else if migrateDeepLinkPathIfNeeded(isAuthenticated: isAuth) {
                 return
             } else {
@@ -130,6 +126,29 @@ struct ContentView: View {
     private func applyRequestedSearchText() {
         guard let query = navigationCoordinator.requestedSearchText else { return }
         searchText = query
+    }
+
+    @discardableResult
+    private func applyRequestedTabIfAvailable(isAuthenticated: Bool) -> Bool {
+        guard navigationCoordinator.hasRequestedTab else { return false }
+
+        let requestedTab = navigationCoordinator.currentTab
+        navigationCoordinator.consumeRequestedTab()
+
+        guard isSelectable(tab: requestedTab, isAuthenticated: isAuthenticated) else {
+            return false
+        }
+
+        selectedTab = requestedTab.rawValue
+        return true
+    }
+
+    private func isSelectable(tab: AppTab, isAuthenticated: Bool) -> Bool {
+        if isAuthenticated {
+            return [.timeline, .notifications, .explore, .bookmarks, .search].contains(tab)
+        }
+
+        return [.local, .global, .search, .signIn].contains(tab)
     }
 
     private func migrateDeepLinkPathIfNeeded(isAuthenticated: Bool) -> Bool {

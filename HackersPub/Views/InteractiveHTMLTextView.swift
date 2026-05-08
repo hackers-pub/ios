@@ -538,12 +538,22 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         }
 
         private func route(url: URL) {
-            if url.host == "hackers.pub", url.path.hasPrefix("/@") {
-                let handle = String(url.path.dropFirst(2))
-                parent.navigationCoordinator?.navigateToProfile(handle: handle)
-            } else {
-                (parent.externalURLRouter ?? .shared).open(url)
+            guard let navigationCoordinator = parent.navigationCoordinator else {
+                let router = parent.externalURLRouter ?? .shared
+                if HackersPubURLRouter.isHackersPubWebURL(url) {
+                    router.openInApp(url)
+                } else {
+                    router.open(url)
+                }
+                return
             }
+
+            DeepLinkNavigator.open(
+                url,
+                authManager: parent.authManager ?? .shared,
+                navigationCoordinator: navigationCoordinator,
+                externalURLRouter: parent.externalURLRouter ?? .shared
+            )
         }
 
         private func presentShareSheet(items: [Any]) {

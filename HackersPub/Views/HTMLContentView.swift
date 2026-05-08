@@ -290,12 +290,12 @@ struct HTMLContentView: View {
     }
 
     private func openLink(_ url: URL) {
-        if url.host == "hackers.pub", url.path.hasPrefix("/@") {
-            let handle = String(url.path.dropFirst(2))
-            navigationCoordinator.navigateToProfile(handle: handle)
-        } else {
-            externalURLRouter.open(url)
-        }
+        DeepLinkNavigator.open(
+            url,
+            authManager: authManager,
+            navigationCoordinator: navigationCoordinator,
+            externalURLRouter: externalURLRouter
+        )
     }
 
     private func makePostContextMenuConfiguration() -> UIContextMenuConfiguration? {

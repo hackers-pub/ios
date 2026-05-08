@@ -456,17 +456,7 @@ final class HTMLHeightCache: @unchecked Sendable {
             ) {
                 if navigationAction.navigationType == .linkActivated {
                     if let url = navigationAction.request.url {
-                        // Check if this is a profile URL like https://hackers.pub/@username
-                        if url.host == "hackers.pub", url.path.hasPrefix("/@") {
-                            let handle = String(url.path.dropFirst(2)) // Remove "/@"
-                            if let coordinator = parent.navigationCoordinator {
-                                DispatchQueue.main.async {
-                                    coordinator.navigateToProfile(handle: handle)
-                                }
-                            }
-                        } else {
-                            (parent.externalURLRouter ?? .shared).open(url)
-                        }
+                        route(url: url)
                     }
                     decisionHandler(.cancel)
                 } else {
@@ -628,14 +618,28 @@ final class HTMLHeightCache: @unchecked Sendable {
                     }
                 case .link(let url):
                     DispatchQueue.main.async {
-                        if url.host == "hackers.pub", url.path.hasPrefix("/@") {
-                            let handle = String(url.path.dropFirst(2))
-                            self.parent.navigationCoordinator?.navigateToProfile(handle: handle)
-                        } else {
-                            (self.parent.externalURLRouter ?? .shared).open(url)
-                        }
+                        self.route(url: url)
                     }
                 }
+            }
+
+            private func route(url: URL) {
+                guard let navigationCoordinator = parent.navigationCoordinator else {
+                    let router = parent.externalURLRouter ?? .shared
+                    if HackersPubURLRouter.isHackersPubWebURL(url) {
+                        router.openInApp(url)
+                    } else {
+                        router.open(url)
+                    }
+                    return
+                }
+
+                DeepLinkNavigator.open(
+                    url,
+                    authManager: parent.authManager ?? .shared,
+                    navigationCoordinator: navigationCoordinator,
+                    externalURLRouter: parent.externalURLRouter ?? .shared
+                )
             }
 
             private func makePostPreviewController(postId: String) -> UIViewController {
@@ -695,7 +699,7 @@ final class HTMLHeightCache: @unchecked Sendable {
                             title: NSLocalizedString("sneakpeek.action.openLink", comment: "Open link"),
                             image: UIImage(systemName: "safari")
                         ) { _ in
-                            (self.parent.externalURLRouter ?? .shared).open(url)
+                            self.route(url: url)
                         }
 
                         let shareAction = UIAction(
