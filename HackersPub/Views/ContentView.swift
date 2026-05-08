@@ -25,16 +25,30 @@ struct ContentView: View {
     private var mainContent: some View {
         TabView(selection: $selectedTab) {
             if authManager.isAuthenticated {
-                Tab(NSLocalizedString("tab.timeline", comment: "Timeline tab"), systemImage: "house", value: "timeline") {
+                Tab(value: "timeline") {
                     PersonalTimelineView(showingComposeView: $showingComposeView)
+                } label: {
+                    tabIcon("house", label: NSLocalizedString("tab.timeline", comment: "Timeline tab"))
                 }
 
-                Tab(NSLocalizedString("tab.notifications", comment: "Notifications tab"), systemImage: "bell", value: "notifications") {
+                Tab(value: "notifications") {
                     NotificationsView()
+                } label: {
+                    tabIcon("bell", label: NSLocalizedString("tab.notifications", comment: "Notifications tab"))
                 }
 
-                Tab(NSLocalizedString("tab.explore", comment: "Explore tab"), systemImage: "globe", value: "explore") {
+                Tab(value: "explore") {
                     ExploreView(showingComposeView: $showingComposeView)
+                } label: {
+                    tabIcon("globe", label: NSLocalizedString("tab.explore", comment: "Explore tab"))
+                }
+
+                Tab(value: "bookmarks") {
+                    NavigationStack(path: navigationCoordinator.pathBinding(for: .bookmarks)) {
+                        BookmarksView(showingComposeView: $showingComposeView)
+                    }
+                } label: {
+                    tabIcon("bookmark", label: NSLocalizedString("tab.bookmarks", comment: "Bookmarks tab"))
                 }
 
                 Tab(value: "search", role: .search) {
@@ -43,13 +57,17 @@ struct ContentView: View {
                         .textInputAutocapitalization(.never)
                 }
             } else {
-                Tab(NSLocalizedString("tab.local", comment: "Local tab"), systemImage: "cat", value: "local") {
+                Tab(value: "local") {
                     LocalTimelineView()
+                } label: {
+                    tabIcon("cat", label: NSLocalizedString("tab.local", comment: "Local tab"))
                 }
                 .customizationID("local")
 
-                Tab(NSLocalizedString("tab.fediverse", comment: "Fediverse tab"), systemImage: "globe", value: "global") {
+                Tab(value: "global") {
                     TimelineView()
+                } label: {
+                    tabIcon("globe", label: NSLocalizedString("tab.fediverse", comment: "Fediverse tab"))
                 }
 
                 Tab(value: "search", role: .search) {
@@ -58,8 +76,13 @@ struct ContentView: View {
                         .textInputAutocapitalization(.never)
                 }
 
-                Tab(NSLocalizedString("tab.signIn", comment: "Sign in tab"), systemImage: "rectangle.portrait.and.arrow.right", value: "signIn") {
+                Tab(value: "signIn") {
                     SignInView()
+                } label: {
+                    tabIcon(
+                        "rectangle.portrait.and.arrow.right",
+                        label: NSLocalizedString("tab.signIn", comment: "Sign in tab")
+                    )
                 }
             }
         }
@@ -123,6 +146,11 @@ struct ContentView: View {
         }
 
         return false
+    }
+
+    private func tabIcon(_ systemImage: String, label: String) -> some View {
+        Image(systemName: systemImage)
+            .accessibilityLabel(label)
     }
 }
 

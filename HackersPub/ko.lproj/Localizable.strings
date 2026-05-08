@@ -2,6 +2,7 @@
 "tab.timeline" = "타임라인";
 "tab.notifications" = "알림";
 "tab.explore" = "탐색";
+"tab.bookmarks" = "북마크";
 "tab.search" = "검색";
 "tab.local" = "해커스펍";
 "tab.fediverse" = "페디버스";
@@ -359,3 +360,14 @@
 "article.saveFailed" = "게시글 드래프트 저장에 실패했습니다.";
 "article.publishFailed" = "게시글 발행에 실패했습니다.";
 "common.compose" = "작성";
+
+/* Bookmarks */
+"bookmarks.title" = "북마크";
+"bookmarks.filter" = "북마크 필터";
+"bookmarks.filter.all" = "전체";
+"bookmarks.filter.articles" = "게시글";
+"bookmarks.filter.notes" = "단문";
+"bookmarks.empty.title" = "북마크 없음";
+"bookmarks.empty.description" = "북마크한 단문과 게시글이 여기에 표시됩니다.";
+"bookmark.action.add" = "북마크";
+"bookmark.action.remove" = "북마크 해제";

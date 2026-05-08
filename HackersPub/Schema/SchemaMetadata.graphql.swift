@@ -51,6 +51,7 @@ public extension HackersPub {
       case "ArticleDraft": return HackersPub.Objects.ArticleDraft
       case "AttachArticleDraftMediumPayload": return HackersPub.Objects.AttachArticleDraftMediumPayload
       case "BlockActorPayload": return HackersPub.Objects.BlockActorPayload
+      case "BookmarkPostPayload": return HackersPub.Objects.BookmarkPostPayload
       case "CreateNotePayload": return HackersPub.Objects.CreateNotePayload
       case "CustomEmoji": return HackersPub.Objects.CustomEmoji
       case "CustomEmojiReactionGroup": return HackersPub.Objects.CustomEmojiReactionGroup
@@ -90,6 +91,8 @@ public extension HackersPub {
       case "PostSharesConnectionEdge": return HackersPub.Objects.PostSharesConnectionEdge
       case "PublishArticleDraftPayload": return HackersPub.Objects.PublishArticleDraftPayload
       case "Query": return HackersPub.Objects.Query
+      case "QueryBookmarksConnection": return HackersPub.Objects.QueryBookmarksConnection
+      case "QueryBookmarksConnectionEdge": return HackersPub.Objects.QueryBookmarksConnectionEdge
       case "QueryPersonalTimelineConnection": return HackersPub.Objects.QueryPersonalTimelineConnection
       case "QueryPersonalTimelineConnectionEdge": return HackersPub.Objects.QueryPersonalTimelineConnectionEdge
       case "QueryPublicTimelineConnection": return HackersPub.Objects.QueryPublicTimelineConnection
@@ -113,6 +116,7 @@ public extension HackersPub {
       case "SharedPostDeletionNotAllowedError": return HackersPub.Objects.SharedPostDeletionNotAllowedError
       case "StartMediumUploadPayload": return HackersPub.Objects.StartMediumUploadPayload
       case "UnblockActorPayload": return HackersPub.Objects.UnblockActorPayload
+      case "UnbookmarkPostPayload": return HackersPub.Objects.UnbookmarkPostPayload
       case "UnfollowActorPayload": return HackersPub.Objects.UnfollowActorPayload
       case "UnsharePostPayload": return HackersPub.Objects.UnsharePostPayload
       case "UpdateAccountPayload": return HackersPub.Objects.UpdateAccountPayload

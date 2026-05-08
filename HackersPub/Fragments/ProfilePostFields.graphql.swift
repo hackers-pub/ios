@@ -7,7 +7,7 @@
 public extension HackersPub {
   struct ProfilePostFields: HackersPub.SelectionSet, Fragment {
     public static var fragmentDefinition: StaticString {
-      #"fragment ProfilePostFields on Post { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } mentions(first: 20) { __typename edges { __typename node { __typename id handle } } } }"#
+      #"fragment ProfilePostFields on Post { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } mentions(first: 20) { __typename edges { __typename node { __typename id handle } } } }"#
     }
 
     @_spi(Unsafe) public let __data: DataDict
@@ -25,6 +25,7 @@ public extension HackersPub {
       .field("url", HackersPub.URL?.self),
       .field("iri", HackersPub.URL.self),
       .field("viewerHasShared", Bool.self),
+      .field("viewerHasBookmarked", Bool.self),
       .field("actor", Actor.self),
       .field("media", [Medium].self),
       .field("sharedPost", SharedPost?.self),
@@ -46,6 +47,7 @@ public extension HackersPub {
     public var url: HackersPub.URL? { __data["url"] }
     public var iri: HackersPub.URL { __data["iri"] }
     public var viewerHasShared: Bool { __data["viewerHasShared"] }
+    public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
     public var actor: Actor { __data["actor"] }
     public var media: [Medium] { __data["media"] }
     public var sharedPost: SharedPost? { __data["sharedPost"] }
@@ -125,6 +127,7 @@ public extension HackersPub {
         .field("url", HackersPub.URL?.self),
         .field("iri", HackersPub.URL.self),
         .field("viewerHasShared", Bool.self),
+        .field("viewerHasBookmarked", Bool.self),
         .field("actor", Actor.self),
         .field("media", [Medium].self),
         .field("engagementStats", EngagementStats.self),
@@ -143,6 +146,7 @@ public extension HackersPub {
       public var url: HackersPub.URL? { __data["url"] }
       public var iri: HackersPub.URL { __data["iri"] }
       public var viewerHasShared: Bool { __data["viewerHasShared"] }
+      public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
       public var actor: Actor { __data["actor"] }
       public var media: [Medium] { __data["media"] }
       public var engagementStats: EngagementStats { __data["engagementStats"] }

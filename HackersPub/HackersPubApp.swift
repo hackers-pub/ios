@@ -112,6 +112,7 @@ enum AppTab: String {
     case timeline
     case notifications
     case explore
+    case bookmarks
     case search
     case local
     case global

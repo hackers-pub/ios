@@ -21,6 +21,7 @@ query PublicTimelineQuery($after: String) {
         url
         iri
         viewerHasShared
+        viewerHasBookmarked
         actor {
           id
           name
@@ -45,6 +46,7 @@ query PublicTimelineQuery($after: String) {
           url
           iri
           viewerHasShared
+        viewerHasBookmarked
           actor {
             id
             name
@@ -162,6 +164,7 @@ query LocalTimelineQuery($after: String) {
         url
         iri
         viewerHasShared
+        viewerHasBookmarked
         actor {
           id
           name
@@ -186,6 +189,7 @@ query LocalTimelineQuery($after: String) {
           url
           iri
           viewerHasShared
+        viewerHasBookmarked
           actor {
             id
             name
@@ -303,6 +307,7 @@ query PersonalTimelineQuery($after: String) {
         url
         iri
         viewerHasShared
+        viewerHasBookmarked
         actor {
           id
           name
@@ -327,6 +332,7 @@ query PersonalTimelineQuery($after: String) {
           url
           iri
           viewerHasShared
+        viewerHasBookmarked
           actor {
             id
             name
@@ -435,6 +441,7 @@ query SearchPostQuery($query: String!) {
         url
         iri
         viewerHasShared
+        viewerHasBookmarked
         actor {
           id
           name
@@ -459,6 +466,7 @@ query SearchPostQuery($query: String!) {
           url
           iri
           viewerHasShared
+        viewerHasBookmarked
           actor {
             id
             name
@@ -577,6 +585,7 @@ fragment ProfilePostFields on Post {
   url
   iri
   viewerHasShared
+        viewerHasBookmarked
   actor {
     id
     name
@@ -601,6 +610,7 @@ fragment ProfilePostFields on Post {
     url
     iri
     viewerHasShared
+        viewerHasBookmarked
     actor {
       id
       name
@@ -750,6 +760,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
           url
           iri
           viewerHasShared
+        viewerHasBookmarked
           actor {
             id
             name
@@ -774,6 +785,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
             url
             iri
             viewerHasShared
+        viewerHasBookmarked
             actor {
               id
               name
@@ -967,6 +979,56 @@ query ViewerPasskeysQuery {
           lastUsed
         }
       }
+    }
+  }
+}
+
+query BookmarksQuery($after: String, $postType: PostType) {
+  bookmarks(first: 20, after: $after, postType: $postType) {
+    edges {
+      cursor
+      node {
+        ...ProfilePostFields
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+mutation BookmarkPostMutation($postId: ID!) {
+  bookmarkPost(input: { postId: $postId }) {
+    ... on BookmarkPostPayload {
+      post {
+        id
+        viewerHasBookmarked
+      }
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+  }
+}
+
+mutation UnbookmarkPostMutation($postId: ID!) {
+  unbookmarkPost(input: { postId: $postId }) {
+    ... on UnbookmarkPostPayload {
+      post {
+        id
+        viewerHasBookmarked
+      }
+      unbookmarkedPostId
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
     }
   }
 }
@@ -1408,6 +1470,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
       iri
       visibility
       viewerHasShared
+        viewerHasBookmarked
       actor {
         id
         name
@@ -1432,6 +1495,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         url
         iri
         viewerHasShared
+        viewerHasBookmarked
         actor {
           id
           name
@@ -1463,6 +1527,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         url
         iri
         viewerHasShared
+        viewerHasBookmarked
         actor {
           id
           name
@@ -1586,6 +1651,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
             url
             iri
             viewerHasShared
+        viewerHasBookmarked
             actor {
               id
               name
@@ -1610,6 +1676,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               url
               iri
               viewerHasShared
+        viewerHasBookmarked
               actor {
                 id
                 name
@@ -1783,6 +1850,7 @@ query PostQuotesQuery($id: ID!, $after: String) {
             url
             iri
             viewerHasShared
+        viewerHasBookmarked
             actor {
               id
               name
@@ -1807,6 +1875,7 @@ query PostQuotesQuery($id: ID!, $after: String) {
               url
               iri
               viewerHasShared
+        viewerHasBookmarked
               actor {
                 id
                 name
@@ -1939,6 +2008,7 @@ mutation SharePostMutation($postId: ID!) {
       originalPost {
         id
         viewerHasShared
+        viewerHasBookmarked
         engagementStats {
           replies
           reactions
@@ -1965,6 +2035,7 @@ mutation UnsharePostMutation($postId: ID!) {
       originalPost {
         id
         viewerHasShared
+        viewerHasBookmarked
         engagementStats {
           replies
           reactions

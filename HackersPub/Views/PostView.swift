@@ -35,6 +35,7 @@ protocol PostProtocol: QuotedPostProtocol {
     var quotedPost: QuotedPostType? { get }
     var engagementStats: EngagementStatsType { get }
     var viewerHasShared: Bool { get }
+    var viewerHasBookmarked: Bool { get }
 
     var mentionedHandles: [String] { get }
     var isArticle: Bool { get }
@@ -836,6 +837,7 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
 
 struct PostEngagementSnapshot: Equatable {
     let hasShared: Bool
+    let hasBookmarked: Bool
     let shares: Int
     let reactions: Int
     let reactionGroups: [ReactionGroupSnapshot]
@@ -844,6 +846,7 @@ struct PostEngagementSnapshot: Equatable {
 extension PostEngagementSnapshot {
     init<P: PostProtocol & ReactionCapablePostProtocol>(post: P) {
         hasShared = post.viewerHasShared
+        hasBookmarked = post.sharedPost?.viewerHasBookmarked ?? post.viewerHasBookmarked
         shares = post.engagementStats.shares
         reactions = post.engagementStats.reactions
         reactionGroups = post.reactionGroupsSnapshot
@@ -881,14 +884,17 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     let disableNavigation: Bool
     let enableSneakPeek: Bool
     let contentRenderMode: HTMLContentRenderMode
+    let onBookmarkChanged: ((String, Bool) -> Void)?
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var activeSheet: ActiveSheet?
     @State private var showingReactionPicker = false
     @State private var isSharing = false
+    @State private var isBookmarking = false
     @State private var isReacting = false
     @State private var hasShared: Bool
+    @State private var hasBookmarked: Bool
     @State private var sharesCount: Int
     @State private var reactionsCount: Int
     @State private var reactionSheetHeight: CGFloat = 180
@@ -927,7 +933,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         showAuthor: Bool = true,
         disableNavigation: Bool = false,
         enableSneakPeek: Bool = false,
-        contentRenderMode: HTMLContentRenderMode = .richWebView
+        contentRenderMode: HTMLContentRenderMode = .richWebView,
+        onBookmarkChanged: ((String, Bool) -> Void)? = nil
     ) {
         self.post = post
         self.timelineSharer = timelineSharer
@@ -936,7 +943,9 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         self.disableNavigation = disableNavigation
         self.enableSneakPeek = enableSneakPeek
         self.contentRenderMode = contentRenderMode
+        self.onBookmarkChanged = onBookmarkChanged
         _hasShared = State(initialValue: post.viewerHasShared)
+        _hasBookmarked = State(initialValue: post.sharedPost?.viewerHasBookmarked ?? post.viewerHasBookmarked)
         _sharesCount = State(initialValue: post.engagementStats.shares)
         _reactionsCount = State(initialValue: post.engagementStats.reactions)
         _reactionGroups = State(initialValue: post.reactionGroupsSnapshot)
@@ -962,6 +971,10 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
 
     private var canPerformEngagementActions: Bool {
         authManager.isAuthenticated
+    }
+
+    private var bookmarkTargetID: String {
+        post.sharedPost?.id ?? post.id
     }
 
     private var repostIndicatorActor: (any ActorProtocol)? {
@@ -1043,6 +1056,46 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             }
         } catch {
             print("Error toggling share: \(error)")
+        }
+    }
+
+    private func toggleBookmark() async {
+        guard !isBookmarking else { return }
+        guard AuthManager.shared.currentAccount != nil else { return }
+
+        isBookmarking = true
+        let previousState = hasBookmarked
+        hasBookmarked.toggle()
+        defer { isBookmarking = false }
+
+        do {
+            if previousState {
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.UnbookmarkPostMutation(postId: bookmarkTargetID)
+                )
+                if let payload = response.data?.unbookmarkPost.asUnbookmarkPostPayload {
+                    hasBookmarked = payload.post.viewerHasBookmarked
+                    onBookmarkChanged?(bookmarkTargetID, hasBookmarked)
+                } else {
+                    hasBookmarked = previousState
+                    onBookmarkChanged?(bookmarkTargetID, previousState)
+                }
+            } else {
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.BookmarkPostMutation(postId: bookmarkTargetID)
+                )
+                if let payload = response.data?.bookmarkPost.asBookmarkPostPayload {
+                    hasBookmarked = payload.post.viewerHasBookmarked
+                    onBookmarkChanged?(bookmarkTargetID, hasBookmarked)
+                } else {
+                    hasBookmarked = previousState
+                    onBookmarkChanged?(bookmarkTargetID, previousState)
+                }
+            }
+        } catch {
+            hasBookmarked = previousState
+            onBookmarkChanged?(bookmarkTargetID, previousState)
+            print("Error toggling bookmark: \(error)")
         }
     }
 
@@ -1631,6 +1684,28 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                         .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
                     }
 
+                    if canPerformEngagementActions {
+                        Button {
+                            Task {
+                                await toggleBookmark()
+                            }
+                        } label: {
+                            if isBookmarking {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                            } else {
+                                Image(systemName: hasBookmarked ? "bookmark.fill" : "bookmark")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(hasBookmarked ? .yellow : .secondary)
+                        .accessibilityLabel(
+                            hasBookmarked
+                                ? NSLocalizedString("bookmark.action.remove", comment: "Remove bookmark")
+                                : NSLocalizedString("bookmark.action.add", comment: "Add bookmark")
+                        )
+                    }
+
                     if let shareURL = post.resolvedShareURL {
                         ShareLink(item: shareURL) {
                             Label("Share", systemImage: "square.and.arrow.up")
@@ -1644,12 +1719,14 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         }
         .onChange(of: post.id) {
             hasShared = post.viewerHasShared
+            hasBookmarked = post.sharedPost?.viewerHasBookmarked ?? post.viewerHasBookmarked
             sharesCount = post.engagementStats.shares
             reactionsCount = post.engagementStats.reactions
             reactionGroups = post.reactionGroupsSnapshot
         }
         .onChange(of: engagementSnapshot) { _, snapshot in
             hasShared = snapshot.hasShared
+            hasBookmarked = snapshot.hasBookmarked
             sharesCount = snapshot.shares
             reactionsCount = snapshot.reactions
             reactionGroups = snapshot.reactionGroups

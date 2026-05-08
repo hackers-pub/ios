@@ -135,6 +135,7 @@ public extension HackersPub {
               public var url: HackersPub.URL? { __data["url"] }
               public var iri: HackersPub.URL { __data["iri"] }
               public var viewerHasShared: Bool { __data["viewerHasShared"] }
+              public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
               public var actor: Actor { __data["actor"] }
               public var media: [Medium] { __data["media"] }
               public var sharedPost: SharedPost? { __data["sharedPost"] }

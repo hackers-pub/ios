@@ -44,9 +44,11 @@ struct PostDetailView: View {
     @State private var replyEdges: [HackersPub.PostDetailQuery.Data.Node.AsPost.Replies.Edge] = []
     @State private var isLoadingMoreReplies = false
     @State private var isSharing = false
+    @State private var isBookmarking = false
     @State private var isReacting = false
     @State private var showingReactionPicker = false
     @State private var hasShared = false
+    @State private var hasBookmarked = false
     @State private var sharesCount = 0
     @State private var reactionsCount = 0
     @State private var reactionSheetHeight: CGFloat = 180
@@ -91,6 +93,10 @@ struct PostDetailView: View {
 
     private var viewerHasReacted: Bool {
         reactionGroups.contains(where: { $0.viewerHasReacted })
+    }
+
+    private var bookmarkTargetID: String {
+        post?.sharedPost?.id ?? postId
     }
 
     private func canDelete(post: HackersPub.PostDetailQuery.Data.Node.AsPost) -> Bool {
@@ -569,6 +575,28 @@ struct PostDetailView: View {
                             .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
                         }
 
+                        if canPerformEngagementActions {
+                            Button {
+                                Task {
+                                    await toggleBookmark()
+                                }
+                            } label: {
+                                if isBookmarking {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                } else {
+                                    Image(systemName: hasBookmarked ? "bookmark.fill" : "bookmark")
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(hasBookmarked ? .yellow : .secondary)
+                            .accessibilityLabel(
+                                hasBookmarked
+                                    ? NSLocalizedString("bookmark.action.remove", comment: "Remove bookmark")
+                                    : NSLocalizedString("bookmark.action.add", comment: "Add bookmark")
+                            )
+                        }
+
                         if let shareURL = post.resolvedShareURL {
                             ShareLink(item: shareURL) {
                                 Label("Share", systemImage: "square.and.arrow.up")
@@ -914,6 +942,7 @@ struct PostDetailView: View {
             hasMoreReplies = fetchedPost.replies.pageInfo.hasNextPage
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
             hasShared = fetchedPost.viewerHasShared
+            hasBookmarked = fetchedPost.sharedPost?.viewerHasBookmarked ?? fetchedPost.viewerHasBookmarked
             sharesCount = fetchedPost.engagementStats.shares
             reactionsCount = fetchedPost.engagementStats.reactions
             reactionGroups = fetchedPost.reactionGroupsSnapshot
@@ -982,6 +1011,7 @@ struct PostDetailView: View {
             hasMoreReplies = fetchedPost.replies.pageInfo.hasNextPage
             repliesCursor = fetchedPost.replies.pageInfo.endCursor
             hasShared = fetchedPost.viewerHasShared
+            hasBookmarked = fetchedPost.sharedPost?.viewerHasBookmarked ?? fetchedPost.viewerHasBookmarked
             sharesCount = fetchedPost.engagementStats.shares
             reactionsCount = fetchedPost.engagementStats.reactions
             reactionGroups = fetchedPost.reactionGroupsSnapshot
@@ -1182,6 +1212,41 @@ struct PostDetailView: View {
             }
         } catch {
             print("Error toggling share: \(error)")
+        }
+    }
+
+    private func toggleBookmark() async {
+        guard !isBookmarking else { return }
+        guard AuthManager.shared.currentAccount != nil else { return }
+
+        isBookmarking = true
+        let previousState = hasBookmarked
+        hasBookmarked.toggle()
+        defer { isBookmarking = false }
+
+        do {
+            if previousState {
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.UnbookmarkPostMutation(postId: bookmarkTargetID)
+                )
+                if let payload = response.data?.unbookmarkPost.asUnbookmarkPostPayload {
+                    hasBookmarked = payload.post.viewerHasBookmarked
+                } else {
+                    hasBookmarked = previousState
+                }
+            } else {
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.BookmarkPostMutation(postId: bookmarkTargetID)
+                )
+                if let payload = response.data?.bookmarkPost.asBookmarkPostPayload {
+                    hasBookmarked = payload.post.viewerHasBookmarked
+                } else {
+                    hasBookmarked = previousState
+                }
+            }
+        } catch {
+            hasBookmarked = previousState
+            print("Error toggling bookmark: \(error)")
         }
     }
 

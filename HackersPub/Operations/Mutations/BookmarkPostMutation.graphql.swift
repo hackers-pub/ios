@@ -5,11 +5,11 @@
 @_spi(Execution) @_spi(Unsafe) import ApolloAPI
 
 public extension HackersPub {
-  struct UnsharePostMutation: GraphQLMutation {
-    public static let operationName: String = "UnsharePostMutation"
+  struct BookmarkPostMutation: GraphQLMutation {
+    public static let operationName: String = "BookmarkPostMutation"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"mutation UnsharePostMutation($postId: ID!) { unsharePost(input: { postId: $postId }) { __typename ... on UnsharePostPayload { originalPost { __typename id viewerHasShared viewerHasBookmarked engagementStats { __typename replies reactions shares quotes } } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
+        #"mutation BookmarkPostMutation($postId: ID!) { bookmarkPost(input: { postId: $postId }) { __typename ... on BookmarkPostPayload { post { __typename id viewerHasBookmarked } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
       ))
 
     public var postId: ID
@@ -26,59 +26,59 @@ public extension HackersPub {
 
       @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Mutation }
       @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
-        .field("unsharePost", UnsharePost.self, arguments: ["input": ["postId": .variable("postId")]]),
+        .field("bookmarkPost", BookmarkPost.self, arguments: ["input": ["postId": .variable("postId")]]),
       ] }
       @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
-        UnsharePostMutation.Data.self
+        BookmarkPostMutation.Data.self
       ] }
 
-      public var unsharePost: UnsharePost { __data["unsharePost"] }
+      public var bookmarkPost: BookmarkPost { __data["bookmarkPost"] }
 
-      /// UnsharePost
+      /// BookmarkPost
       ///
-      /// Parent Type: `UnsharePostResult`
-      public struct UnsharePost: HackersPub.SelectionSet {
+      /// Parent Type: `BookmarkPostResult`
+      public struct BookmarkPost: HackersPub.SelectionSet {
         @_spi(Unsafe) public let __data: DataDict
         @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
 
-        @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Unions.UnsharePostResult }
+        @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Unions.BookmarkPostResult }
         @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
           .field("__typename", String.self),
-          .inlineFragment(AsUnsharePostPayload.self),
+          .inlineFragment(AsBookmarkPostPayload.self),
           .inlineFragment(AsInvalidInputError.self),
           .inlineFragment(AsNotAuthenticatedError.self),
         ] }
         @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
-          UnsharePostMutation.Data.UnsharePost.self
+          BookmarkPostMutation.Data.BookmarkPost.self
         ] }
 
-        public var asUnsharePostPayload: AsUnsharePostPayload? { _asInlineFragment() }
+        public var asBookmarkPostPayload: AsBookmarkPostPayload? { _asInlineFragment() }
         public var asInvalidInputError: AsInvalidInputError? { _asInlineFragment() }
         public var asNotAuthenticatedError: AsNotAuthenticatedError? { _asInlineFragment() }
 
-        /// UnsharePost.AsUnsharePostPayload
+        /// BookmarkPost.AsBookmarkPostPayload
         ///
-        /// Parent Type: `UnsharePostPayload`
-        public struct AsUnsharePostPayload: HackersPub.InlineFragment {
+        /// Parent Type: `BookmarkPostPayload`
+        public struct AsBookmarkPostPayload: HackersPub.InlineFragment {
           @_spi(Unsafe) public let __data: DataDict
           @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
 
-          public typealias RootEntityType = UnsharePostMutation.Data.UnsharePost
-          @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.UnsharePostPayload }
+          public typealias RootEntityType = BookmarkPostMutation.Data.BookmarkPost
+          @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.BookmarkPostPayload }
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
-            .field("originalPost", OriginalPost.self),
+            .field("post", Post.self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
-            UnsharePostMutation.Data.UnsharePost.self,
-            UnsharePostMutation.Data.UnsharePost.AsUnsharePostPayload.self
+            BookmarkPostMutation.Data.BookmarkPost.self,
+            BookmarkPostMutation.Data.BookmarkPost.AsBookmarkPostPayload.self
           ] }
 
-          public var originalPost: OriginalPost { __data["originalPost"] }
+          public var post: Post { __data["post"] }
 
-          /// UnsharePost.AsUnsharePostPayload.OriginalPost
+          /// BookmarkPost.AsBookmarkPostPayload.Post
           ///
           /// Parent Type: `Post`
-          public struct OriginalPost: HackersPub.SelectionSet {
+          public struct Post: HackersPub.SelectionSet {
             @_spi(Unsafe) public let __data: DataDict
             @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
 
@@ -86,81 +86,52 @@ public extension HackersPub {
             @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
               .field("__typename", String.self),
               .field("id", HackersPub.ID.self),
-              .field("viewerHasShared", Bool.self),
               .field("viewerHasBookmarked", Bool.self),
-              .field("engagementStats", EngagementStats.self),
             ] }
             @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
-              UnsharePostMutation.Data.UnsharePost.AsUnsharePostPayload.OriginalPost.self
+              BookmarkPostMutation.Data.BookmarkPost.AsBookmarkPostPayload.Post.self
             ] }
 
             public var id: HackersPub.ID { __data["id"] }
-            public var viewerHasShared: Bool { __data["viewerHasShared"] }
             public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
-            public var engagementStats: EngagementStats { __data["engagementStats"] }
-
-            /// UnsharePost.AsUnsharePostPayload.OriginalPost.EngagementStats
-            ///
-            /// Parent Type: `PostEngagementStats`
-            public struct EngagementStats: HackersPub.SelectionSet {
-              @_spi(Unsafe) public let __data: DataDict
-              @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
-
-              @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
-              @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
-                .field("__typename", String.self),
-                .field("replies", Int.self),
-                .field("reactions", Int.self),
-                .field("shares", Int.self),
-                .field("quotes", Int.self),
-              ] }
-              @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
-                UnsharePostMutation.Data.UnsharePost.AsUnsharePostPayload.OriginalPost.EngagementStats.self
-              ] }
-
-              public var replies: Int { __data["replies"] }
-              public var reactions: Int { __data["reactions"] }
-              public var shares: Int { __data["shares"] }
-              public var quotes: Int { __data["quotes"] }
-            }
           }
         }
 
-        /// UnsharePost.AsInvalidInputError
+        /// BookmarkPost.AsInvalidInputError
         ///
         /// Parent Type: `InvalidInputError`
         public struct AsInvalidInputError: HackersPub.InlineFragment {
           @_spi(Unsafe) public let __data: DataDict
           @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
 
-          public typealias RootEntityType = UnsharePostMutation.Data.UnsharePost
+          public typealias RootEntityType = BookmarkPostMutation.Data.BookmarkPost
           @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.InvalidInputError }
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
             .field("inputPath", String.self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
-            UnsharePostMutation.Data.UnsharePost.self,
-            UnsharePostMutation.Data.UnsharePost.AsInvalidInputError.self
+            BookmarkPostMutation.Data.BookmarkPost.self,
+            BookmarkPostMutation.Data.BookmarkPost.AsInvalidInputError.self
           ] }
 
           public var inputPath: String { __data["inputPath"] }
         }
 
-        /// UnsharePost.AsNotAuthenticatedError
+        /// BookmarkPost.AsNotAuthenticatedError
         ///
         /// Parent Type: `NotAuthenticatedError`
         public struct AsNotAuthenticatedError: HackersPub.InlineFragment {
           @_spi(Unsafe) public let __data: DataDict
           @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
 
-          public typealias RootEntityType = UnsharePostMutation.Data.UnsharePost
+          public typealias RootEntityType = BookmarkPostMutation.Data.BookmarkPost
           @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.NotAuthenticatedError }
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
             .field("notAuthenticated", String.self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
-            UnsharePostMutation.Data.UnsharePost.self,
-            UnsharePostMutation.Data.UnsharePost.AsNotAuthenticatedError.self
+            BookmarkPostMutation.Data.BookmarkPost.self,
+            BookmarkPostMutation.Data.BookmarkPost.AsNotAuthenticatedError.self
           ] }
 
           public var notAuthenticated: String { __data["notAuthenticated"] }

@@ -2,6 +2,7 @@
 "tab.timeline" = "Timeline";
 "tab.notifications" = "Notifications";
 "tab.explore" = "Explore";
+"tab.bookmarks" = "Bookmarks";
 "tab.search" = "Search";
 "tab.local" = "Hackers' Pub";
 "tab.fediverse" = "Fediverse";
@@ -359,3 +360,14 @@
 "article.saveFailed" = "Failed to save article draft.";
 "article.publishFailed" = "Failed to publish article.";
 "common.compose" = "Compose";
+
+/* Bookmarks */
+"bookmarks.title" = "Bookmarks";
+"bookmarks.filter" = "Bookmarks Filter";
+"bookmarks.filter.all" = "All";
+"bookmarks.filter.articles" = "Articles";
+"bookmarks.filter.notes" = "Notes";
+"bookmarks.empty.title" = "No Bookmarks";
+"bookmarks.empty.description" = "Bookmarked notes and articles will appear here.";
+"bookmark.action.add" = "Bookmark";
+"bookmark.action.remove" = "Remove bookmark";

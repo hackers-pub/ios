@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "SharePostMutation"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"mutation SharePostMutation($postId: ID!) { sharePost(input: { postId: $postId }) { __typename ... on SharePostPayload { originalPost { __typename id viewerHasShared engagementStats { __typename replies reactions shares quotes } } share { __typename id } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
+        #"mutation SharePostMutation($postId: ID!) { sharePost(input: { postId: $postId }) { __typename ... on SharePostPayload { originalPost { __typename id viewerHasShared viewerHasBookmarked engagementStats { __typename replies reactions shares quotes } } share { __typename id } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
       ))
 
     public var postId: ID
@@ -89,6 +89,7 @@ public extension HackersPub {
               .field("__typename", String.self),
               .field("id", HackersPub.ID.self),
               .field("viewerHasShared", Bool.self),
+              .field("viewerHasBookmarked", Bool.self),
               .field("engagementStats", EngagementStats.self),
             ] }
             @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
@@ -97,6 +98,7 @@ public extension HackersPub {
 
             public var id: HackersPub.ID { __data["id"] }
             public var viewerHasShared: Bool { __data["viewerHasShared"] }
+            public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
             public var engagementStats: EngagementStats { __data["engagementStats"] }
 
             /// SharePost.AsSharePostPayload.OriginalPost.EngagementStats

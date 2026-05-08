@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PostDetailQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url iri visibility viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasNextPage endCursor } } } ... on Article { uuid slug language allowLlmTranslation tags contents { __typename id language title content rawContent summary toc url } } } }"#
+        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url iri visibility viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasNextPage endCursor } } } ... on Article { uuid slug language allowLlmTranslation tags contents { __typename id language title content rawContent summary toc url } } } }"#
       ))
 
     public var id: ID
@@ -82,6 +82,7 @@ public extension HackersPub {
             .field("iri", HackersPub.URL.self),
             .field("visibility", GraphQLEnum<HackersPub.PostVisibility>.self),
             .field("viewerHasShared", Bool.self),
+            .field("viewerHasBookmarked", Bool.self),
             .field("actor", Actor.self),
             .field("media", [Medium].self),
             .field("replyTarget", ReplyTarget?.self),
@@ -110,6 +111,7 @@ public extension HackersPub {
           public var iri: HackersPub.URL { __data["iri"] }
           public var visibility: GraphQLEnum<HackersPub.PostVisibility> { __data["visibility"] }
           public var viewerHasShared: Bool { __data["viewerHasShared"] }
+          public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
           public var actor: Actor { __data["actor"] }
           public var media: [Medium] { __data["media"] }
           public var replyTarget: ReplyTarget? { __data["replyTarget"] }
@@ -191,6 +193,7 @@ public extension HackersPub {
               .field("url", HackersPub.URL?.self),
               .field("iri", HackersPub.URL.self),
               .field("viewerHasShared", Bool.self),
+              .field("viewerHasBookmarked", Bool.self),
               .field("actor", Actor.self),
               .field("media", [Medium].self),
               .field("engagementStats", EngagementStats.self),
@@ -208,6 +211,7 @@ public extension HackersPub {
             public var url: HackersPub.URL? { __data["url"] }
             public var iri: HackersPub.URL { __data["iri"] }
             public var viewerHasShared: Bool { __data["viewerHasShared"] }
+            public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
             public var actor: Actor { __data["actor"] }
             public var media: [Medium] { __data["media"] }
             public var engagementStats: EngagementStats { __data["engagementStats"] }
@@ -309,6 +313,7 @@ public extension HackersPub {
               .field("url", HackersPub.URL?.self),
               .field("iri", HackersPub.URL.self),
               .field("viewerHasShared", Bool.self),
+              .field("viewerHasBookmarked", Bool.self),
               .field("actor", Actor.self),
               .field("media", [Medium].self),
               .field("mentions", Mentions.self, arguments: ["first": 20]),
@@ -327,6 +332,7 @@ public extension HackersPub {
             public var url: HackersPub.URL? { __data["url"] }
             public var iri: HackersPub.URL { __data["iri"] }
             public var viewerHasShared: Bool { __data["viewerHasShared"] }
+            public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
             public var actor: Actor { __data["actor"] }
             public var media: [Medium] { __data["media"] }
             public var mentions: Mentions { __data["mentions"] }
@@ -965,6 +971,7 @@ public extension HackersPub {
                   .field("url", HackersPub.URL?.self),
                   .field("iri", HackersPub.URL.self),
                   .field("viewerHasShared", Bool.self),
+                  .field("viewerHasBookmarked", Bool.self),
                   .field("actor", Actor.self),
                   .field("media", [Medium].self),
                   .field("sharedPost", SharedPost?.self),
@@ -986,6 +993,7 @@ public extension HackersPub {
                 public var url: HackersPub.URL? { __data["url"] }
                 public var iri: HackersPub.URL { __data["iri"] }
                 public var viewerHasShared: Bool { __data["viewerHasShared"] }
+                public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
                 public var actor: Actor { __data["actor"] }
                 public var media: [Medium] { __data["media"] }
                 public var sharedPost: SharedPost? { __data["sharedPost"] }
@@ -1065,6 +1073,7 @@ public extension HackersPub {
                     .field("url", HackersPub.URL?.self),
                     .field("iri", HackersPub.URL.self),
                     .field("viewerHasShared", Bool.self),
+                    .field("viewerHasBookmarked", Bool.self),
                     .field("actor", Actor.self),
                     .field("media", [Medium].self),
                     .field("mentions", Mentions.self, arguments: ["first": 20]),
@@ -1083,6 +1092,7 @@ public extension HackersPub {
                   public var url: HackersPub.URL? { __data["url"] }
                   public var iri: HackersPub.URL { __data["iri"] }
                   public var viewerHasShared: Bool { __data["viewerHasShared"] }
+                  public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
                   public var actor: Actor { __data["actor"] }
                   public var media: [Medium] { __data["media"] }
                   public var mentions: Mentions { __data["mentions"] }
@@ -1588,6 +1598,7 @@ public extension HackersPub {
           public var iri: HackersPub.URL { __data["iri"] }
           public var visibility: GraphQLEnum<HackersPub.PostVisibility> { __data["visibility"] }
           public var viewerHasShared: Bool { __data["viewerHasShared"] }
+          public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
           public var actor: Actor { __data["actor"] }
           public var media: [Medium] { __data["media"] }
           public var replyTarget: ReplyTarget? { __data["replyTarget"] }
