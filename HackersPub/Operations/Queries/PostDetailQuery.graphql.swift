@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PostDetailQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url iri visibility viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasNextPage endCursor } totalCount viewerHasReacted } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasNextPage endCursor } } } ... on Article { uuid slug language allowLlmTranslation tags contents { __typename id language title content rawContent summary toc url } } } }"#
+        #"query PostDetailQuery($id: ID!, $repliesAfter: String) { node(id: $id) { __typename ... on Post { __typename id name published summary content excerpt url iri visibility viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } replyTarget { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors(first: 20) { __typename edges { __typename node { __typename id name handle avatarUrl } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } totalCount viewerHasReacted } } } replies(first: 20, after: $repliesAfter) { __typename edges { __typename cursor node { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } } } ... on Article { uuid slug language allowLlmTranslation tags contents { __typename id language title content rawContent summary toc url } } } }"#
       ))
 
     public var id: ID
@@ -763,14 +763,18 @@ public extension HackersPub {
                   @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PageInfo }
                   @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
                     .field("__typename", String.self),
+                    .field("hasPreviousPage", Bool.self),
                     .field("hasNextPage", Bool.self),
+                    .field("startCursor", String?.self),
                     .field("endCursor", String?.self),
                   ] }
                   @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                     PostDetailQuery.Data.Node.AsPost.ReactionGroup.AsEmojiReactionGroup.Reactors.PageInfo.self
                   ] }
 
+                  public var hasPreviousPage: Bool { __data["hasPreviousPage"] }
                   public var hasNextPage: Bool { __data["hasNextPage"] }
+                  public var startCursor: String? { __data["startCursor"] }
                   public var endCursor: String? { __data["endCursor"] }
                 }
               }
@@ -898,14 +902,18 @@ public extension HackersPub {
                   @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PageInfo }
                   @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
                     .field("__typename", String.self),
+                    .field("hasPreviousPage", Bool.self),
                     .field("hasNextPage", Bool.self),
+                    .field("startCursor", String?.self),
                     .field("endCursor", String?.self),
                   ] }
                   @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                     PostDetailQuery.Data.Node.AsPost.ReactionGroup.AsCustomEmojiReactionGroup.Reactors.PageInfo.self
                   ] }
 
+                  public var hasPreviousPage: Bool { __data["hasPreviousPage"] }
                   public var hasNextPage: Bool { __data["hasNextPage"] }
+                  public var startCursor: String? { __data["startCursor"] }
                   public var endCursor: String? { __data["endCursor"] }
                 }
               }
@@ -1546,14 +1554,18 @@ public extension HackersPub {
               @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PageInfo }
               @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
                 .field("__typename", String.self),
+                .field("hasPreviousPage", Bool.self),
                 .field("hasNextPage", Bool.self),
+                .field("startCursor", String?.self),
                 .field("endCursor", String?.self),
               ] }
               @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                 PostDetailQuery.Data.Node.AsPost.Replies.PageInfo.self
               ] }
 
+              public var hasPreviousPage: Bool { __data["hasPreviousPage"] }
               public var hasNextPage: Bool { __data["hasNextPage"] }
+              public var startCursor: String? { __data["startCursor"] }
               public var endCursor: String? { __data["endCursor"] }
             }
           }

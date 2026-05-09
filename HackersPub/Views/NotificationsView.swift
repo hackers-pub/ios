@@ -3,6 +3,7 @@ import Kingfisher
 @preconcurrency import Apollo
 
 typealias NotificationItem = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node
+typealias NotificationEdge = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge
 
 protocol NotificationActorProtocol {
     var id: String { get }
@@ -14,11 +15,13 @@ protocol NotificationActorProtocol {
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.Actors.Edge.Node: NotificationActorProtocol {}
 
 struct NotificationsView: View {
-    @State private var notifications: [NotificationItem] = []
+    @State private var notifications: [NotificationEdge] = []
     @State private var hasLoadedInitial = false
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var hasPreviousPage = false
     @State private var hasNextPage = false
+    @State private var startCursor: String?
     @State private var endCursor: String?
     @State private var showingSettings = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
@@ -43,12 +46,21 @@ struct NotificationsView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            ForEach(notifications, id: \.id) { notification in
-                                NotificationRowView(notification: notification)
+                            if hasPreviousPage && !notifications.isEmpty {
+                                LoadNewerItemsRow(isLoading: isLoading) {
+                                    Task {
+                                        await loadNewerNotifications()
+                                    }
+                                }
+                                Divider()
+                            }
+
+                            ForEach(notifications, id: \.node.id) { notification in
+                                NotificationRowView(notification: notification.node)
                                     .padding()
-                                    .id(notification.id)
+                                    .id(notification.node.id)
                                     .onAppear {
-                                        if notification.id == notifications.last?.id && hasNextPage && !isLoading {
+                                        if notification.node.id == notifications.last?.node.id && hasNextPage && !isLoading {
                                             Task {
                                                 await loadMore()
                                             }
@@ -129,14 +141,14 @@ struct NotificationsView: View {
 
         do {
             let response = try await apolloClient.fetch(
-                query: HackersPub.NotificationsQuery(after: nil),
+                query: HackersPub.NotificationsQuery(after: nil, before: nil, first: 20, last: nil),
                 cachePolicy: .networkFirst
             )
 
-            let fetchedNotifications = response.data?.viewer?.notifications.edges.map { $0.node } ?? []
-
-            notifications = fetchedNotifications
+            notifications = response.data?.viewer?.notifications.edges ?? []
+            hasPreviousPage = response.data?.viewer?.notifications.pageInfo.hasPreviousPage ?? false
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
+            startCursor = response.data?.viewer?.notifications.pageInfo.startCursor
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
             errorMessage = nil
         } catch {
@@ -151,9 +163,11 @@ struct NotificationsView: View {
         defer { isLoading = false }
 
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.NotificationsQuery(after: .some(cursor)))
-            let newNotifications = response.data?.viewer?.notifications.edges.map { $0.node } ?? []
-            notifications.append(contentsOf: newNotifications)
+            let response = try await apolloClient.fetch(
+                query: HackersPub.NotificationsQuery(after: .some(cursor), before: nil, first: 20, last: nil),
+                cachePolicy: .networkOnly
+            )
+            appendUnique(response.data?.viewer?.notifications.edges ?? [])
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
             errorMessage = nil
@@ -163,19 +177,70 @@ struct NotificationsView: View {
     }
 
     private func refreshNotifications() async {
-        isLoading = true
-        defer { isLoading = false }
+        let shouldShowLoading = notifications.isEmpty
+        if shouldShowLoading {
+            isLoading = true
+        }
+        defer {
+            if shouldShowLoading {
+                isLoading = false
+            }
+        }
 
         do {
-            let response = try await apolloClient.fetchAfterClearingCache(query: HackersPub.NotificationsQuery(after: nil))
-            let fetchedNotifications = response.data?.viewer?.notifications.edges.map { $0.node } ?? []
-            notifications = fetchedNotifications
-            hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
-            endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
+            if notifications.isEmpty || startCursor == nil {
+                let response = try await apolloClient.fetch(
+                    query: HackersPub.NotificationsQuery(after: nil, before: nil, first: 20, last: nil),
+                    cachePolicy: .networkOnly
+                )
+                notifications = response.data?.viewer?.notifications.edges ?? []
+                hasPreviousPage = response.data?.viewer?.notifications.pageInfo.hasPreviousPage ?? false
+                hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
+                startCursor = response.data?.viewer?.notifications.pageInfo.startCursor
+                endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
+            } else {
+                try await fetchNewerNotifications()
+            }
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func loadNewerNotifications() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            try await fetchNewerNotifications()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func fetchNewerNotifications() async throws {
+        guard let cursor = startCursor else { return }
+        let response = try await apolloClient.fetch(
+            query: HackersPub.NotificationsQuery(after: nil, before: .some(cursor), first: nil, last: 20),
+            cachePolicy: .networkOnly
+        )
+        prependUnique(response.data?.viewer?.notifications.edges ?? [])
+        hasPreviousPage = response.data?.viewer?.notifications.pageInfo.hasPreviousPage ?? false
+        if let newStartCursor = response.data?.viewer?.notifications.pageInfo.startCursor {
+            startCursor = newStartCursor
+        }
+        if endCursor == nil {
+            endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
+        }
+    }
+
+    private func prependUnique(_ incoming: [NotificationEdge]) {
+        let existingIDs = Set(notifications.map { $0.node.id })
+        notifications = incoming.filter { !existingIDs.contains($0.node.id) } + notifications
+    }
+
+    private func appendUnique(_ incoming: [NotificationEdge]) {
+        let existingIDs = Set(notifications.map { $0.node.id })
+        notifications.append(contentsOf: incoming.filter { !existingIDs.contains($0.node.id) })
     }
 }
 

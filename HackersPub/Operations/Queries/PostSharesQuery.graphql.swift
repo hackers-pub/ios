@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PostSharesQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PostSharesQuery($id: ID!, $after: String) { node(id: $id) { __typename ... on Post { shares(first: 20, after: $after) { __typename edges { __typename cursor node { __typename id actor { __typename id name handle avatarUrl } } } pageInfo { __typename hasNextPage endCursor } } } } }"#
+        #"query PostSharesQuery($id: ID!, $after: String) { node(id: $id) { __typename ... on Post { shares(first: 20, after: $after) { __typename edges { __typename cursor node { __typename id actor { __typename id name handle avatarUrl } } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } } } } }"#
       ))
 
     public var id: ID
@@ -179,14 +179,18 @@ public extension HackersPub {
               @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PageInfo }
               @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
                 .field("__typename", String.self),
+                .field("hasPreviousPage", Bool.self),
                 .field("hasNextPage", Bool.self),
+                .field("startCursor", String?.self),
                 .field("endCursor", String?.self),
               ] }
               @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                 PostSharesQuery.Data.Node.AsPost.Shares.PageInfo.self
               ] }
 
+              public var hasPreviousPage: Bool { __data["hasPreviousPage"] }
               public var hasNextPage: Bool { __data["hasNextPage"] }
+              public var startCursor: String? { __data["startCursor"] }
               public var endCursor: String? { __data["endCursor"] }
             }
           }

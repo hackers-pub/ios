@@ -9,16 +9,32 @@ public extension HackersPub {
     public static let operationName: String = "LocalTimelineQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query LocalTimelineQuery($after: String) { publicTimeline(local: true, first: 20, after: $after) { __typename edges { __typename cursor added sharersCount lastSharer { __typename id name handle avatarUrl } node { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasNextPage endCursor } } }"#
+        #"query LocalTimelineQuery($after: String, $before: String, $first: Int, $last: Int) { publicTimeline( local: true first: $first after: $after before: $before last: $last ) { __typename edges { __typename cursor added sharersCount lastSharer { __typename id name handle avatarUrl } node { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } } }"#
       ))
 
     public var after: GraphQLNullable<String>
+    public var before: GraphQLNullable<String>
+    public var first: GraphQLNullable<Int32>
+    public var last: GraphQLNullable<Int32>
 
-    public init(after: GraphQLNullable<String>) {
+    public init(
+      after: GraphQLNullable<String>,
+      before: GraphQLNullable<String>,
+      first: GraphQLNullable<Int32>,
+      last: GraphQLNullable<Int32>
+    ) {
       self.after = after
+      self.before = before
+      self.first = first
+      self.last = last
     }
 
-    @_spi(Unsafe) public var __variables: Variables? { ["after": after] }
+    @_spi(Unsafe) public var __variables: Variables? { [
+      "after": after,
+      "before": before,
+      "first": first,
+      "last": last
+    ] }
 
     public struct Data: HackersPub.SelectionSet {
       @_spi(Unsafe) public let __data: DataDict
@@ -28,8 +44,10 @@ public extension HackersPub {
       @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
         .field("publicTimeline", PublicTimeline.self, arguments: [
           "local": true,
-          "first": 20,
-          "after": .variable("after")
+          "first": .variable("first"),
+          "after": .variable("after"),
+          "before": .variable("before"),
+          "last": .variable("last")
         ]),
       ] }
       @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
@@ -703,14 +721,18 @@ public extension HackersPub {
           @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PageInfo }
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
             .field("__typename", String.self),
+            .field("hasPreviousPage", Bool.self),
             .field("hasNextPage", Bool.self),
+            .field("startCursor", String?.self),
             .field("endCursor", String?.self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
             LocalTimelineQuery.Data.PublicTimeline.PageInfo.self
           ] }
 
+          public var hasPreviousPage: Bool { __data["hasPreviousPage"] }
           public var hasNextPage: Bool { __data["hasNextPage"] }
+          public var startCursor: String? { __data["startCursor"] }
           public var endCursor: String? { __data["endCursor"] }
         }
       }

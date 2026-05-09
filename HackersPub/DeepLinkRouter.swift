@@ -293,7 +293,7 @@ enum DeepLinkPostResolver {
         for _ in 0..<10 {
             let cursor: GraphQLNullable<String> = after.map { .some($0) } ?? nil
             let response = try await apolloClient.fetch(
-                query: HackersPub.ActorArticlesQuery(handle: handle, after: cursor),
+                query: HackersPub.ActorArticlesQuery(handle: handle, after: cursor, before: nil, first: 20, last: nil),
                 cachePolicy: .networkOnly
             )
             guard let articles = response.data?.actorByHandle?.articles else { return nil }

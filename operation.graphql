@@ -1,5 +1,5 @@
-query PublicTimelineQuery($after: String) {
-  publicTimeline(first: 20, after: $after) {
+query PublicTimelineQuery($after: String, $before: String, $first: Int, $last: Int) {
+  publicTimeline(first: $first, after: $after, before: $before, last: $last) {
     edges {
       cursor
       added
@@ -135,14 +135,16 @@ query PublicTimelineQuery($after: String) {
       }
     }
     pageInfo {
+      hasPreviousPage
       hasNextPage
+      startCursor
       endCursor
     }
   }
 }
 
-query LocalTimelineQuery($after: String) {
-  publicTimeline(local: true, first: 20, after: $after) {
+query LocalTimelineQuery($after: String, $before: String, $first: Int, $last: Int) {
+  publicTimeline(local: true, first: $first, after: $after, before: $before, last: $last) {
     edges {
       cursor
       added
@@ -278,14 +280,16 @@ query LocalTimelineQuery($after: String) {
       }
     }
     pageInfo {
+      hasPreviousPage
       hasNextPage
+      startCursor
       endCursor
     }
   }
 }
 
-query PersonalTimelineQuery($after: String) {
-  personalTimeline(first: 20, after: $after) {
+query PersonalTimelineQuery($after: String, $before: String, $first: Int, $last: Int) {
+  personalTimeline(first: $first, after: $after, before: $before, last: $last) {
     edges {
       cursor
       added
@@ -421,7 +425,9 @@ query PersonalTimelineQuery($after: String) {
       }
     }
     pageInfo {
+      hasPreviousPage
       hasNextPage
+      startCursor
       endCursor
     }
   }
@@ -699,10 +705,10 @@ fragment ProfilePostFields on Post {
   }
 }
 
-query ActorNotesQuery($handle: String!, $after: String) {
+query ActorNotesQuery($handle: String!, $after: String, $before: String, $first: Int, $last: Int) {
   actorByHandle(handle: $handle, allowLocalHandle: true) {
     id
-    notes(first: 20, after: $after) {
+    notes(first: $first, after: $after, before: $before, last: $last) {
       edges {
         cursor
         node {
@@ -710,17 +716,19 @@ query ActorNotesQuery($handle: String!, $after: String) {
         }
       }
       pageInfo {
+        hasPreviousPage
         hasNextPage
+        startCursor
         endCursor
       }
     }
   }
 }
 
-query ActorArticlesQuery($handle: String!, $after: String) {
+query ActorArticlesQuery($handle: String!, $after: String, $before: String, $first: Int, $last: Int) {
   actorByHandle(handle: $handle, allowLocalHandle: true) {
     id
-    articles(first: 20, after: $after) {
+    articles(first: $first, after: $after, before: $before, last: $last) {
       edges {
         cursor
         node {
@@ -728,14 +736,16 @@ query ActorArticlesQuery($handle: String!, $after: String) {
         }
       }
       pageInfo {
+        hasPreviousPage
         hasNextPage
+        startCursor
         endCursor
       }
     }
   }
 }
 
-query ActorByHandleQuery($handle: String!, $after: String) {
+query ActorByHandleQuery($handle: String!, $after: String, $before: String, $first: Int, $last: Int) {
   actorByHandle(handle: $handle, allowLocalHandle: true) {
     id
     handle
@@ -746,7 +756,7 @@ query ActorByHandleQuery($handle: String!, $after: String) {
     bio
     avatarUrl
     viewerBlocks
-    posts(first: 20, after: $after) {
+    posts(first: $first, after: $after, before: $before, last: $last) {
       edges {
         cursor
         node {
@@ -875,7 +885,9 @@ query ActorByHandleQuery($handle: String!, $after: String) {
         }
       }
       pageInfo {
+        hasPreviousPage
         hasNextPage
+        startCursor
         endCursor
       }
     }
@@ -983,8 +995,8 @@ query ViewerPasskeysQuery {
   }
 }
 
-query BookmarksQuery($after: String, $postType: PostType) {
-  bookmarks(first: 20, after: $after, postType: $postType) {
+query BookmarksQuery($after: String, $before: String, $first: Int, $last: Int, $postType: PostType) {
+  bookmarks(first: $first, after: $after, before: $before, last: $last, postType: $postType) {
     edges {
       cursor
       node {
@@ -992,7 +1004,9 @@ query BookmarksQuery($after: String, $postType: PostType) {
       }
     }
     pageInfo {
+      hasPreviousPage
       hasNextPage
+      startCursor
       endCursor
     }
   }
@@ -1221,10 +1235,10 @@ mutation RemoveFollowerMutation($actorId: ID!) {
   }
 }
 
-query NotificationsQuery($after: String) {
+query NotificationsQuery($after: String, $before: String, $first: Int, $last: Int) {
   viewer {
     id
-    notifications(first: 20, after: $after) {
+    notifications(first: $first, after: $after, before: $before, last: $last) {
       edges {
         cursor
         node {
@@ -1449,7 +1463,9 @@ query NotificationsQuery($after: String) {
         }
       }
       pageInfo {
+        hasPreviousPage
         hasNextPage
+        startCursor
         endCursor
       }
     }
@@ -1606,7 +1622,9 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               }
             }
             pageInfo {
+              hasPreviousPage
               hasNextPage
+              startCursor
               endCursor
             }
             totalCount
@@ -1629,7 +1647,9 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
               }
             }
             pageInfo {
+              hasPreviousPage
               hasNextPage
+              startCursor
               endCursor
             }
             totalCount
@@ -1765,7 +1785,9 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
           }
         }
         pageInfo {
+          hasPreviousPage
           hasNextPage
+          startCursor
           endCursor
         }
       }
@@ -1825,7 +1847,9 @@ query PostSharesQuery($id: ID!, $after: String) {
           }
         }
         pageInfo {
+          hasPreviousPage
           hasNextPage
+          startCursor
           endCursor
         }
       }
@@ -1964,7 +1988,9 @@ query PostQuotesQuery($id: ID!, $after: String) {
           }
         }
         pageInfo {
+          hasPreviousPage
           hasNextPage
+          startCursor
           endCursor
         }
       }

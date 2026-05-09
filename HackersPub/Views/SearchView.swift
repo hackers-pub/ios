@@ -406,7 +406,9 @@ struct SearchView: View {
 
     private func searchActor(handle: String) async -> HackersPub.ActorByHandleQuery.Data.ActorByHandle? {
         do {
-            let response = try await apolloClient.fetch(query: HackersPub.ActorByHandleQuery(handle: handle, after: nil))
+            let response = try await apolloClient.fetch(
+                query: HackersPub.ActorByHandleQuery(handle: handle, after: nil, before: nil, first: 20, last: nil)
+            )
             return response.data?.actorByHandle
         } catch {
             return nil

@@ -9,23 +9,35 @@ public extension HackersPub {
     public static let operationName: String = "BookmarksQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query BookmarksQuery($after: String, $postType: PostType) { bookmarks(first: 20, after: $after, postType: $postType) { __typename edges { __typename cursor node { __typename ...ProfilePostFields } } pageInfo { __typename hasNextPage endCursor } } }"#,
+        #"query BookmarksQuery($after: String, $before: String, $first: Int, $last: Int, $postType: PostType) { bookmarks( first: $first after: $after before: $before last: $last postType: $postType ) { __typename edges { __typename cursor node { __typename ...ProfilePostFields } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } } }"#,
         fragments: [ProfilePostFields.self]
       ))
 
     public var after: GraphQLNullable<String>
+    public var before: GraphQLNullable<String>
+    public var first: GraphQLNullable<Int32>
+    public var last: GraphQLNullable<Int32>
     public var postType: GraphQLNullable<GraphQLEnum<PostType>>
 
     public init(
       after: GraphQLNullable<String>,
+      before: GraphQLNullable<String>,
+      first: GraphQLNullable<Int32>,
+      last: GraphQLNullable<Int32>,
       postType: GraphQLNullable<GraphQLEnum<PostType>>
     ) {
       self.after = after
+      self.before = before
+      self.first = first
+      self.last = last
       self.postType = postType
     }
 
     @_spi(Unsafe) public var __variables: Variables? { [
       "after": after,
+      "before": before,
+      "first": first,
+      "last": last,
       "postType": postType
     ] }
 
@@ -36,8 +48,10 @@ public extension HackersPub {
       @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Query }
       @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
         .field("bookmarks", Bookmarks.self, arguments: [
-          "first": 20,
+          "first": .variable("first"),
           "after": .variable("after"),
+          "before": .variable("before"),
+          "last": .variable("last"),
           "postType": .variable("postType")
         ]),
       ] }
@@ -155,14 +169,18 @@ public extension HackersPub {
           @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PageInfo }
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
             .field("__typename", String.self),
+            .field("hasPreviousPage", Bool.self),
             .field("hasNextPage", Bool.self),
+            .field("startCursor", String?.self),
             .field("endCursor", String?.self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
             BookmarksQuery.Data.Bookmarks.PageInfo.self
           ] }
 
+          public var hasPreviousPage: Bool { __data["hasPreviousPage"] }
           public var hasNextPage: Bool { __data["hasNextPage"] }
+          public var startCursor: String? { __data["startCursor"] }
           public var endCursor: String? { __data["endCursor"] }
         }
       }

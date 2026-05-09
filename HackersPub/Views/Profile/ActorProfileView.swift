@@ -107,7 +107,9 @@ private enum ActorProfileTab: String, CaseIterable, Identifiable {
 private struct ActorProfileTabPageState {
     var hasLoaded = false
     var isLoading = false
+    var hasPreviousPage = false
     var hasNextPage = false
+    var startCursor: String?
     var endCursor: String?
     var errorMessage: String?
 }
@@ -117,6 +119,7 @@ private struct ActorProfilePostListView<Post: PostProtocol & ReactionCapablePost
     let pageState: ActorProfileTabPageState
     let emptyTitle: String
     let onRetry: () -> Void
+    let onLoadNewer: () -> Void
     let onLoadMore: () -> Void
 
     var body: some View {
@@ -144,6 +147,13 @@ private struct ActorProfilePostListView<Post: PostProtocol & ReactionCapablePost
                     .padding()
             } else {
                 LazyVStack(spacing: 0) {
+                    if pageState.hasPreviousPage && !posts.isEmpty {
+                        LoadNewerItemsRow(isLoading: pageState.isLoading) {
+                            onLoadNewer()
+                        }
+                        Divider()
+                    }
+
                     ForEach(posts, id: \.id) { post in
                         PostView(
                             post: post,
@@ -200,7 +210,9 @@ struct ActorProfileView: View {
         _postsPageState = State(initialValue: ActorProfileTabPageState(
             hasLoaded: true,
             isLoading: false,
+            hasPreviousPage: actor.posts.pageInfo.hasPreviousPage,
             hasNextPage: actor.posts.pageInfo.hasNextPage,
+            startCursor: actor.posts.pageInfo.startCursor,
             endCursor: actor.posts.pageInfo.endCursor,
             errorMessage: nil
         ))
@@ -233,6 +245,11 @@ struct ActorProfileView: View {
                         await fetchProfile(cachePolicy: .networkOnly)
                     }
                 },
+                onLoadNewer: {
+                    Task {
+                        await loadNewerPosts()
+                    }
+                },
                 onLoadMore: {
                     Task {
                         await loadMorePosts()
@@ -249,6 +266,11 @@ struct ActorProfileView: View {
                         await loadNotes(reset: true, cachePolicy: .networkOnly)
                     }
                 },
+                onLoadNewer: {
+                    Task {
+                        await loadNewerNotes()
+                    }
+                },
                 onLoadMore: {
                     Task {
                         await loadMoreNotes()
@@ -263,6 +285,11 @@ struct ActorProfileView: View {
                 onRetry: {
                     Task {
                         await loadArticles(reset: true, cachePolicy: .networkOnly)
+                    }
+                },
+                onLoadNewer: {
+                    Task {
+                        await loadNewerArticles()
                     }
                 },
                 onLoadMore: {
@@ -459,7 +486,9 @@ struct ActorProfileView: View {
         postsPageState = ActorProfileTabPageState(
             hasLoaded: true,
             isLoading: false,
+            hasPreviousPage: actor.posts.pageInfo.hasPreviousPage,
             hasNextPage: actor.posts.pageInfo.hasNextPage,
+            startCursor: actor.posts.pageInfo.startCursor,
             endCursor: actor.posts.pageInfo.endCursor,
             errorMessage: nil
         )
@@ -477,14 +506,16 @@ struct ActorProfileView: View {
 
         do {
             let response = try await apolloClient.fetch(
-                query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: nil),
+                query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: nil, before: nil, first: 20, last: nil),
                 cachePolicy: cachePolicy
             )
             if let refreshedActor = response.data?.actorByHandle {
                 actorData = refreshedActor
                 posts = refreshedActor.posts.edges.map { $0.node }
                 postsPageState.hasLoaded = true
+                postsPageState.hasPreviousPage = refreshedActor.posts.pageInfo.hasPreviousPage
                 postsPageState.hasNextPage = refreshedActor.posts.pageInfo.hasNextPage
+                postsPageState.startCursor = refreshedActor.posts.pageInfo.startCursor
                 postsPageState.endCursor = refreshedActor.posts.pageInfo.endCursor
                 postsPageState.errorMessage = nil
             }
@@ -497,22 +528,30 @@ struct ActorProfileView: View {
     }
 
     private func refreshProfile() async {
-        postsPageState.isLoading = selectedTab == .posts
+        let shouldShowPostsLoading = selectedTab == .posts && posts.isEmpty
+        postsPageState.isLoading = shouldShowPostsLoading
         defer {
             postsPageState.isLoading = false
         }
 
         do {
-            let response = try await apolloClient.fetchAfterClearingCache(
-                query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: nil)
-            )
-            if let refreshedActor = response.data?.actorByHandle {
-                actorData = refreshedActor
-                posts = refreshedActor.posts.edges.map { $0.node }
-                postsPageState.hasLoaded = true
-                postsPageState.hasNextPage = refreshedActor.posts.pageInfo.hasNextPage
-                postsPageState.endCursor = refreshedActor.posts.pageInfo.endCursor
-                postsPageState.errorMessage = nil
+            if posts.isEmpty || postsPageState.startCursor == nil {
+                let response = try await apolloClient.fetch(
+                    query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: nil, before: nil, first: 20, last: nil),
+                    cachePolicy: .networkOnly
+                )
+                if let refreshedActor = response.data?.actorByHandle {
+                    actorData = refreshedActor
+                    posts = refreshedActor.posts.edges.map { $0.node }
+                    postsPageState.hasLoaded = true
+                    postsPageState.hasPreviousPage = refreshedActor.posts.pageInfo.hasPreviousPage
+                    postsPageState.hasNextPage = refreshedActor.posts.pageInfo.hasNextPage
+                    postsPageState.startCursor = refreshedActor.posts.pageInfo.startCursor
+                    postsPageState.endCursor = refreshedActor.posts.pageInfo.endCursor
+                    postsPageState.errorMessage = nil
+                }
+            } else {
+                try await fetchNewerPosts()
             }
         } catch {
             if posts.isEmpty {
@@ -556,11 +595,11 @@ struct ActorProfileView: View {
 
         do {
             let response = try await apolloClient.fetch(
-                query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: .some(cursor)),
-                cachePolicy: .networkFirst
+                query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: .some(cursor), before: nil, first: 20, last: nil),
+                cachePolicy: .networkOnly
             )
             if let refreshedActor = response.data?.actorByHandle {
-                posts.append(contentsOf: refreshedActor.posts.edges.map { $0.node })
+                appendUniquePosts(refreshedActor.posts.edges.map { $0.node })
                 postsPageState.hasLoaded = true
                 postsPageState.hasNextPage = refreshedActor.posts.pageInfo.hasNextPage
                 postsPageState.endCursor = refreshedActor.posts.pageInfo.endCursor
@@ -572,27 +611,83 @@ struct ActorProfileView: View {
         }
     }
 
+    private func loadNewerPosts() async {
+        guard let _ = postsPageState.startCursor, !postsPageState.isLoading else { return }
+        postsPageState.isLoading = true
+        defer { postsPageState.isLoading = false }
+        do {
+            try await fetchNewerPosts()
+        } catch {
+            postsPageState.errorMessage = error.localizedDescription
+            print("Error loading newer actor posts: \(error)")
+        }
+    }
+
+    private func fetchNewerPosts() async throws {
+        guard let cursor = postsPageState.startCursor else { return }
+        let response = try await apolloClient.fetch(
+            query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: nil, before: .some(cursor), first: nil, last: 20),
+            cachePolicy: .networkOnly
+        )
+        if let refreshedActor = response.data?.actorByHandle {
+            actorData = refreshedActor
+            prependUniquePosts(refreshedActor.posts.edges.map { $0.node })
+            postsPageState.hasLoaded = true
+            postsPageState.hasPreviousPage = refreshedActor.posts.pageInfo.hasPreviousPage
+            if let newStartCursor = refreshedActor.posts.pageInfo.startCursor {
+                postsPageState.startCursor = newStartCursor
+            }
+            if postsPageState.endCursor == nil {
+                postsPageState.endCursor = refreshedActor.posts.pageInfo.endCursor
+            }
+            postsPageState.errorMessage = nil
+        }
+    }
+
+    private func prependUniquePosts(_ incoming: [HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node]) {
+        let existingIDs = Set(posts.map(\.id))
+        posts = incoming.filter { !existingIDs.contains($0.id) } + posts
+    }
+
+    private func appendUniquePosts(_ incoming: [HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node]) {
+        let existingIDs = Set(posts.map(\.id))
+        posts.append(contentsOf: incoming.filter { !existingIDs.contains($0.id) })
+    }
+
     private func loadNotes(reset: Bool, cachePolicy: CachePolicy.Query.SingleResponse) async {
         guard !notesPageState.isLoading else { return }
         if !reset {
             guard notesPageState.hasNextPage, notesPageState.endCursor != nil else { return }
         }
 
-        notesPageState.isLoading = true
-        defer { notesPageState.isLoading = false }
+        let shouldShowLoading = !reset || notes.isEmpty
+        if shouldShowLoading {
+            notesPageState.isLoading = true
+        }
+        defer {
+            if shouldShowLoading {
+                notesPageState.isLoading = false
+            }
+        }
 
         let after: GraphQLNullable<String> = reset ? nil : notesPageState.endCursor.map { .some($0) } ?? nil
 
         do {
             let response = try await apolloClient.fetch(
-                query: HackersPub.ActorNotesQuery(handle: actorData.handle, after: after),
+                query: HackersPub.ActorNotesQuery(handle: actorData.handle, after: after, before: nil, first: 20, last: nil),
                 cachePolicy: cachePolicy
             )
             if let notesConnection = response.data?.actorByHandle?.notes {
                 let nextNotes = notesConnection.edges.map { $0.node }
-                notes = reset ? nextNotes : notes + nextNotes
+                if reset {
+                    notes = nextNotes
+                } else {
+                    appendUniqueNotes(nextNotes)
+                }
                 notesPageState.hasLoaded = true
+                notesPageState.hasPreviousPage = notesConnection.pageInfo.hasPreviousPage
                 notesPageState.hasNextPage = notesConnection.pageInfo.hasNextPage
+                notesPageState.startCursor = notesConnection.pageInfo.startCursor
                 notesPageState.endCursor = notesConnection.pageInfo.endCursor
                 notesPageState.errorMessage = nil
             }
@@ -609,27 +704,74 @@ struct ActorProfileView: View {
         await loadNotes(reset: false, cachePolicy: .networkFirst)
     }
 
+    private func loadNewerNotes() async {
+        guard let cursor = notesPageState.startCursor, !notesPageState.isLoading else { return }
+        notesPageState.isLoading = true
+        defer { notesPageState.isLoading = false }
+
+        do {
+            let response = try await apolloClient.fetch(
+                query: HackersPub.ActorNotesQuery(handle: actorData.handle, after: nil, before: .some(cursor), first: nil, last: 20),
+                cachePolicy: .networkOnly
+            )
+            if let notesConnection = response.data?.actorByHandle?.notes {
+                prependUniqueNotes(notesConnection.edges.map { $0.node })
+                notesPageState.hasPreviousPage = notesConnection.pageInfo.hasPreviousPage
+                if let newStartCursor = notesConnection.pageInfo.startCursor {
+                    notesPageState.startCursor = newStartCursor
+                }
+                notesPageState.errorMessage = nil
+            }
+        } catch {
+            notesPageState.errorMessage = error.localizedDescription
+            print("Error loading newer actor notes: \(error)")
+        }
+    }
+
+    private func prependUniqueNotes(_ incoming: [HackersPub.ActorNotesQuery.Data.ActorByHandle.Notes.Edge.Node]) {
+        let existingIDs = Set(notes.map(\.id))
+        notes = incoming.filter { !existingIDs.contains($0.id) } + notes
+    }
+
+    private func appendUniqueNotes(_ incoming: [HackersPub.ActorNotesQuery.Data.ActorByHandle.Notes.Edge.Node]) {
+        let existingIDs = Set(notes.map(\.id))
+        notes.append(contentsOf: incoming.filter { !existingIDs.contains($0.id) })
+    }
+
     private func loadArticles(reset: Bool, cachePolicy: CachePolicy.Query.SingleResponse) async {
         guard !articlesPageState.isLoading else { return }
         if !reset {
             guard articlesPageState.hasNextPage, articlesPageState.endCursor != nil else { return }
         }
 
-        articlesPageState.isLoading = true
-        defer { articlesPageState.isLoading = false }
+        let shouldShowLoading = !reset || articles.isEmpty
+        if shouldShowLoading {
+            articlesPageState.isLoading = true
+        }
+        defer {
+            if shouldShowLoading {
+                articlesPageState.isLoading = false
+            }
+        }
 
         let after: GraphQLNullable<String> = reset ? nil : articlesPageState.endCursor.map { .some($0) } ?? nil
 
         do {
             let response = try await apolloClient.fetch(
-                query: HackersPub.ActorArticlesQuery(handle: actorData.handle, after: after),
+                query: HackersPub.ActorArticlesQuery(handle: actorData.handle, after: after, before: nil, first: 20, last: nil),
                 cachePolicy: cachePolicy
             )
             if let articlesConnection = response.data?.actorByHandle?.articles {
                 let nextArticles = articlesConnection.edges.map { $0.node }
-                articles = reset ? nextArticles : articles + nextArticles
+                if reset {
+                    articles = nextArticles
+                } else {
+                    appendUniqueArticles(nextArticles)
+                }
                 articlesPageState.hasLoaded = true
+                articlesPageState.hasPreviousPage = articlesConnection.pageInfo.hasPreviousPage
                 articlesPageState.hasNextPage = articlesConnection.pageInfo.hasNextPage
+                articlesPageState.startCursor = articlesConnection.pageInfo.startCursor
                 articlesPageState.endCursor = articlesConnection.pageInfo.endCursor
                 articlesPageState.errorMessage = nil
             }
@@ -644,5 +786,39 @@ struct ActorProfileView: View {
     private func loadMoreArticles() async {
         guard articlesPageState.hasNextPage, articlesPageState.endCursor != nil else { return }
         await loadArticles(reset: false, cachePolicy: .networkFirst)
+    }
+
+    private func loadNewerArticles() async {
+        guard let cursor = articlesPageState.startCursor, !articlesPageState.isLoading else { return }
+        articlesPageState.isLoading = true
+        defer { articlesPageState.isLoading = false }
+
+        do {
+            let response = try await apolloClient.fetch(
+                query: HackersPub.ActorArticlesQuery(handle: actorData.handle, after: nil, before: .some(cursor), first: nil, last: 20),
+                cachePolicy: .networkOnly
+            )
+            if let articlesConnection = response.data?.actorByHandle?.articles {
+                prependUniqueArticles(articlesConnection.edges.map { $0.node })
+                articlesPageState.hasPreviousPage = articlesConnection.pageInfo.hasPreviousPage
+                if let newStartCursor = articlesConnection.pageInfo.startCursor {
+                    articlesPageState.startCursor = newStartCursor
+                }
+                articlesPageState.errorMessage = nil
+            }
+        } catch {
+            articlesPageState.errorMessage = error.localizedDescription
+            print("Error loading newer actor articles: \(error)")
+        }
+    }
+
+    private func prependUniqueArticles(_ incoming: [HackersPub.ActorArticlesQuery.Data.ActorByHandle.Articles.Edge.Node]) {
+        let existingIDs = Set(articles.map(\.id))
+        articles = incoming.filter { !existingIDs.contains($0.id) } + articles
+    }
+
+    private func appendUniqueArticles(_ incoming: [HackersPub.ActorArticlesQuery.Data.ActorByHandle.Articles.Edge.Node]) {
+        let existingIDs = Set(articles.map(\.id))
+        articles.append(contentsOf: incoming.filter { !existingIDs.contains($0.id) })
     }
 }

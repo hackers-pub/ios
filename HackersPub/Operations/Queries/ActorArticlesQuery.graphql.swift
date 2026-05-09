@@ -9,24 +9,36 @@ public extension HackersPub {
     public static let operationName: String = "ActorArticlesQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query ActorArticlesQuery($handle: String!, $after: String) { actorByHandle(handle: $handle, allowLocalHandle: true) { __typename id articles(first: 20, after: $after) { __typename edges { __typename cursor node { __typename ...ProfilePostFields } } pageInfo { __typename hasNextPage endCursor } } } }"#,
+        #"query ActorArticlesQuery($handle: String!, $after: String, $before: String, $first: Int, $last: Int) { actorByHandle(handle: $handle, allowLocalHandle: true) { __typename id articles(first: $first, after: $after, before: $before, last: $last) { __typename edges { __typename cursor node { __typename ...ProfilePostFields } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } } } }"#,
         fragments: [ProfilePostFields.self]
       ))
 
     public var handle: String
     public var after: GraphQLNullable<String>
+    public var before: GraphQLNullable<String>
+    public var first: GraphQLNullable<Int32>
+    public var last: GraphQLNullable<Int32>
 
     public init(
       handle: String,
-      after: GraphQLNullable<String>
+      after: GraphQLNullable<String>,
+      before: GraphQLNullable<String>,
+      first: GraphQLNullable<Int32>,
+      last: GraphQLNullable<Int32>
     ) {
       self.handle = handle
       self.after = after
+      self.before = before
+      self.first = first
+      self.last = last
     }
 
     @_spi(Unsafe) public var __variables: Variables? { [
       "handle": handle,
-      "after": after
+      "after": after,
+      "before": before,
+      "first": first,
+      "last": last
     ] }
 
     public struct Data: HackersPub.SelectionSet {
@@ -58,8 +70,10 @@ public extension HackersPub {
           .field("__typename", String.self),
           .field("id", HackersPub.ID.self),
           .field("articles", Articles.self, arguments: [
-            "first": 20,
-            "after": .variable("after")
+            "first": .variable("first"),
+            "after": .variable("after"),
+            "before": .variable("before"),
+            "last": .variable("last")
           ]),
         ] }
         @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
@@ -177,14 +191,18 @@ public extension HackersPub {
             @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PageInfo }
             @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
               .field("__typename", String.self),
+              .field("hasPreviousPage", Bool.self),
               .field("hasNextPage", Bool.self),
+              .field("startCursor", String?.self),
               .field("endCursor", String?.self),
             ] }
             @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
               ActorArticlesQuery.Data.ActorByHandle.Articles.PageInfo.self
             ] }
 
+            public var hasPreviousPage: Bool { __data["hasPreviousPage"] }
             public var hasNextPage: Bool { __data["hasNextPage"] }
+            public var startCursor: String? { __data["startCursor"] }
             public var endCursor: String? { __data["endCursor"] }
           }
         }
