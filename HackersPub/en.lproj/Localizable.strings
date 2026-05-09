@@ -32,6 +32,7 @@
 /* Common */
 "common.retry" = "Retry";
 "error.loadFailed.title" = "Unable to load";
+"timeline.loadNewer" = "Load more";
 
 /* Settings */
 "settings.version" = "Version";

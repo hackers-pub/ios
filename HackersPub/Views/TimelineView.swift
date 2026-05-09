@@ -506,6 +506,8 @@ struct TimelineView: View {
         }
 
         if let insertionIndex = pendingNewerInsertionIndex {
+            let existingIDs = Set(edges.map(\.timelineListID))
+            let newEdges = incoming.filter { !existingIDs.contains($0.timelineListID) }
             let tailIDs = Set(edges.dropFirst(insertionIndex).map(\.timelineListID))
             if let overlapIndex = incoming.firstIndex(where: { tailIDs.contains($0.timelineListID) }) {
                 edges.insert(contentsOf: Array(incoming[..<overlapIndex]), at: insertionIndex)
@@ -513,9 +515,15 @@ struct TimelineView: View {
                 pendingNewerCursor = nil
                 pendingNewerInsertionIndex = nil
                 pendingNewerUsesBackwardPagination = false
+            } else if newEdges.count < incoming.count {
+                edges.insert(contentsOf: newEdges, at: insertionIndex)
+                hasPreviousPage = false
+                pendingNewerCursor = nil
+                pendingNewerInsertionIndex = nil
+                pendingNewerUsesBackwardPagination = false
             } else {
-                edges.insert(contentsOf: incoming, at: insertionIndex)
-                pendingNewerInsertionIndex = insertionIndex + incoming.count
+                edges.insert(contentsOf: newEdges, at: insertionIndex)
+                pendingNewerInsertionIndex = insertionIndex + newEdges.count
                 pendingNewerCursor = hasNextPage ? nextCursor : nil
                 pendingNewerUsesBackwardPagination = usesBackwardPagination
                 hasPreviousPage = hasNextPage && nextCursor != nil
@@ -892,6 +900,8 @@ struct PersonalTimelineView: View {
         }
 
         if let insertionIndex = pendingNewerInsertionIndex {
+            let existingIDs = Set(edges.map(\.timelineListID))
+            let newEdges = incoming.filter { !existingIDs.contains($0.timelineListID) }
             let tailIDs = Set(edges.dropFirst(insertionIndex).map(\.timelineListID))
             if let overlapIndex = incoming.firstIndex(where: { tailIDs.contains($0.timelineListID) }) {
                 edges.insert(contentsOf: Array(incoming[..<overlapIndex]), at: insertionIndex)
@@ -899,9 +909,15 @@ struct PersonalTimelineView: View {
                 pendingNewerCursor = nil
                 pendingNewerInsertionIndex = nil
                 pendingNewerUsesBackwardPagination = false
+            } else if newEdges.count < incoming.count {
+                edges.insert(contentsOf: newEdges, at: insertionIndex)
+                hasPreviousPage = false
+                pendingNewerCursor = nil
+                pendingNewerInsertionIndex = nil
+                pendingNewerUsesBackwardPagination = false
             } else {
-                edges.insert(contentsOf: incoming, at: insertionIndex)
-                pendingNewerInsertionIndex = insertionIndex + incoming.count
+                edges.insert(contentsOf: newEdges, at: insertionIndex)
+                pendingNewerInsertionIndex = insertionIndex + newEdges.count
                 pendingNewerCursor = hasNextPage ? nextCursor : nil
                 pendingNewerUsesBackwardPagination = usesBackwardPagination
                 hasPreviousPage = hasNextPage && nextCursor != nil
@@ -1254,6 +1270,8 @@ struct LocalTimelineView: View {
         }
 
         if let insertionIndex = pendingNewerInsertionIndex {
+            let existingIDs = Set(edges.map(\.timelineListID))
+            let newEdges = incoming.filter { !existingIDs.contains($0.timelineListID) }
             let tailIDs = Set(edges.dropFirst(insertionIndex).map(\.timelineListID))
             if let overlapIndex = incoming.firstIndex(where: { tailIDs.contains($0.timelineListID) }) {
                 edges.insert(contentsOf: Array(incoming[..<overlapIndex]), at: insertionIndex)
@@ -1261,9 +1279,15 @@ struct LocalTimelineView: View {
                 pendingNewerCursor = nil
                 pendingNewerInsertionIndex = nil
                 pendingNewerUsesBackwardPagination = false
+            } else if newEdges.count < incoming.count {
+                edges.insert(contentsOf: newEdges, at: insertionIndex)
+                hasPreviousPage = false
+                pendingNewerCursor = nil
+                pendingNewerInsertionIndex = nil
+                pendingNewerUsesBackwardPagination = false
             } else {
-                edges.insert(contentsOf: incoming, at: insertionIndex)
-                pendingNewerInsertionIndex = insertionIndex + incoming.count
+                edges.insert(contentsOf: newEdges, at: insertionIndex)
+                pendingNewerInsertionIndex = insertionIndex + newEdges.count
                 pendingNewerCursor = hasNextPage ? nextCursor : nil
                 pendingNewerUsesBackwardPagination = usesBackwardPagination
                 hasPreviousPage = hasNextPage && nextCursor != nil

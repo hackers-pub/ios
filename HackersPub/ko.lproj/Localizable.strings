@@ -32,6 +32,7 @@
 /* Common */
 "common.retry" = "다시 시도";
 "error.loadFailed.title" = "불러올 수 없음";
+"timeline.loadNewer" = "더 불러오기";
 
 /* Settings */
 "settings.version" = "버전";
