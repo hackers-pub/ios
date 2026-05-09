@@ -23,6 +23,9 @@ struct NotificationsView: View {
     @State private var hasNextPage = false
     @State private var startCursor: String?
     @State private var endCursor: String?
+    @State private var pendingNewerCursor: String?
+    @State private var pendingNewerInsertionIndex: Int?
+    @State private var pendingNewerUsesBackwardPagination = false
     @State private var showingSettings = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
@@ -147,6 +150,9 @@ struct NotificationsView: View {
 
             notifications = response.data?.viewer?.notifications.edges ?? []
             hasPreviousPage = response.data?.viewer?.notifications.pageInfo.hasPreviousPage ?? false
+            pendingNewerCursor = nil
+            pendingNewerInsertionIndex = nil
+            pendingNewerUsesBackwardPagination = false
             hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
             startCursor = response.data?.viewer?.notifications.pageInfo.startCursor
             endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
@@ -195,6 +201,9 @@ struct NotificationsView: View {
                 )
                 notifications = response.data?.viewer?.notifications.edges ?? []
                 hasPreviousPage = response.data?.viewer?.notifications.pageInfo.hasPreviousPage ?? false
+                pendingNewerCursor = nil
+                pendingNewerInsertionIndex = nil
+                pendingNewerUsesBackwardPagination = false
                 hasNextPage = response.data?.viewer?.notifications.pageInfo.hasNextPage ?? false
                 startCursor = response.data?.viewer?.notifications.pageInfo.startCursor
                 endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
@@ -218,18 +227,61 @@ struct NotificationsView: View {
     }
 
     private func fetchNewerNotifications() async throws {
-        guard let cursor = startCursor else { return }
+        if pendingNewerUsesBackwardPagination,
+           let cursor = pendingNewerCursor ?? startCursor
+        {
+            do {
+                let response = try await apolloClient.fetch(
+                    query: HackersPub.NotificationsQuery(after: nil, before: .some(cursor), first: nil, last: 20),
+                    cachePolicy: .networkOnly
+                )
+                guard let connection = response.data?.viewer?.notifications else {
+                    if pendingNewerUsesBackwardPagination {
+                        return
+                    }
+                    throw CancellationError()
+                }
+                mergeNewerPage(
+                    connection.edges,
+                    nextCursor: connection.pageInfo.endCursor,
+                    hasNextPage: connection.pageInfo.hasPreviousPage,
+                    usesBackwardPagination: true
+                )
+                if let newStartCursor = notifications.first?.cursor {
+                    startCursor = newStartCursor
+                }
+                if endCursor == nil {
+                    endCursor = connection.pageInfo.endCursor
+                }
+                return
+            } catch {
+                if pendingNewerUsesBackwardPagination, !(error is CancellationError) {
+                    throw error
+                }
+            }
+        }
+
         let response = try await apolloClient.fetch(
-            query: HackersPub.NotificationsQuery(after: nil, before: .some(cursor), first: nil, last: 20),
+            query: HackersPub.NotificationsQuery(
+                after: pendingNewerCursor.map { .some($0) } ?? nil,
+                before: nil,
+                first: 20,
+                last: nil
+            ),
             cachePolicy: .networkOnly
         )
-        prependUnique(response.data?.viewer?.notifications.edges ?? [])
-        hasPreviousPage = response.data?.viewer?.notifications.pageInfo.hasPreviousPage ?? false
-        if let newStartCursor = response.data?.viewer?.notifications.pageInfo.startCursor {
+        let connection = response.data?.viewer?.notifications
+        mergeNewerPage(
+            connection?.edges ?? [],
+            nextCursor: connection?.pageInfo.endCursor,
+            hasNextPage: connection?.pageInfo.hasNextPage ?? false,
+            usesBackwardPagination: false
+        )
+        if let newStartCursor = notifications.first?.cursor {
             startCursor = newStartCursor
         }
         if endCursor == nil {
-            endCursor = response.data?.viewer?.notifications.pageInfo.endCursor
+            endCursor = connection?.pageInfo.endCursor
         }
     }
 
@@ -241,6 +293,55 @@ struct NotificationsView: View {
     private func appendUnique(_ incoming: [NotificationEdge]) {
         let existingIDs = Set(notifications.map { $0.node.id })
         notifications.append(contentsOf: incoming.filter { !existingIDs.contains($0.node.id) })
+    }
+
+    private func mergeNewerPage(
+        _ incoming: [NotificationEdge],
+        nextCursor: String?,
+        hasNextPage: Bool,
+        usesBackwardPagination: Bool
+    ) {
+        guard !incoming.isEmpty else {
+            hasPreviousPage = false
+            pendingNewerCursor = nil
+            pendingNewerInsertionIndex = nil
+            pendingNewerUsesBackwardPagination = false
+            return
+        }
+
+        if let insertionIndex = pendingNewerInsertionIndex {
+            let existingIDs = Set(notifications.map { $0.node.id })
+            let newEdges = incoming.filter { !existingIDs.contains($0.node.id) }
+            notifications.insert(contentsOf: newEdges, at: min(insertionIndex, notifications.count))
+
+            if newEdges.count < incoming.count || !hasNextPage || nextCursor == nil {
+                hasPreviousPage = false
+                pendingNewerCursor = nil
+                pendingNewerInsertionIndex = nil
+                pendingNewerUsesBackwardPagination = false
+            } else {
+                pendingNewerInsertionIndex = insertionIndex + newEdges.count
+                pendingNewerCursor = nextCursor
+                pendingNewerUsesBackwardPagination = usesBackwardPagination
+                hasPreviousPage = true
+            }
+            return
+        }
+
+        let existingIDs = Set(notifications.map { $0.node.id })
+        if let overlapIndex = incoming.firstIndex(where: { existingIDs.contains($0.node.id) }) {
+            notifications = Array(incoming[..<overlapIndex]) + notifications
+            hasPreviousPage = false
+            pendingNewerCursor = nil
+            pendingNewerInsertionIndex = nil
+            pendingNewerUsesBackwardPagination = false
+        } else {
+            notifications = incoming + notifications
+            pendingNewerInsertionIndex = incoming.count
+            pendingNewerCursor = hasNextPage ? nextCursor : nil
+            pendingNewerUsesBackwardPagination = usesBackwardPagination
+            hasPreviousPage = hasNextPage && nextCursor != nil
+        }
     }
 }
 
