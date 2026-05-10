@@ -43,8 +43,6 @@ struct BookmarksView: View {
     @State private var startCursor: String?
     @State private var endCursor: String?
     @State private var pendingNewerCursor: String?
-    @State private var pendingNewerInsertionIndex: Int?
-    @State private var pendingNewerUsesBackwardPagination = false
     @State private var fetchGeneration = 0
     @State private var showingSettings = false
     @State private var showingArticleEditor = false
@@ -210,8 +208,6 @@ struct BookmarksView: View {
         startCursor = nil
         endCursor = nil
         pendingNewerCursor = nil
-        pendingNewerInsertionIndex = nil
-        pendingNewerUsesBackwardPagination = false
         errorMessage = nil
     }
 
@@ -316,8 +312,6 @@ struct BookmarksView: View {
                 edges = incoming
                 hasPreviousPage = false
                 pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
             } else {
                 appendUnique(incoming)
                 hasPreviousPage = false
@@ -346,69 +340,29 @@ struct BookmarksView: View {
     }
 
     private func fetchNewerBookmarks() async throws {
-        if pendingNewerUsesBackwardPagination,
-           let cursor = pendingNewerCursor ?? startCursor
-        {
-            do {
-                let response = try await apolloClient.fetch(
-                    query: HackersPub.BookmarksQuery(
-                        after: nil,
-                        before: .some(cursor),
-                        first: nil,
-                        last: 20,
-                        postType: selectedFilter.postType
-                    ),
-                    cachePolicy: .networkOnly
-                )
-                let connection = response.data?.bookmarks
-                guard let connection else {
-                    if pendingNewerUsesBackwardPagination {
-                        return
-                    }
-                    throw CancellationError()
-                }
-                mergeNewerPage(
-                    connection.edges,
-                    nextCursor: connection.pageInfo.endCursor,
-                    hasNextPage: connection.pageInfo.hasPreviousPage,
-                    usesBackwardPagination: true
-                )
-                if let newStartCursor = edges.first?.cursor {
-                    startCursor = newStartCursor
-                }
-                if endCursor == nil {
-                    endCursor = connection.pageInfo.endCursor
-                }
-                return
-            } catch {
-                if pendingNewerUsesBackwardPagination, !(error is CancellationError) {
-                    throw error
-                }
-            }
-        }
+        guard let cursor = pendingNewerCursor ?? startCursor else { return }
 
         let response = try await apolloClient.fetch(
             query: HackersPub.BookmarksQuery(
-                after: pendingNewerCursor.map { .some($0) } ?? nil,
-                before: nil,
-                first: 20,
-                last: nil,
+                after: nil,
+                before: .some(cursor),
+                first: nil,
+                last: 20,
                 postType: selectedFilter.postType
             ),
             cachePolicy: .networkOnly
         )
-        let connection = response.data?.bookmarks
+        guard let connection = response.data?.bookmarks else { return }
         mergeNewerPage(
-            connection?.edges ?? [],
-            nextCursor: connection?.pageInfo.endCursor,
-            hasNextPage: connection?.pageInfo.hasNextPage ?? false,
-            usesBackwardPagination: false
+            connection.edges,
+            nextCursor: connection.pageInfo.startCursor,
+            hasNextPage: connection.pageInfo.hasPreviousPage
         )
         if let newStartCursor = edges.first?.cursor {
             startCursor = newStartCursor
         }
         if endCursor == nil {
-            endCursor = connection?.pageInfo.endCursor
+            endCursor = connection.pageInfo.endCursor
         }
     }
 
@@ -425,56 +379,16 @@ struct BookmarksView: View {
     private func mergeNewerPage(
         _ incoming: [HackersPub.BookmarksQuery.Data.Bookmarks.Edge],
         nextCursor: String?,
-        hasNextPage: Bool,
-        usesBackwardPagination: Bool
+        hasNextPage: Bool
     ) {
         guard !incoming.isEmpty else {
             hasPreviousPage = false
             pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
             return
         }
 
-        if let insertionIndex = pendingNewerInsertionIndex {
-            let existingIDs = Set(edges.map { $0.node.id })
-            let newEdges = incoming.filter { !existingIDs.contains($0.node.id) }
-            let tailIDs = Set(edges.dropFirst(insertionIndex).map { $0.node.id })
-            if let overlapIndex = incoming.firstIndex(where: { tailIDs.contains($0.node.id) }) {
-                edges.insert(contentsOf: Array(incoming[..<overlapIndex]), at: insertionIndex)
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
-            } else if newEdges.count < incoming.count {
-                edges.insert(contentsOf: newEdges, at: insertionIndex)
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
-            } else {
-                edges.insert(contentsOf: newEdges, at: insertionIndex)
-                pendingNewerInsertionIndex = insertionIndex + newEdges.count
-                pendingNewerCursor = hasNextPage ? nextCursor : nil
-                pendingNewerUsesBackwardPagination = usesBackwardPagination
-                hasPreviousPage = hasNextPage && nextCursor != nil
-            }
-            return
-        }
-
-        let existingIDs = Set(edges.map { $0.node.id })
-        if let overlapIndex = incoming.firstIndex(where: { existingIDs.contains($0.node.id) }) {
-            edges = Array(incoming[..<overlapIndex]) + edges
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
-        } else {
-            edges = incoming + edges
-            pendingNewerInsertionIndex = incoming.count
-            pendingNewerCursor = hasNextPage ? nextCursor : nil
-            pendingNewerUsesBackwardPagination = usesBackwardPagination
-            hasPreviousPage = hasNextPage && nextCursor != nil
-        }
+        prependUnique(incoming)
+        pendingNewerCursor = hasNextPage ? nextCursor : nil
+        hasPreviousPage = hasNextPage && nextCursor != nil
     }
 }

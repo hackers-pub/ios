@@ -189,8 +189,6 @@ struct TimelineView: View {
     @State private var startCursor: String?
     @State private var endCursor: String?
     @State private var pendingNewerCursor: String?
-    @State private var pendingNewerInsertionIndex: Int?
-    @State private var pendingNewerUsesBackwardPagination = false
     @State private var shouldRefresh = false
     @State private var showingSettings = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
@@ -340,8 +338,6 @@ struct TimelineView: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasPreviousPage = false
             pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             startCursor = response.data?.publicTimeline.pageInfo.startCursor
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
@@ -391,8 +387,6 @@ struct TimelineView: View {
                 edges = response.data?.publicTimeline.edges ?? []
                 hasPreviousPage = false
                 pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
                 hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
                 startCursor = response.data?.publicTimeline.pageInfo.startCursor
                 endCursor = response.data?.publicTimeline.pageInfo.endCursor
@@ -416,66 +410,28 @@ struct TimelineView: View {
     }
 
     private func fetchNewerPosts() async throws {
-        if pendingNewerUsesBackwardPagination,
-           let cursor = pendingNewerCursor ?? startCursor
-        {
-            do {
-                let response = try await apolloClient.fetch(
-                    query: HackersPub.PublicTimelineQuery(
-                        after: nil,
-                        before: .some(cursor),
-                        first: nil,
-                        last: 20
-                    ),
-                    cachePolicy: .networkOnly
-                )
-                guard let connection = response.data?.publicTimeline else {
-                    if pendingNewerUsesBackwardPagination {
-                        return
-                    }
-                    throw CancellationError()
-                }
-                mergeNewerPage(
-                    connection.edges,
-                    nextCursor: connection.pageInfo.endCursor,
-                    hasNextPage: connection.pageInfo.hasPreviousPage,
-                    usesBackwardPagination: true
-                )
-                if let newStartCursor = edges.first?.cursor {
-                    startCursor = newStartCursor
-                }
-                if endCursor == nil {
-                    endCursor = connection.pageInfo.endCursor
-                }
-                return
-            } catch {
-                if pendingNewerUsesBackwardPagination, !(error is CancellationError) {
-                    throw error
-                }
-            }
-        }
+        guard let cursor = pendingNewerCursor ?? startCursor else { return }
 
         let response = try await apolloClient.fetch(
             query: HackersPub.PublicTimelineQuery(
-                after: pendingNewerCursor.map { .some($0) } ?? nil,
-                before: nil,
-                first: 20,
-                last: nil
+                after: nil,
+                before: .some(cursor),
+                first: nil,
+                last: 20
             ),
             cachePolicy: .networkOnly
         )
-        let incoming = response.data?.publicTimeline.edges ?? []
+        guard let connection = response.data?.publicTimeline else { return }
         mergeNewerPage(
-            incoming,
-            nextCursor: response.data?.publicTimeline.pageInfo.endCursor,
-            hasNextPage: response.data?.publicTimeline.pageInfo.hasNextPage ?? false,
-            usesBackwardPagination: false
+            connection.edges,
+            nextCursor: connection.pageInfo.startCursor,
+            hasNextPage: connection.pageInfo.hasPreviousPage
         )
         if let newStartCursor = edges.first?.cursor {
             startCursor = newStartCursor
         }
         if endCursor == nil {
-            endCursor = response.data?.publicTimeline.pageInfo.endCursor
+            endCursor = connection.pageInfo.endCursor
         }
     }
 
@@ -492,59 +448,17 @@ struct TimelineView: View {
     private func mergeNewerPage(
         _ incoming: [HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge],
         nextCursor: String?,
-        hasNextPage: Bool,
-        usesBackwardPagination: Bool
+        hasNextPage: Bool
     ) {
-        defer {
-        }
         guard !incoming.isEmpty else {
             hasPreviousPage = false
             pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
             return
         }
 
-        if let insertionIndex = pendingNewerInsertionIndex {
-            let existingIDs = Set(edges.map(\.timelineListID))
-            let newEdges = incoming.filter { !existingIDs.contains($0.timelineListID) }
-            let tailIDs = Set(edges.dropFirst(insertionIndex).map(\.timelineListID))
-            if let overlapIndex = incoming.firstIndex(where: { tailIDs.contains($0.timelineListID) }) {
-                edges.insert(contentsOf: Array(incoming[..<overlapIndex]), at: insertionIndex)
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
-            } else if newEdges.count < incoming.count {
-                edges.insert(contentsOf: newEdges, at: insertionIndex)
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
-            } else {
-                edges.insert(contentsOf: newEdges, at: insertionIndex)
-                pendingNewerInsertionIndex = insertionIndex + newEdges.count
-                pendingNewerCursor = hasNextPage ? nextCursor : nil
-                pendingNewerUsesBackwardPagination = usesBackwardPagination
-                hasPreviousPage = hasNextPage && nextCursor != nil
-            }
-            return
-        }
-
-        let existingIDs = Set(edges.map(\.timelineListID))
-        if let overlapIndex = incoming.firstIndex(where: { existingIDs.contains($0.timelineListID) }) {
-            edges = Array(incoming[..<overlapIndex]) + edges
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
-        } else {
-            edges = incoming + edges
-            pendingNewerInsertionIndex = incoming.count
-            pendingNewerCursor = hasNextPage ? nextCursor : nil
-            pendingNewerUsesBackwardPagination = usesBackwardPagination
-            hasPreviousPage = hasNextPage && nextCursor != nil
-        }
+        prependUnique(incoming)
+        pendingNewerCursor = hasNextPage ? nextCursor : nil
+        hasPreviousPage = hasNextPage && nextCursor != nil
     }
 }
 
@@ -559,8 +473,6 @@ struct PersonalTimelineView: View {
     @State private var startCursor: String?
     @State private var endCursor: String?
     @State private var pendingNewerCursor: String?
-    @State private var pendingNewerInsertionIndex: Int?
-    @State private var pendingNewerUsesBackwardPagination = false
     @State private var shouldRefresh = false
     @State private var showingSettings = false
     @State private var showingArticleEditor = false
@@ -734,8 +646,6 @@ struct PersonalTimelineView: View {
             edges = response.data?.personalTimeline.edges ?? []
             hasPreviousPage = false
             pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
             hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
             startCursor = response.data?.personalTimeline.pageInfo.startCursor
             endCursor = response.data?.personalTimeline.pageInfo.endCursor
@@ -785,8 +695,6 @@ struct PersonalTimelineView: View {
                 edges = response.data?.personalTimeline.edges ?? []
                 hasPreviousPage = false
                 pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
                 hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
                 startCursor = response.data?.personalTimeline.pageInfo.startCursor
                 endCursor = response.data?.personalTimeline.pageInfo.endCursor
@@ -810,66 +718,28 @@ struct PersonalTimelineView: View {
     }
 
     private func fetchNewerPosts() async throws {
-        if pendingNewerUsesBackwardPagination,
-           let cursor = pendingNewerCursor ?? startCursor
-        {
-            do {
-                let response = try await apolloClient.fetch(
-                    query: HackersPub.PersonalTimelineQuery(
-                        after: nil,
-                        before: .some(cursor),
-                        first: nil,
-                        last: 20
-                    ),
-                    cachePolicy: .networkOnly
-                )
-                guard let connection = response.data?.personalTimeline else {
-                    if pendingNewerUsesBackwardPagination {
-                        return
-                    }
-                    throw CancellationError()
-                }
-                mergeNewerPage(
-                    connection.edges,
-                    nextCursor: connection.pageInfo.endCursor,
-                    hasNextPage: connection.pageInfo.hasPreviousPage,
-                    usesBackwardPagination: true
-                )
-                if let newStartCursor = edges.first?.cursor {
-                    startCursor = newStartCursor
-                }
-                if endCursor == nil {
-                    endCursor = connection.pageInfo.endCursor
-                }
-                return
-            } catch {
-                if pendingNewerUsesBackwardPagination, !(error is CancellationError) {
-                    throw error
-                }
-            }
-        }
+        guard let cursor = pendingNewerCursor ?? startCursor else { return }
 
         let response = try await apolloClient.fetch(
             query: HackersPub.PersonalTimelineQuery(
-                after: pendingNewerCursor.map { .some($0) } ?? nil,
-                before: nil,
-                first: 20,
-                last: nil
+                after: nil,
+                before: .some(cursor),
+                first: nil,
+                last: 20
             ),
             cachePolicy: .networkOnly
         )
-        let incoming = response.data?.personalTimeline.edges ?? []
+        guard let connection = response.data?.personalTimeline else { return }
         mergeNewerPage(
-            incoming,
-            nextCursor: response.data?.personalTimeline.pageInfo.endCursor,
-            hasNextPage: response.data?.personalTimeline.pageInfo.hasNextPage ?? false,
-            usesBackwardPagination: false
+            connection.edges,
+            nextCursor: connection.pageInfo.startCursor,
+            hasNextPage: connection.pageInfo.hasPreviousPage
         )
         if let newStartCursor = edges.first?.cursor {
             startCursor = newStartCursor
         }
         if endCursor == nil {
-            endCursor = response.data?.personalTimeline.pageInfo.endCursor
+            endCursor = connection.pageInfo.endCursor
         }
     }
 
@@ -886,59 +756,17 @@ struct PersonalTimelineView: View {
     private func mergeNewerPage(
         _ incoming: [HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge],
         nextCursor: String?,
-        hasNextPage: Bool,
-        usesBackwardPagination: Bool
+        hasNextPage: Bool
     ) {
-        defer {
-        }
         guard !incoming.isEmpty else {
             hasPreviousPage = false
             pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
             return
         }
 
-        if let insertionIndex = pendingNewerInsertionIndex {
-            let existingIDs = Set(edges.map(\.timelineListID))
-            let newEdges = incoming.filter { !existingIDs.contains($0.timelineListID) }
-            let tailIDs = Set(edges.dropFirst(insertionIndex).map(\.timelineListID))
-            if let overlapIndex = incoming.firstIndex(where: { tailIDs.contains($0.timelineListID) }) {
-                edges.insert(contentsOf: Array(incoming[..<overlapIndex]), at: insertionIndex)
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
-            } else if newEdges.count < incoming.count {
-                edges.insert(contentsOf: newEdges, at: insertionIndex)
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
-            } else {
-                edges.insert(contentsOf: newEdges, at: insertionIndex)
-                pendingNewerInsertionIndex = insertionIndex + newEdges.count
-                pendingNewerCursor = hasNextPage ? nextCursor : nil
-                pendingNewerUsesBackwardPagination = usesBackwardPagination
-                hasPreviousPage = hasNextPage && nextCursor != nil
-            }
-            return
-        }
-
-        let existingIDs = Set(edges.map(\.timelineListID))
-        if let overlapIndex = incoming.firstIndex(where: { existingIDs.contains($0.timelineListID) }) {
-            edges = Array(incoming[..<overlapIndex]) + edges
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
-        } else {
-            edges = incoming + edges
-            pendingNewerInsertionIndex = incoming.count
-            pendingNewerCursor = hasNextPage ? nextCursor : nil
-            pendingNewerUsesBackwardPagination = usesBackwardPagination
-            hasPreviousPage = hasNextPage && nextCursor != nil
-        }
+        prependUnique(incoming)
+        pendingNewerCursor = hasNextPage ? nextCursor : nil
+        hasPreviousPage = hasNextPage && nextCursor != nil
     }
 }
 
@@ -953,8 +781,6 @@ struct LocalTimelineView: View {
     @State private var startCursor: String?
     @State private var endCursor: String?
     @State private var pendingNewerCursor: String?
-    @State private var pendingNewerInsertionIndex: Int?
-    @State private var pendingNewerUsesBackwardPagination = false
     @State private var shouldRefresh = false
     @State private var showingSettings = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
@@ -1104,8 +930,6 @@ struct LocalTimelineView: View {
             edges = response.data?.publicTimeline.edges ?? []
             hasPreviousPage = false
             pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
             hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
             startCursor = response.data?.publicTimeline.pageInfo.startCursor
             endCursor = response.data?.publicTimeline.pageInfo.endCursor
@@ -1155,8 +979,6 @@ struct LocalTimelineView: View {
                 edges = response.data?.publicTimeline.edges ?? []
                 hasPreviousPage = false
                 pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
                 hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
                 startCursor = response.data?.publicTimeline.pageInfo.startCursor
                 endCursor = response.data?.publicTimeline.pageInfo.endCursor
@@ -1180,66 +1002,28 @@ struct LocalTimelineView: View {
     }
 
     private func fetchNewerPosts() async throws {
-        if pendingNewerUsesBackwardPagination,
-           let cursor = pendingNewerCursor ?? startCursor
-        {
-            do {
-                let response = try await apolloClient.fetch(
-                    query: HackersPub.LocalTimelineQuery(
-                        after: nil,
-                        before: .some(cursor),
-                        first: nil,
-                        last: 20
-                    ),
-                    cachePolicy: .networkOnly
-                )
-                guard let connection = response.data?.publicTimeline else {
-                    if pendingNewerUsesBackwardPagination {
-                        return
-                    }
-                    throw CancellationError()
-                }
-                mergeNewerPage(
-                    connection.edges,
-                    nextCursor: connection.pageInfo.endCursor,
-                    hasNextPage: connection.pageInfo.hasPreviousPage,
-                    usesBackwardPagination: true
-                )
-                if let newStartCursor = edges.first?.cursor {
-                    startCursor = newStartCursor
-                }
-                if endCursor == nil {
-                    endCursor = connection.pageInfo.endCursor
-                }
-                return
-            } catch {
-                if pendingNewerUsesBackwardPagination, !(error is CancellationError) {
-                    throw error
-                }
-            }
-        }
+        guard let cursor = pendingNewerCursor ?? startCursor else { return }
 
         let response = try await apolloClient.fetch(
             query: HackersPub.LocalTimelineQuery(
-                after: pendingNewerCursor.map { .some($0) } ?? nil,
-                before: nil,
-                first: 20,
-                last: nil
+                after: nil,
+                before: .some(cursor),
+                first: nil,
+                last: 20
             ),
             cachePolicy: .networkOnly
         )
-        let incoming = response.data?.publicTimeline.edges ?? []
+        guard let connection = response.data?.publicTimeline else { return }
         mergeNewerPage(
-            incoming,
-            nextCursor: response.data?.publicTimeline.pageInfo.endCursor,
-            hasNextPage: response.data?.publicTimeline.pageInfo.hasNextPage ?? false,
-            usesBackwardPagination: false
+            connection.edges,
+            nextCursor: connection.pageInfo.startCursor,
+            hasNextPage: connection.pageInfo.hasPreviousPage
         )
         if let newStartCursor = edges.first?.cursor {
             startCursor = newStartCursor
         }
         if endCursor == nil {
-            endCursor = response.data?.publicTimeline.pageInfo.endCursor
+            endCursor = connection.pageInfo.endCursor
         }
     }
 
@@ -1256,59 +1040,17 @@ struct LocalTimelineView: View {
     private func mergeNewerPage(
         _ incoming: [HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge],
         nextCursor: String?,
-        hasNextPage: Bool,
-        usesBackwardPagination: Bool
+        hasNextPage: Bool
     ) {
-        defer {
-        }
         guard !incoming.isEmpty else {
             hasPreviousPage = false
             pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
             return
         }
 
-        if let insertionIndex = pendingNewerInsertionIndex {
-            let existingIDs = Set(edges.map(\.timelineListID))
-            let newEdges = incoming.filter { !existingIDs.contains($0.timelineListID) }
-            let tailIDs = Set(edges.dropFirst(insertionIndex).map(\.timelineListID))
-            if let overlapIndex = incoming.firstIndex(where: { tailIDs.contains($0.timelineListID) }) {
-                edges.insert(contentsOf: Array(incoming[..<overlapIndex]), at: insertionIndex)
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
-            } else if newEdges.count < incoming.count {
-                edges.insert(contentsOf: newEdges, at: insertionIndex)
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                pendingNewerInsertionIndex = nil
-                pendingNewerUsesBackwardPagination = false
-            } else {
-                edges.insert(contentsOf: newEdges, at: insertionIndex)
-                pendingNewerInsertionIndex = insertionIndex + newEdges.count
-                pendingNewerCursor = hasNextPage ? nextCursor : nil
-                pendingNewerUsesBackwardPagination = usesBackwardPagination
-                hasPreviousPage = hasNextPage && nextCursor != nil
-            }
-            return
-        }
-
-        let existingIDs = Set(edges.map(\.timelineListID))
-        if let overlapIndex = incoming.firstIndex(where: { existingIDs.contains($0.timelineListID) }) {
-            edges = Array(incoming[..<overlapIndex]) + edges
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            pendingNewerInsertionIndex = nil
-            pendingNewerUsesBackwardPagination = false
-        } else {
-            edges = incoming + edges
-            pendingNewerInsertionIndex = incoming.count
-            pendingNewerCursor = hasNextPage ? nextCursor : nil
-            pendingNewerUsesBackwardPagination = usesBackwardPagination
-            hasPreviousPage = hasNextPage && nextCursor != nil
-        }
+        prependUnique(incoming)
+        pendingNewerCursor = hasNextPage ? nextCursor : nil
+        hasPreviousPage = hasNextPage && nextCursor != nil
     }
 }
 
