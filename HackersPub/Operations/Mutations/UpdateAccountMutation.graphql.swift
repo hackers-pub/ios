@@ -109,7 +109,9 @@ public extension HackersPub {
           public var avatarMediumId: HackersPub.UUID? { __data["avatarMediumId"] }
           @available(*, deprecated, message: "Use avatarMediumId instead.")
           public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+          /// Full fediverse handle including the instance host, e.g., @alice@hackers.pub. Suitable for display and for cross-instance @-mention targeting.
           public var handle: String { __data["handle"] }
+          /// Profile links displayed on the account's public page, ordered by their display index. Links with a non-null `verified` timestamp have passed rel-me verification.
           public var links: [Link] { __data["links"] }
 
           /// UpdateAccount.Account.Link

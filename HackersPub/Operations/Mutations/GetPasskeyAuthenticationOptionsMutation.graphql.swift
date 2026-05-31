@@ -32,6 +32,7 @@ public extension HackersPub {
         GetPasskeyAuthenticationOptionsMutation.Data.self
       ] }
 
+      /// Generate WebAuthn authentication options for passkey sign-in. Pass a fresh client-generated UUID as `sessionId`; this same `sessionId` must be passed back to `loginByPasskey`.
       public var getPasskeyAuthenticationOptions: HackersPub.JSON { __data["getPasskeyAuthenticationOptions"] }
     }
   }

@@ -4,6 +4,7 @@
 import ApolloAPI
 
 public extension HackersPub.Objects {
+  /// A poll attached to a `Question` post. Contains options, vote counts, and the voting deadline.
   static let Poll = ApolloAPI.Object(
     typename: "Poll",
     implementedInterfaces: [HackersPub.Interfaces.Node.self],

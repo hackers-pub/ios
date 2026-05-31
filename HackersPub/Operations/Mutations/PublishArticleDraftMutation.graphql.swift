@@ -117,7 +117,9 @@ public extension HackersPub {
             ] }
 
             public var id: HackersPub.ID { __data["id"] }
+            /// The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
             public var name: String? { __data["name"] }
+            /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier — `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles — **not** `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised — copied from the shared post in the boost case — and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.
             public var url: HackersPub.URL? { __data["url"] }
           }
         }

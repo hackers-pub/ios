@@ -125,6 +125,7 @@ public extension HackersPub {
             ] }
 
             public var id: HackersPub.ID { __data["id"] }
+            /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
             public var content: HackersPub.HTML { __data["content"] }
             public var published: HackersPub.DateTime { __data["published"] }
           }

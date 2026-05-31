@@ -1,5 +1,15 @@
+"""
+A local user account on this Hackers' Pub instance. Every `Account` has exactly one `Actor` (its public ActivityPub identity) and holds login credentials, settings, and moderation state. `Account` is only returned for the authenticated viewer and for moderator-only queries; all public identity data (name, bio, posts, followers) lives on `Actor`.
+"""
 type Account implements Node {
+  """
+  The public ActivityPub identity for this account. All public data — name, bio, posts, followers — lives on the `Actor`. Use this to access fields that are visible to everyone.
+  """
   actor: Actor!
+
+  """
+  Unpublished article drafts belonging to this account, most recently updated first. Only visible to the account holder.
+  """
   articleDrafts(after: String, before: String, first: Int, last: Int): AccountArticleDraftsConnection!
 
   """UUID of the medium used as this account's avatar."""
@@ -7,35 +17,118 @@ type Account implements Node {
   avatarUrl: URL! @deprecated(reason: "Use avatarMediumId instead.")
   bio: Markdown!
   created: DateTime!
+
+  """
+  The visibility applied to new notes when the user does not choose one explicitly at creation time.
+  """
   defaultNoteVisibility: PostVisibility!
+
+  """
+  The quote policy applied to new notes when the user does not choose one explicitly at creation time.
+  """
+  defaultQuotePolicy: QuotePolicy!
+
+  """
+  The visibility applied to new boosts/shares when the user does not choose one explicitly at creation time.
+  """
   defaultShareVisibility: PostVisibility!
+
+  """
+  Whether the viewer follows the given hashtag. Always `false` for unauthenticated requests or when the account is not the viewer.
+  """
+  followsHashtag(
+    """Hashtag name without the leading `#`."""
+    tag: String!
+  ): Boolean!
+
+  """
+  Full fediverse handle including the instance host, e.g., @alice@hackers.pub. Suitable for display and for cross-instance @-mention targeting.
+  """
   handle: String!
   id: ID!
+
+  """
+  Shareable invitation links created by this account, newest first. Only visible to the account holder and moderators.
+  """
   invitationLinks: [InvitationLink!]!
+
+  """
+  Number of invitation slots this account can still hand out. Only visible to the account holder and to moderators.
+  """
   invitationsLeft: Int!
+
+  """
+  Accounts that were invited by this account, newest first. The `totalCount` on this connection reflects all invitees ever, not just those visible to the current viewer.
+  """
   invitees(after: String, before: String, first: Int, last: Int): AccountInviteesConnection!
+
+  """
+  `null` for accounts created before the invitation system was introduced, or for the instance's founding accounts.
+  """
   inviter: Account
 
   """
   The latest `published` timestamp across all posts authored by this account, or null when there are no posts.  Visible only to moderators.
   """
   lastPostPublished: DateTime
+
+  """
+  Profile links displayed on the account's public page, ordered by their display index. Links with a non-null `verified` timestamp have passed rel-me verification.
+  """
   links: [AccountLink!]!
+
+  """
+  The account's preferred display languages as BCP 47 tags. null means no preference has been set and all languages are shown.
+  """
   locales: [Locale!]
+
+  """
+  Whether this account has moderator privileges. Moderators can view all accounts, see moderation-only fields such as `postCount` and `lastPostPublished`, and perform administrative mutations such as `deleteOrphanMedia` and `regenerateInvitations`.
+  """
   moderator: Boolean!
   name: String!
+
+  """
+  This account's notifications, newest first. Only visible to the account holder. Notifications whose actor list is empty (e.g., the actor was deleted) are automatically excluded.
+  """
   notifications(after: String, before: String, first: Int, last: Int): AccountNotificationsConnection!
+
+  """
+  URL of the generated Open Graph image for this account's profile page. Generated on first request and cached; high-complexity operation (avoid requesting in bulk).
+  """
   ogImageUrl: URL!
   passkeys(after: String, before: String, first: Int, last: Int): AccountPasskeysConnection!
+
+  """
+  Hashtags the viewer has pinned to their sidebar, in follow order. Returns an empty list for unauthenticated requests or when the account is not the viewer.
+  """
+  pinnedHashtags: [String!]!
 
   """
   The total number of posts authored by this account.  Visible only to moderators; null otherwise.
   """
   postCount: Int
+
+  """
+  Whether to show LLM-generated article summaries by default. Only visible to the account holder and moderators.
+  """
   preferAiSummary: Boolean!
+
+  """
+  Controls whether push notification payloads may include short post content previews. Only visible to the account holder and moderators.
+  """
+  pushNotificationPreviewPolicy: PushNotificationPreviewPolicy!
+
+  """
+  Number of notifications created after the account's last `markNotificationsAsRead` call. Only visible to the account holder.
+  """
   unreadNotificationsCount: Int!
   updated: DateTime!
   username: String!
+
+  """
+  When the username was last changed, or null if the username has never been changed from the original signup value.
+  """
   usernameChanged: DateTime
   uuid: UUID!
 }
@@ -134,50 +227,206 @@ type AccountPasskeysConnectionEdge {
   node: Passkey!
 }
 
+"""
+An ActivityPub actor: the public identity used for federation. Actors can be local (originating from this instance, `local: true`) or federated (from another instance, `local: false`). Local actors have an associated `Account` that holds login credentials and settings; remote actors do not. When in doubt, use `Actor` for display and `Account` only for settings that belong to the authenticated viewer.
+"""
 type Actor implements Node {
+  """
+  The local `Account` for this actor, or `null` for remote actors. Non-null only when `local` is `true`.
+  """
   account: Account
+
+  """
+  This actor's locally-authored `Article`-type posts, newest first. Only includes articles that have a local `articleSource` row; remote articles federated in from other instances are excluded.
+  """
   articles(after: String, before: String, first: Int, last: Int): ActorArticlesConnection!
+
+  """
+  If false, incoming follow requests must be manually approved. Pending follows appear with a `null` `accepted` timestamp in `ActorFollowersConnectionEdge` until the actor approves them.
+  """
   automaticallyApprovesFollowers: Boolean!
+
+  """
+  One or two initials derived from the actor's display name or username, for use as a text-based avatar placeholder when the avatar image is unavailable.
+  """
   avatarInitials: String!
+
+  """
+  URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.
+  """
   avatarUrl: URL!
+
+  """
+  The actor's biography rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no bio.
+  """
   bio: HTML
+
+  """
+  Actors the authenticated viewer has blocked, most recently blocked first. Only readable for the viewer's own actor: querying another actor's `blockedActors` (or querying as a guest) yields an empty connection, since a block list is private. Use this to build a block-management view; the per-actor boolean check is `viewerBlocks`.
+  """
+  blockedActors(after: String, before: String, first: Int, last: Int): ActorBlockedActorsConnection!
+
+  """
+  True if this actor has blocked the authenticated viewer. Always false for unauthenticated requests.
+  """
   blocksViewer: Boolean!
   created: DateTime!
+
+  """
+  Key-value metadata fields from the actor's ActivityPub profile (the `attachment` property). Commonly used for website links, pronouns, or other structured profile information. Values are rendered as HTML.
+  """
   fields: [ActorField!]!
   followees(after: String, before: String, first: Int, last: Int): ActorFolloweesConnection!
   followers(after: String, before: String, first: Int, last: Int): ActorFollowersConnection!
+
+  """
+  One-off check: does this actor follow the given actor? For the viewer-relative variant, use `viewerFollows` instead.
+  """
   follows(followeeId: ID): Boolean!
+
+  """
+  True if this actor follows the authenticated viewer. Always false for unauthenticated requests.
+  """
   followsViewer: Boolean!
+
+  """
+  Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
+  """
   handle: String!
+
+  """
+  The host used in this actor's fediverse handle (`@user@handleHost`). This is the domain part that end users type when @-mentioning the actor. May differ from `instanceHost` when the instance uses domain aliasing.
+  """
   handleHost: String!
+
+  """
+  URL of the actor's profile header (banner) image. `null` when the actor has not set one.
+  """
   headerUrl: URL
   id: ID!
+
+  """
+  The fediverse instance this actor belongs to. `null` for local actors (use the server's own instance info instead).
+  """
   instance: Instance
+
+  """
+  The host of the instance that actually hosts this actor's data, as reported by its ActivityPub profile. For most actors this equals `handleHost`, but they can differ when an instance uses a different domain for WebFinger lookups (e.g., `social.example.com` vs. `example.com`).
+  """
   instanceHost: String!
+
+  """
+  The actor's ActivityPub IRI: the canonical identifier used for federation. For local actors this is the `/ap/…` endpoint, not the human-readable profile URL. Compare with `url`, which is the web profile page.
+  """
   iri: URL!
+
+  """
+  One-off check: is this actor followed by the given actor? For the viewer-relative variant, use `followsViewer` instead.
+  """
   isFollowedBy(followerId: ID): Boolean!
+
+  """
+  True if this actor belongs to the currently authenticated viewer. Always false for unauthenticated requests.
+  """
   isViewer: Boolean!
+
+  """
+  The `updated` timestamp of this actor's most recently updated post, or `null` if they have no posts. Useful for feed ordering without fetching full post connections.
+  """
   latestPostUpdated: DateTime
+
+  """
+  True if this actor was created on this instance (has an associated local `Account`). False for actors fetched from remote fediverse instances via ActivityPub.
+  """
   local: Boolean!
+
+  """
+  Actors the authenticated viewer has muted, most recently muted first. Only readable for the viewer's own actor: querying another actor's `mutedActors` (or querying as a guest) yields an empty connection, since a mute list is private. Use this to build a mute-management view; the per-actor boolean check is `viewerMutes`.
+  """
+  mutedActors(after: String, before: String, first: Int, last: Int): ActorMutedActorsConnection!
+
+  """
+  The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set.
+  """
   name: HTML
   noteByUuid(uuid: UUID!): Note
+
+  """
+  This actor's `Note`-type posts, newest first, filtered to those visible to the viewer. Includes both original notes and boost wrappers of remote notes. Use `sharedPosts` to see only boosts.
+  """
   notes(after: String, before: String, first: Int, last: Int): ActorNotesConnection!
+
+  """
+  Posts this actor has pinned to the top of their profile, most recently pinned first. Only posts visible to the current viewer are included.
+  """
   pins(after: String, before: String, first: Int, last: Int): ActorPinsConnection!
-  postByUuid(uuid: UUID!): Post
+
+  """
+  Look up one of this actor's posts by any of its UUIDs. Resolves a match against any of the three UUIDs a post can carry: `Post.uuid` (the post row's PK), `Note.sourceId` (= `noteSourceTable.id`, set only on source-backed local notes), or the local article source's id. The canonical permalink in `Post.url` uses the source UUID for source-backed local posts; for everything else (federated remote posts, local share wrappers, Questions) the row PK is the only token they can be looked up by, and is what the web-next route uses. The OR-match here keeps both styles working. Returns null if no post matches.
+  """
+  postByUuid(
+    """Any of `Post.uuid`, `Note.sourceId`, or the local article source's id."""
+    uuid: UUID!
+  ): Post
+
+  """
+  All of this actor's posts (Notes, Articles, Questions, and boost wrappers), newest published first. Filtered to posts visible to the current viewer.
+  """
   posts(after: String, before: String, first: Int, last: Int): ActorPostsConnection!
+
+  """
+  When the actor was first published, as reported by the actor's ActivityPub profile. `null` for remote actors whose profile did not include a published date.
+  """
   published: DateTime
+
+  """
+  This actor's `Question`-type posts (polls), newest first, filtered to those visible to the viewer.
+  """
   questions(after: String, before: String, first: Int, last: Int): ActorQuestionsConnection!
+
+  """
+  The actor's display name as a plain string, before custom emoji shortcodes are replaced with `<img>` tags. Use `name` instead when rendering to HTML.
+  """
   rawName: String
+
+  """
+  Whether this actor has been flagged as posting sensitive (NSFW) content. Clients may use this to apply content warnings to the actor's posts by default.
+  """
   sensitive: Boolean!
+
+  """
+  Posts that this actor has boosted (shared), newest first. These are boost wrapper rows where `sharedPost` is non-null.
+  """
   sharedPosts(after: String, before: String, first: Int, last: Int): ActorSharedPostsConnection!
+
+  """
+  If this actor has migrated to a new account via the ActivityPub Move activity, points to the new actor. The old actor's posts are not automatically transferred to the new account.
+  """
   successor: Actor
   type: ActorType!
   updated: DateTime!
+
+  """
+  The actor's human-readable profile URL. For local actors this is the web profile page, which differs from `iri` (the ActivityPub endpoint). `null` when the remote instance did not advertise one.
+  """
   url: URL
   username: String!
   uuid: UUID!
+
+  """
+  True if the authenticated viewer has blocked this actor. Always false for unauthenticated requests.
+  """
   viewerBlocks: Boolean!
+
+  """
+  True if the authenticated viewer follows this actor. Always false for unauthenticated requests or when the actor is the viewer themselves.
+  """
   viewerFollows: Boolean!
+
+  """
+  True if the authenticated viewer has muted this actor. Always `false` for unauthenticated requests. Muting is local-only and one-directional: it hides the actor from the viewer's feeds and suppresses notifications from them (except replies and mentions when the viewer also follows them), but unlike `viewerBlocks` it does not federate and the actor remains visible on their profile and in threads.
+  """
+  viewerMutes: Boolean!
 }
 
 type ActorArticlesConnection {
@@ -188,6 +437,16 @@ type ActorArticlesConnection {
 type ActorArticlesConnectionEdge {
   cursor: String!
   node: Article!
+}
+
+type ActorBlockedActorsConnection {
+  edges: [ActorBlockedActorsConnectionEdge!]!
+  pageInfo: PageInfo!
+}
+
+type ActorBlockedActorsConnectionEdge {
+  cursor: String!
+  node: Actor!
 }
 
 """A property pair in an actor's account."""
@@ -221,6 +480,16 @@ type ActorFollowersConnectionEdge {
   created: DateTime!
   cursor: String!
   iri: URL!
+  node: Actor!
+}
+
+type ActorMutedActorsConnection {
+  edges: [ActorMutedActorsConnectionEdge!]!
+  pageInfo: PageInfo!
+}
+
+type ActorMutedActorsConnectionEdge {
+  cursor: String!
   node: Actor!
 }
 
@@ -274,17 +543,35 @@ type ActorSharedPostsConnectionEdge {
   node: Post!
 }
 
+"""
+ActivityPub actor type as defined by the ActivityStreams 2.0 vocabulary. Most human accounts are `PERSON` actors.
+"""
 enum ActorType {
+  """An application actor, typically the instance software itself."""
   APPLICATION
+
+  """A group actor; posts addressed to the group are forwarded to members."""
   GROUP
+
+  """An organization actor."""
   ORGANIZATION
+
+  """A human user account."""
   PERSON
+
+  """An automated service or bot account."""
   SERVICE
 }
 
+union AddNewsExcludedPatternResult = InvalidInputError | NewsExcludedPattern | NotAuthenticatedError | NotAuthorizedError
+
+"""
+Add an emoji reaction to a post. Sends an ActivityPub `Like` or `EmojiReact` activity. Idempotent: adding the same emoji twice has no effect. Exactly one of `emoji` or `customEmojiId` must be provided. Requires authentication.
+"""
 input AddReactionToPostInput {
   clientMutationId: ID
-  emoji: String!
+  customEmojiId: ID
+  emoji: String
   postId: ID!
 }
 
@@ -311,6 +598,16 @@ type AdminAccountEdge {
   node: Account!
 }
 
+enum AdminAccountOrderBy {
+  CREATED
+  FOLLOWERS
+  FOLLOWING
+  INVITATIONS_LEFT
+  INVITED
+  LAST_ACTIVITY
+  POSTS
+}
+
 type AdminAccountPageInfo {
   endCursor: String
   hasNextPage: Boolean!
@@ -318,67 +615,244 @@ type AdminAccountPageInfo {
   startCursor: String
 }
 
+"""
+A long-form blog article written on this platform. Articles have a title, year-based URL slug, and can have multiple `ArticleContent` translations. Remote articles federated from other instances lack a local `articleSource` and will have `null` for `slug`, `publishedYear`, and `tags`.
+"""
 type Article implements Node & Post & Reactable {
   account: Account
+
+  """The actor who authored or boosted this post."""
   actor: Actor!
+
+  """
+  Whether the author has enabled LLM-based translation for this article. `null` for articles federated from remote instances.
+  """
   allowLlmTranslation: Boolean
+
+  """
+  The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
+  """
   content: HTML!
+
+  """
+  All available language versions of this article's content. Pass `language` to get only the best-matching locale (BCP 47 negotiation). Pass `includeBeingTranslated: true` to also include language versions whose LLM translation is still in progress.
+  """
   contents(includeBeingTranslated: Boolean = false, language: Locale): [ArticleContent!]!
   engagementStats: PostEngagementStats!
+
+  """
+  Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.
+  """
   excerpt: String!
+
+  """
+  A sanitized, truncated HTML preview of this post's content, clipped to roughly `maxChars` visible characters with valid tag structure preserved. Use this on feed cards instead of `content` to keep the rendered DOM small. Anchor tags are stripped — the surrounding card is expected to be the link to the full post. This does NOT fall back to `summary`; query `summary` separately when you want to display a real (e.g. LLM-generated) summary with its own affordances.
+  """
+  excerptHtml(maxChars: Int!): HTML!
+
+  """
+  Hashtags mentioned in the post, extracted from the post's tag map. Each entry includes the tag name and its canonical hashtag search URL.
+  """
   hashtags: [Hashtag!]!
   id: ID!
+
+  """
+  The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.
+  """
   iri: URL!
+
+  """
+  BCP 47 language tag of the post's primary content (e.g., `en`, `ja`). `null` when the language is unknown or not specified by the author.
+  """
   language: String
+
+  """
+  OpenGraph / oEmbed preview for the first link in the post. `null` when the post has no links or the metadata has not been fetched yet.
+  """
   link: PostLink
+
+  """
+  Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
+  """
   media: [PostMedium!]!
+
+  """
+  Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
+  """
   mentions(after: String, before: String, first: Int, last: Int): PostMentionsConnection!
+
+  """
+  The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
+  """
   name: String
   published: DateTime!
+
+  """
+  The year the article was first published, used as part of its URL path (e.g., `/@alice/2024/my-article`). `null` for articles federated in from remote instances.
+  """
   publishedYear: Int
+  quotePolicy: QuotePolicy!
+  quoteTargetState: QuoteTargetState
+
+  """The post being quoted inline. `null` for posts that are not quotes."""
   quotedPost: Post
+
+  """Posts that quote this post inline."""
   quotes(after: String, before: String, first: Int, last: Int): PostQuotesConnection!
+  reactionGroup(customEmojiId: ID, emoji: String): ReactionGroup
   reactionGroups: [ReactionGroup!]!
+
+  """Posts that are direct replies to this post."""
   replies(after: String, before: String, first: Int, last: Int): PostRepliesConnection!
+
+  """The post this post is a reply to, or `null` for top-level posts."""
   replyTarget: Post
+
+  """
+  Whether the post is marked as sensitive (NSFW). Clients should hide the content behind a content warning when this is `true`.
+  """
   sensitive: Boolean!
+
+  """
+  The post being boosted. Non-null only for boost wrapper rows. When this is non-null, `content` is empty and `url` mirrors the shared post's URL.
+  """
   sharedPost: Post
+
+  """
+  Boost wrapper posts that reshare this post. Each edge represents a single boost by a specific actor.
+  """
   shares(after: String, before: String, first: Int, last: Int): PostSharesConnection!
+
+  """
+  URL slug for the article, used together with `publishedYear` to build its permalink. `null` for remote articles.
+  """
   slug: String
+
+  """
+  The local source UUID for this article (`articleSourceTable.id`). Non-null only for source-backed local articles (articles originally composed on this instance). Use it when calling APIs that need to resolve the article's attached media, e.g. `renderMarkdown` with an `articleSourceId` argument for edit-time previews. `null` for articles federated in from remote instances.
+  """
+  sourceId: UUID
+
+  """
+  Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.
+  """
   summary: String
+
+  """
+  Author-assigned tags for this article. `null` for articles federated in from remote instances.
+  """
   tags: [String!]
   updated: DateTime!
+
+  """
+  The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier — `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles — **not** `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised — copied from the shared post in the boost case — and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.
+  """
   url: URL
+
+  """
+  The post row's primary key, stable for the lifetime of the post. ⚠️ This is **not** the UUID embedded in `Post.url` for source-backed local posts: local notes that originate here use `Note.sourceId` (= `noteSourceTable.id`) and local articles use `Article.publishedYear` + `Article.slug`. The row PK is the right token whenever there is no local source row — federated remote posts, local share wrappers (boosts, which carry no source and copy the shared post's URL), and Questions (whose originals come only from remote instances and whose local rows exist solely as share wrappers) — and for the internal route that resolves them. `actorByHandle.postByUuid` accepts either the row PK or a source UUID, but resolving by `uuid` for a source-backed local post yields a URL that differs from `Post.url`.
+  """
   uuid: UUID!
+
+  """
+  Whether the authenticated viewer is allowed to quote this post, based on `quotePolicy`, visibility, and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanQuote: Boolean!
+
+  """
+  Whether the authenticated viewer is allowed to reply to this post, based on visibility and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanReply: Boolean!
+
+  """
+  Whether the authenticated viewer (as the quoted post's author) can revoke a quote of their post. `true` only when the viewer is the author of `quotedPost` and the quoting post is either local or has an authorization IRI.
+  """
+  viewerCanRevokeQuote: Boolean!
+
+  """
+  Whether the authenticated viewer is allowed to boost this post, based on visibility and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanShare: Boolean!
+
+  """
+  Whether the authenticated viewer has bookmarked this post. Always `false` for unauthenticated requests.
+  """
   viewerHasBookmarked: Boolean!
+
+  """
+  Whether the authenticated viewer has pinned this post to their profile. Always `false` for unauthenticated requests.
+  """
   viewerHasPinned: Boolean!
+
+  """
+  Whether the authenticated viewer has boosted this post. Always `false` for unauthenticated requests.
+  """
   viewerHasShared: Boolean!
   visibility: PostVisibility!
 }
 
+"""
+A single language version of an `Article`'s content. Each language is stored separately; `Article.contents` lists all available translations. LLM-translated versions have a non-null `translator` and `originalLanguage`.
+"""
 type ArticleContent implements Node {
+  """
+  Whether an LLM translation into this language is currently in progress. When `true`, the content may be incomplete.
+  """
   beingTranslated: Boolean!
+
+  """
+  Rendered HTML of this language version, with media URLs resolved and external links annotated.
+  """
   content: HTML!
   id: ID!
+
+  """BCP 47 language tag identifying this content version."""
   language: Locale!
   ogImageUrl: URL!
+
+  """
+  The source language this content was translated from. Non-null only for LLM-translated versions; `null` for original content.
+  """
   originalLanguage: Locale
   published: DateTime!
 
   """The raw markdown content for editing."""
   rawContent: Markdown!
+
+  """
+  LLM-generated summary for this language version. `null` until generation completes. Check `summaryStarted` to distinguish between "not requested" and "in progress".
+  """
   summary: String
+
+  """
+  When LLM summary generation was started for this content version. `null` if summary generation has not been requested.
+  """
   summaryStarted: DateTime
   title: String!
 
   """Table of contents for the article content."""
   toc: JSON!
+
+  """
+  The account that requested this translation. May differ from `translator` if translations are requested on behalf of others.
+  """
   translationRequester: Account
+
+  """
+  The account whose LLM translation produced this content version. `null` for original (non-translated) content.
+  """
   translator: Account
   updated: DateTime!
+
+  """
+  Canonical URL for this language version. For the article's primary language this is `/@username/year/slug`; for other language versions it appends `/{language}` to that path.
+  """
   url: URL!
 }
 
+"""
+An unpublished article draft. Visible only to the owning account. Drafts are promoted to `Article`s via the `publishArticleDraft` mutation.
+"""
 type ArticleDraft implements Node {
   account: Account!
   content: Markdown!
@@ -393,6 +867,9 @@ type ArticleDraft implements Node {
   uuid: UUID!
 }
 
+"""
+Associate an uploaded `Medium` with an article draft so it can be referenced in the draft's Markdown as `hp-medium:{key}`. Must be called before publishing if the draft's content uses `hp-medium:` references. Requires authentication.
+"""
 input AttachArticleDraftMediumInput {
   clientMutationId: ID
   draftId: UUID!
@@ -410,6 +887,37 @@ type AttachArticleDraftMediumPayload {
 
 union AttachArticleDraftMediumResult = AttachArticleDraftMediumPayload | InvalidInputError | NotAuthenticatedError
 
+"""
+Associate an uploaded `Medium` with a published article so it can be referenced in the article's Markdown as `hp-medium:{key}`. Use this when adding new media to an article during editing: pair each attach call with an `hp-medium:` reference in the new content passed to `updateArticle`. The viewer must own the article. Requires authentication.
+"""
+input AttachArticleSourceMediumInput {
+  """
+  UUID of the `ArticleSource` to attach the medium to. The viewer must be the article's author.
+  """
+  articleSourceId: UUID!
+  clientMutationId: ID
+
+  """Key used in article markdown as hp-medium:KEY. Defaults to mediumId."""
+  key: String
+
+  """UUID of a `Medium` to make available to the article."""
+  mediumId: UUID!
+}
+
+type AttachArticleSourceMediumPayload {
+  clientMutationId: ID
+
+  """
+  The key the medium was attached under. Reference it in the article's Markdown as `hp-medium:KEY`. Equals the requested `key` input when provided, otherwise the medium's UUID.
+  """
+  key: String!
+
+  """The `Medium` that was attached to the article source."""
+  medium: Medium!
+}
+
+union AttachArticleSourceMediumResult = AttachArticleSourceMediumPayload | InvalidInputError | NotAuthenticatedError | NotAuthorizedError
+
 input BlockActorInput {
   actorId: ID!
   clientMutationId: ID
@@ -423,6 +931,9 @@ type BlockActorPayload {
 
 union BlockActorResult = BlockActorPayload | InvalidInputError | NotAuthenticatedError
 
+"""
+Save a post to the viewer's bookmarks. Bookmarks are private and not federated. Idempotent. Requires authentication.
+"""
 input BookmarkPostInput {
   clientMutationId: ID
   postId: ID!
@@ -437,6 +948,9 @@ union BookmarkPostResult = BookmarkPostPayload | InvalidInputError | NotAuthenti
 
 union CreateInvitationLinkResult = InvalidInputError | InvitationLinkPayload | NotAuthenticatedError
 
+"""
+Import a media object from a remote URL and store it locally. Use this instead of the two-step `startMediumUpload` / `finishMediumUpload` flow when the image is already accessible via URL. Requires authentication.
+"""
 input CreateMediumInput {
   clientMutationId: ID
 
@@ -451,6 +965,9 @@ type CreateMediumPayload {
 
 union CreateMediumResult = CreateMediumPayload | InvalidInputError | NotAuthenticatedError
 
+"""
+Publish a new short-form note. Sends an ActivityPub `Create` activity to relevant inboxes based on `visibility`. Requires authentication.
+"""
 input CreateNoteInput {
   clientMutationId: ID
   content: Markdown!
@@ -458,6 +975,7 @@ input CreateNoteInput {
 
   """Media to attach to the note, in display order."""
   media: [CreateNoteMediumInput!] = []
+  quotePolicy: QuotePolicy
   quotedPostId: ID
   replyTargetId: ID
   visibility: PostVisibility!
@@ -501,6 +1019,9 @@ A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `dat
 """
 scalar DateTime
 
+"""
+Permanently delete an article draft. Only the draft's owner may delete it. Requires authentication.
+"""
 input DeleteArticleDraftInput {
   clientMutationId: ID
   id: ID!
@@ -529,6 +1050,9 @@ type DeleteOrphanMediaPayload {
 
 union DeleteOrphanMediaResult = DeleteOrphanMediaPayload | NotAuthenticatedError | NotAuthorizedError
 
+"""
+Delete a post and send an ActivityPub `Delete` activity to federated instances. Boost wrappers cannot be deleted this way; use `unsharePost` instead (returns `SharedPostDeletionNotAllowedError`).
+"""
 input DeletePostInput {
   clientMutationId: ID
   id: ID!
@@ -568,6 +1092,9 @@ type EmptySearchQueryError {
   message: String!
 }
 
+"""
+Step 2 of direct image upload: confirm that the PUT to the pre-signed URL from `startMediumUpload` has completed, returning the resulting `Medium`. Requires authentication.
+"""
 input FinishMediumUploadInput {
   clientMutationId: ID
   uploadId: UUID!
@@ -593,6 +1120,27 @@ type FollowActorPayload {
 
 union FollowActorResult = FollowActorPayload | InvalidInputError | NotAuthenticatedError
 
+"""Follow a hashtag. Requires authentication."""
+input FollowHashtagInput {
+  clientMutationId: ID
+
+  """Hashtag name to follow (with or without leading `#`)."""
+  tag: String!
+}
+
+type FollowHashtagPayload {
+  clientMutationId: ID
+
+  """The normalized hashtag name that was followed."""
+  tag: String!
+
+  """The authenticated viewer's account after following."""
+  viewer: Account!
+}
+
+union FollowHashtagResult = FollowHashtagPayload | InvalidInputError | NotAuthenticatedError
+
+"""Notification that one or more actors followed this account."""
 type FollowNotification implements Node & Notification {
   account: Account!
   actors(after: String, before: String, first: Int, last: Int): NotificationActorsConnection!
@@ -635,13 +1183,37 @@ type Invitation {
   message: Markdown
 }
 
+"""
+A shareable link that allows recipients to create an account without a direct email invitation. Each link has a limited number of uses and an optional expiry date.
+"""
 type InvitationLink implements Node {
   created: DateTime!
+
+  """
+  `null` means the link never expires. When set, attempts to redeem the link after this time return `LINK_EXPIRED`.
+  """
   expires: DateTime
   id: ID!
+
+  """
+  How many more accounts can sign up using this link. Decrements by one each time `redeemInvitationLink` succeeds.
+  """
   invitationsLeft: Int!
+
+  """The account that created this invitation link."""
   inviter: Account!
+
+  """
+  Optional welcome message shown to the recipient when they open the invitation link.
+  """
   message: Markdown
+
+  """The `message` rendered to HTML. `null` when `message` is `null`."""
+  messageHtml: HTML
+
+  """
+  The shareable URL for this invitation link (`/@{inviter}/invite/{uuid}`).
+  """
   url: URL!
   uuid: UUID!
 }
@@ -729,7 +1301,14 @@ type LlmTranslationNotAllowedError {
 }
 
 enum LlmTranslationNotAllowedReason {
+  """
+  The article's author has opted out of LLM-based translation for this article.
+  """
   DISABLED
+
+  """
+  The requested target language matches the article's existing language; translation is a no-op.
+  """
   SAME_LANGUAGE
 }
 
@@ -750,10 +1329,18 @@ scalar Markdown
 
 scalar MediaType
 
+"""
+A stored media object (image). Two-step upload flow: call `startMediumUpload` to get a pre-signed upload URL, PUT the image to that URL, then call `finishMediumUpload` to complete the transaction. Alternatively, call `createMedium` with a remote URL to import an image directly. Unreferenced media older than the grace period are deleted by the `deleteOrphanMedia` mutation.
+"""
 type Medium implements Node {
   """SHA-256 hash of the normalized stored content, if known."""
   contentHash: Sha256
   created: DateTime!
+
+  """
+  AI-generated alternative text for this medium. Requires authentication. Within the 2-hour upload window only the uploader may call this field; after the window expires any authenticated user may call it (the medium is either publicly referenced or pending orphan cleanup). Multiple uploaders of identical content each get independent ownership entries, so content-hash deduplication does not grant the later uploader access to the earlier one's window. High-complexity operation (cost 1000). The context argument is truncated server-side to 1000 characters.
+  """
+  generatedAltText(context: String, language: Locale!): String
   height: Int
   id: ID!
 
@@ -771,6 +1358,7 @@ type MediumUploadHeader {
   value: String!
 }
 
+"""Notification that an actor @-mentioned this account in a post."""
 type MentionNotification implements Node & Notification {
   account: Account!
   actors(after: String, before: String, first: Int, last: Int): NotificationActorsConnection!
@@ -781,10 +1369,25 @@ type MentionNotification implements Node & Notification {
 }
 
 type Mutation {
+  """
+  Add a news feed exclusion pattern (a `URLPattern` string) and hide matching links from the feed list.  Idempotent on the pattern string.  Requires a moderator account.  An invalid pattern raises `InvalidInputError`.
+  """
+  addNewsExcludedPattern(
+    """An optional note explaining the exclusion."""
+    note: String
+
+    """The `URLPattern` string to exclude, e.g. `https://example.com/*`."""
+    pattern: String!
+  ): AddNewsExcludedPatternResult!
   addReactionToPost(input: AddReactionToPostInput!): AddReactionToPostResult!
   attachArticleDraftMedium(input: AttachArticleDraftMediumInput!): AttachArticleDraftMediumResult!
+  attachArticleSourceMedium(input: AttachArticleSourceMediumInput!): AttachArticleSourceMediumResult!
   blockActor(input: BlockActorInput!): BlockActorResult!
   bookmarkPost(input: BookmarkPostInput!): BookmarkPostResult!
+
+  """
+  Exchange the `(token, code)` pair from a magic link email for a session. Returns `null` when the challenge does not exist or the code does not match. The returned `Session.id` is the bearer token to include in the `Authorization` header for subsequent authenticated requests.
+  """
   completeLoginChallenge(
     """The code of the login challenge."""
     code: String!
@@ -804,10 +1407,18 @@ type Mutation {
     """The signup token."""
     token: UUID!
   ): SignupResult!
+
+  """
+  Create a new shareable invitation link. Deducts `invitationsLeft` from the authenticated account's balance immediately. Requires authentication.
+  """
   createInvitationLink(expires: String, invitationsLeft: Int!, message: Markdown): CreateInvitationLinkResult!
   createMedium(input: CreateMediumInput!): CreateMediumResult!
   createNote(input: CreateNoteInput!): CreateNoteResult!
   deleteArticleDraft(input: DeleteArticleDraftInput!): DeleteArticleDraftResult!
+
+  """
+  Delete an invitation link and refund its remaining `invitationsLeft` back to the creator's account balance. Only the link's creator may delete it.
+  """
   deleteInvitationLink(id: UUID!): DeleteInvitationLinkResult!
 
   """
@@ -817,10 +1428,19 @@ type Mutation {
   deletePost(input: DeletePostInput!): DeletePostResult!
   finishMediumUpload(input: FinishMediumUploadInput!): FinishMediumUploadResult!
   followActor(input: FollowActorInput!): FollowActorResult!
+  followHashtag(input: FollowHashtagInput!): FollowHashtagResult!
+
+  """
+  Generate WebAuthn authentication options for passkey sign-in. Pass a fresh client-generated UUID as `sessionId`; this same `sessionId` must be passed back to `loginByPasskey`.
+  """
   getPasskeyAuthenticationOptions(
     """Temporary session ID for passkey authentication."""
     sessionId: UUID!
   ): JSON!
+
+  """
+  Generate WebAuthn registration options for adding a new passkey. Pass a fresh `sessionId` UUID, then send the authenticator's response to `verifyPasskeyRegistration`. Requires authentication.
+  """
   getPasskeyRegistrationOptions(accountId: ID!): JSON!
   invite(
     email: Email!
@@ -832,6 +1452,10 @@ type Mutation {
     """
     verifyUrl: URITemplate!
   ): InviteResult!
+
+  """
+  Initiate passwordless email sign-in. Sends a magic link to the matching account's email address. The link embeds `{token}` and `{code}` as URI Template variables in `verifyUrl`. Complete the flow by calling `completeLoginChallenge` with those values.
+  """
   loginByEmail(
     """The email of the account to sign in."""
     email: String!
@@ -844,6 +1468,10 @@ type Mutation {
     """
     verifyUrl: URITemplate!
   ): LoginResult!
+
+  """
+  Authenticate using a WebAuthn passkey. First call `getPasskeyAuthenticationOptions` with a fresh `sessionId` UUID, then pass the authenticator's response back here as `authenticationResponse`. Returns `null` when verification fails.
+  """
   loginByPasskey(
     """WebAuthn authentication response from the client."""
     authenticationResponse: JSON!
@@ -852,6 +1480,10 @@ type Mutation {
     """Temporary session ID used for authentication options."""
     sessionId: UUID!
   ): Session
+
+  """
+  Initiate passwordless sign-in by username. Sends a magic link to all email addresses on the account. The link embeds `{token}` and `{code}` as URI Template variables in `verifyUrl`. Complete the flow by calling `completeLoginChallenge` with those values.
+  """
   loginByUsername(
     """The locale for the sign-in email."""
     locale: Locale!
@@ -874,20 +1506,57 @@ type Mutation {
     """
     upTo: UUID
   ): DateTime!
+
+  """
+  Mutes an actor on behalf of the authenticated viewer. Muting is local-only and one-directional: it hides the actor from the viewer's feeds and suppresses notifications from them (except replies and mentions when the viewer also follows them), but unlike `blockActor` it does not federate, does not remove follow relationships, and leaves the actor visible on their profile and in threads. Idempotent: muting an already-muted actor succeeds. Rejects muting yourself with `InvalidInputError`.
+  """
+  muteActor(input: MuteActorInput!): MuteActorResult!
+  pinHashtag(input: PinHashtagInput!): PinHashtagResult!
   pinPost(input: PinPostInput!): PinPostResult!
   publishArticleDraft(input: PublishArticleDraftInput!): PublishArticleDraftResult!
+
+  """
+  Recompute popularity scores for every news link.  Requires a moderator account.  Idempotent: safe to trigger at any time, and running it twice on unchanged data yields identical scores.  Normally scores stay fresh on their own (incrementally on share, plus a periodic sweep); this is the manual full rebuild and dev backstop.
+  """
+  recomputeNewsScores: RecomputeNewsScoresResult!
   redeemInvitationLink(email: Email!, id: UUID!, locale: Locale!, verifyUrl: URITemplate!): RedeemInvitationLinkResult!
 
   """
   Grant +1 invitation to the top third of accounts with at least one post since the last regeneration cutoff, and persist the new last-regen timestamp.
   """
   regenerateInvitations: RegenerateInvitationsResult!
-  registerApnsDeviceToken(input: RegisterApnsDeviceTokenInput!): RegisterApnsDeviceTokenResult!
-  registerFcmDeviceToken(input: RegisterFcmDeviceTokenInput!): RegisterFcmDeviceTokenResult!
+
+  """
+  Deprecated APNS-only registration mutation kept for existing iOS clients. New clients should call `registerPushNotificationTarget`.
+  """
+  registerApnsDeviceToken(input: RegisterApnsDeviceTokenInput!): RegisterApnsDeviceTokenResult! @deprecated(reason: "Use `registerPushNotificationTarget` with `service: APNS` instead.")
+
+  """
+  Deprecated FCM-only registration mutation kept for existing Android clients. New clients should call `registerPushNotificationTarget`.
+  """
+  registerFcmDeviceToken(input: RegisterFcmDeviceTokenInput!): RegisterFcmDeviceTokenResult! @deprecated(reason: "Use `registerPushNotificationTarget` with `service: FCM` instead.")
+
+  """
+  Register or refresh a push notification target for the authenticated viewer. `APNS` and `FCM` require `token`; `WEB_PUSH` requires `endpoint`, `p256dh`, and `auth` from the browser `PushSubscription`.
+  """
+  registerPushNotificationTarget(input: RegisterPushNotificationTargetInput!): RegisterPushNotificationTargetResult!
   removeFollower(input: RemoveFollowerInput!): RemoveFollowerResult!
+
+  """
+  Remove a news feed exclusion pattern by id, un-hiding links it no longer matches.  Requires a moderator account.
+  """
+  removeNewsExcludedPattern(
+    """The pattern's row UUID."""
+    id: UUID!
+  ): RemoveNewsExcludedPatternResult!
   removeReactionFromPost(input: RemoveReactionFromPostInput!): RemoveReactionFromPostResult!
   requestArticleTranslation(input: RequestArticleTranslationInput!): RequestArticleTranslationResult!
+
+  """
+  Delete a passkey from the account. Returns the deleted passkey's global ID, or `null` if the passkey was not found. Requires authentication and ownership of the passkey.
+  """
   revokePasskey(passkeyId: ID!): ID
+  revokeQuote(input: RevokeQuoteInput!): RevokeQuoteResult!
 
   """Revoke a session by its ID."""
   revokeSession(
@@ -895,19 +1564,149 @@ type Mutation {
     sessionId: UUID!
   ): Session
   saveArticleDraft(input: SaveArticleDraftInput!): SaveArticleDraftResult!
+
+  """
+  Set (or clear with `NONE`) a moderator score penalty on a news link, demoting it in the `POPULAR` feed.  Requires a moderator account.  Returns the updated link, or `null` if no link has that id.
+  """
+  setNewsScorePenalty(
+    """The link's row UUID (`PostLink.uuid`)."""
+    id: UUID!
+
+    """The penalty level to apply (`NONE` clears it)."""
+    penalty: NewsPenalty!
+  ): SetNewsScorePenaltyResult
   sharePost(input: SharePostInput!): SharePostResult!
   startMediumUpload(input: StartMediumUploadInput!): StartMediumUploadResult!
   unblockActor(input: UnblockActorInput!): UnblockActorResult!
   unbookmarkPost(input: UnbookmarkPostInput!): UnbookmarkPostResult!
   unfollowActor(input: UnfollowActorInput!): UnfollowActorResult!
+  unfollowHashtag(input: UnfollowHashtagInput!): UnfollowHashtagResult!
+
+  """
+  Removes a mute previously created by `muteActor` on behalf of the authenticated viewer. Idempotent: unmuting an actor that was not muted succeeds. Rejects targeting yourself with `InvalidInputError`.
+  """
+  unmuteActor(input: UnmuteActorInput!): UnmuteActorResult!
+  unpinHashtag(input: UnpinHashtagInput!): UnpinHashtagResult!
   unpinPost(input: UnpinPostInput!): UnpinPostResult!
-  unregisterApnsDeviceToken(input: UnregisterApnsDeviceTokenInput!): UnregisterApnsDeviceTokenResult!
-  unregisterFcmDeviceToken(input: UnregisterFcmDeviceTokenInput!): UnregisterFcmDeviceTokenResult!
+
+  """
+  Deprecated APNS-only unregister mutation kept for existing iOS clients. New clients should call `unregisterPushNotificationTarget`.
+  """
+  unregisterApnsDeviceToken(input: UnregisterApnsDeviceTokenInput!): UnregisterApnsDeviceTokenResult! @deprecated(reason: "Use `unregisterPushNotificationTarget` with `service: APNS` instead.")
+
+  """
+  Deprecated FCM-only unregister mutation kept for existing Android clients. New clients should call `unregisterPushNotificationTarget`.
+  """
+  unregisterFcmDeviceToken(input: UnregisterFcmDeviceTokenInput!): UnregisterFcmDeviceTokenResult! @deprecated(reason: "Use `unregisterPushNotificationTarget` with `service: FCM` instead.")
+
+  """
+  Remove a push notification target owned by the authenticated viewer. `APNS` and `FCM` identify targets by `token`; `WEB_PUSH` identifies targets by `endpoint`.
+  """
+  unregisterPushNotificationTarget(input: UnregisterPushNotificationTargetInput!): UnregisterPushNotificationTargetResult!
   unsharePost(input: UnsharePostInput!): UnsharePostResult!
   updateAccount(input: UpdateAccountInput!): UpdateAccountPayload!
   updateArticle(input: UpdateArticleInput!): UpdateArticleResult!
+  updateNote(input: UpdateNoteInput!): UpdateNoteResult!
+
+  """
+  Complete passkey registration by verifying the authenticator response from `getPasskeyRegistrationOptions`. On success, the new `Passkey` is returned. Requires authentication.
+  """
   verifyPasskeyRegistration(accountId: ID!, name: String!, platform: String = "web", registrationResponse: JSON!): PasskeyRegistrationResult!
   voteOnPoll(input: VoteOnPollInput!): VoteOnPollResult!
+}
+
+input MuteActorInput {
+  """The global ID of the `Actor` to mute."""
+  actorId: ID!
+  clientMutationId: ID
+}
+
+type MuteActorPayload {
+  clientMutationId: ID
+
+  """The actor that was muted."""
+  mutee: Actor!
+
+  """The viewer's actor that performed the mute."""
+  muter: Actor!
+}
+
+union MuteActorResult = InvalidInputError | MuteActorPayload | NotAuthenticatedError
+
+"""
+A moderator-managed `URLPattern` string; links whose URL matches it are hidden from the news feed list (every sort order).  Their discussion page stays reachable by direct link.
+"""
+type NewsExcludedPattern {
+  """When the pattern was added."""
+  created: DateTime!
+
+  """The pattern's row UUID."""
+  id: UUID!
+
+  """An optional moderator note explaining the exclusion."""
+  note: String
+
+  """
+  The `URLPattern` string, e.g. `https://example.com/*` or `https://*.example.com/*`.
+  """
+  pattern: String!
+}
+
+"""Ordering for the `newsStories` feed of shared links."""
+enum NewsOrder {
+  """
+  Highest total weighted engagement mass first, ignoring recency: an all-time-best view rather than what is hot right now.
+  """
+  ALL_TIME
+
+  """Most recently first-shared links first, ignoring engagement."""
+  NEWEST
+
+  """
+  Hacker-News-style score combining weighted engagement mass with recency.  The default; what most readers want.
+  """
+  POPULAR
+}
+
+"""
+A moderator's score penalty on a news link, demoting it in the `POPULAR` feed.  Set via `setNewsScorePenalty`; only moderators can read or change it.  To remove a link from every order instead, exclude its URL with a pattern (`addNewsExcludedPattern`).
+"""
+enum NewsPenalty {
+  """Sink the link to the bottom of the popular feed."""
+  BURY
+
+  """Push the link well down the popular feed."""
+  DEMOTE
+
+  """No penalty."""
+  NONE
+}
+
+"""A snapshot of news scoring state, for the moderator admin page."""
+type NewsScoreStatus {
+  """When scores were last recomputed, or `null` if never."""
+  lastRecomputedAt: DateTime
+
+  """
+  Number of links currently in the feed (with at least one public share).
+  """
+  scoredLinkCount: Int!
+}
+
+"""
+How a link's public shares break down by origin.  Hackers' Pub posts carry the most weight, generic remote instances less, and Bluesky-bridged accounts (`@…@bsky.brid.gy`) the least.  Shares authored by bot accounts (`Service`/`Application` actors) are excluded throughout.
+"""
+type NewsSourceBreakdown {
+  """Public shares bridged from Bluesky (`@…@bsky.brid.gy`)."""
+  bluesky: Int!
+
+  """Public shares authored by local Hackers' Pub accounts."""
+  local: Int!
+
+  """
+  Public shares from generic remote fediverse instances (Mastodon, Pleroma, etc.).
+  """
+  remote: Int!
 }
 
 interface Node {
@@ -922,38 +1721,163 @@ type NotAuthorizedError {
   notAuthorized: String!
 }
 
+"""
+A short-form microblog post, equivalent to a Mastodon Status or ActivityPub Note. Notes can be composed locally or federated in from remote instances. Boost wrappers (`sharedPost` is non-null) have empty content and copy the shared post's URL.
+"""
 type Note implements Node & Post & Reactable {
+  """The actor who authored or boosted this post."""
   actor: Actor!
+
+  """
+  The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
+  """
   content: HTML!
   engagementStats: PostEngagementStats!
+
+  """
+  Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.
+  """
   excerpt: String!
+
+  """
+  A sanitized, truncated HTML preview of this post's content, clipped to roughly `maxChars` visible characters with valid tag structure preserved. Use this on feed cards instead of `content` to keep the rendered DOM small. Anchor tags are stripped — the surrounding card is expected to be the link to the full post. This does NOT fall back to `summary`; query `summary` separately when you want to display a real (e.g. LLM-generated) summary with its own affordances.
+  """
+  excerptHtml(maxChars: Int!): HTML!
+
+  """
+  Hashtags mentioned in the post, extracted from the post's tag map. Each entry includes the tag name and its canonical hashtag search URL.
+  """
   hashtags: [Hashtag!]!
   id: ID!
+
+  """
+  The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.
+  """
   iri: URL!
+
+  """
+  BCP 47 language tag of the post's primary content (e.g., `en`, `ja`). `null` when the language is unknown or not specified by the author.
+  """
   language: String
+
+  """
+  OpenGraph / oEmbed preview for the first link in the post. `null` when the post has no links or the metadata has not been fetched yet.
+  """
   link: PostLink
+
+  """
+  Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
+  """
   media: [PostMedium!]!
+
+  """
+  Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
+  """
   mentions(after: String, before: String, first: Int, last: Int): PostMentionsConnection!
+
+  """
+  The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
+  """
   name: String
   published: DateTime!
+  quotePolicy: QuotePolicy!
+  quoteTargetState: QuoteTargetState
+
+  """The post being quoted inline. `null` for posts that are not quotes."""
   quotedPost: Post
+
+  """Posts that quote this post inline."""
   quotes(after: String, before: String, first: Int, last: Int): PostQuotesConnection!
+
+  """
+  The raw Markdown source of this note. Non-null only when the viewer is the note's author (i.e., the authenticated account matches the note's `accountId`). Returns `null` for federated remote notes, local share wrappers, and notes authored by someone else.
+  """
+  rawContent: Markdown
+  reactionGroup(customEmojiId: ID, emoji: String): ReactionGroup
   reactionGroups: [ReactionGroup!]!
+
+  """Posts that are direct replies to this post."""
   replies(after: String, before: String, first: Int, last: Int): PostRepliesConnection!
+
+  """The post this post is a reply to, or `null` for top-level posts."""
   replyTarget: Post
+
+  """
+  Whether the post is marked as sensitive (NSFW). Clients should hide the content behind a content warning when this is `true`.
+  """
   sensitive: Boolean!
+
+  """
+  The post being boosted. Non-null only for boost wrapper rows. When this is non-null, `content` is empty and `url` mirrors the shared post's URL.
+  """
   sharedPost: Post
+
+  """
+  Boost wrapper posts that reshare this post. Each edge represents a single boost by a specific actor.
+  """
   shares(after: String, before: String, first: Int, last: Int): PostSharesConnection!
+
+  """
+  The local source UUID for this note — `noteSourceTable.id`, the identifier embedded in `Post.url` (`/@username/<sourceId>`). Non-null only for source-backed local notes (notes originally composed on this instance). Null for federated remote notes and for local share wrappers (boosts), since neither carries a `noteSourceTable` row; for those, fall back to `Post.uuid`.
+  """
+  sourceId: UUID
+
+  """
+  Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.
+  """
   summary: String
   updated: DateTime!
+
+  """
+  The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier — `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles — **not** `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised — copied from the shared post in the boost case — and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.
+  """
   url: URL
+
+  """
+  The post row's primary key, stable for the lifetime of the post. ⚠️ This is **not** the UUID embedded in `Post.url` for source-backed local posts: local notes that originate here use `Note.sourceId` (= `noteSourceTable.id`) and local articles use `Article.publishedYear` + `Article.slug`. The row PK is the right token whenever there is no local source row — federated remote posts, local share wrappers (boosts, which carry no source and copy the shared post's URL), and Questions (whose originals come only from remote instances and whose local rows exist solely as share wrappers) — and for the internal route that resolves them. `actorByHandle.postByUuid` accepts either the row PK or a source UUID, but resolving by `uuid` for a source-backed local post yields a URL that differs from `Post.url`.
+  """
   uuid: UUID!
+
+  """
+  Whether the authenticated viewer is allowed to quote this post, based on `quotePolicy`, visibility, and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanQuote: Boolean!
+
+  """
+  Whether the authenticated viewer is allowed to reply to this post, based on visibility and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanReply: Boolean!
+
+  """
+  Whether the authenticated viewer (as the quoted post's author) can revoke a quote of their post. `true` only when the viewer is the author of `quotedPost` and the quoting post is either local or has an authorization IRI.
+  """
+  viewerCanRevokeQuote: Boolean!
+
+  """
+  Whether the authenticated viewer is allowed to boost this post, based on visibility and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanShare: Boolean!
+
+  """
+  Whether the authenticated viewer has bookmarked this post. Always `false` for unauthenticated requests.
+  """
   viewerHasBookmarked: Boolean!
+
+  """
+  Whether the authenticated viewer has pinned this post to their profile. Always `false` for unauthenticated requests.
+  """
   viewerHasPinned: Boolean!
+
+  """
+  Whether the authenticated viewer has boosted this post. Always `false` for unauthenticated requests.
+  """
   viewerHasShared: Boolean!
   visibility: PostVisibility!
 }
 
+"""
+A notification for the account holder about social activity related to their posts or profile. Multiple actors can trigger the same notification (e.g., several people reacting to the same post are merged). The `actors` field lists them newest-first.
+"""
 interface Notification implements Node {
   account: Account!
   actors(after: String, before: String, first: Int, last: Int): NotificationActorsConnection!
@@ -972,13 +1896,40 @@ type NotificationActorsConnectionEdge {
   node: Actor!
 }
 
+"""
+Discriminant values for categorizing notifications. The Notification interface is polymorphic; use this enum when filtering by category.
+"""
 enum NotificationType {
+  """Someone followed this account."""
   FOLLOW
+
+  """Someone @-mentioned this account in a post."""
   MENTION
+
+  """Someone quoted one of this account's posts."""
   QUOTE
+
+  """An author updated a post that this account previously quoted."""
+  QUOTED_POST_UPDATED
+
+  """Someone reacted with an emoji to one of this account's posts."""
   REACT
+
+  """Someone replied to one of this account's posts."""
   REPLY
+
+  """Someone boosted (reshared) one of this account's posts."""
   SHARE
+
+  """
+  An author updated a post that this account previously boosted (reshared).
+  """
+  SHARED_POST_UPDATED
+}
+
+enum OrderDirection {
+  ASC
+  DESC
 }
 
 """
@@ -999,10 +1950,19 @@ type PageInfo {
   startCursor: String
 }
 
+"""
+A WebAuthn passkey registered to an account. Passkeys can be used to authenticate via `loginByPasskey` without a password or email code.
+"""
 type Passkey implements Node {
   created: DateTime!
   id: ID!
+
+  """`null` if this passkey has never been used to authenticate."""
   lastUsed: DateTime
+
+  """
+  User-provided label for this passkey (e.g., "MacBook Touch ID"). Set at registration time via `verifyPasskeyRegistration`.
+  """
   name: String!
 }
 
@@ -1011,6 +1971,31 @@ type PasskeyRegistrationResult {
   verified: Boolean!
 }
 
+"""
+Pin a followed hashtag to the sidebar. The hashtag must already be followed. Requires authentication.
+"""
+input PinHashtagInput {
+  clientMutationId: ID
+
+  """Hashtag name to pin (with or without leading `#`)."""
+  tag: String!
+}
+
+type PinHashtagPayload {
+  clientMutationId: ID
+
+  """The normalized hashtag name that was pinned."""
+  tag: String!
+
+  """The authenticated viewer's account after pinning."""
+  viewer: Account!
+}
+
+union PinHashtagResult = InvalidInputError | NotAuthenticatedError | PinHashtagPayload
+
+"""
+Pin a post to the top of the viewer's profile. Only the post's author may pin it. Requires authentication.
+"""
 input PinPostInput {
   clientMutationId: ID
   postId: ID!
@@ -1023,22 +2008,54 @@ type PinPostPayload {
 
 union PinPostResult = InvalidInputError | NotAuthenticatedError | PinPostPayload
 
+"""
+A poll attached to a `Question` post. Contains options, vote counts, and the voting deadline.
+"""
 type Poll implements Node {
+  """Whether the voting period has ended (`ends <= now()`)."""
   closed: Boolean!
+
+  """When voting closes. Votes submitted after this time are rejected."""
   ends: DateTime!
   id: ID!
+
+  """
+  Whether voters may select more than one option. When `false`, each voter may choose exactly one option.
+  """
   multiple: Boolean!
+
+  """The poll's voting options, ordered by their display index."""
   options: [PollOption!]!
+
+  """The `Question` post this poll belongs to."""
   post: Post!
+
+  """
+  Whether the authenticated viewer has cast at least one vote in this poll. Always `false` for unauthenticated requests.
+  """
   viewerHasVoted: Boolean!
+
+  """Actors who have voted in this poll (deduplicated across options)."""
   voters(after: String, before: String, first: Int, last: Int): PollVotersConnection!
+
+  """
+  All votes cast across all options, with the total vote count exposed on the connection.
+  """
   votes(after: String, before: String, first: Int, last: Int): PollVotesConnection!
 }
 
+"""A single choice in a `Poll`."""
 type PollOption {
+  """Zero-based display order index for this option."""
   index: Int!
+
+  """The poll this option belongs to."""
   poll: Poll!
   title: String!
+
+  """
+  Whether the authenticated viewer voted for this specific option. Always `false` for unauthenticated requests.
+  """
   viewerHasVoted: Boolean!
   votes(after: String, before: String, first: Int, last: Int): PollOptionVotesConnection!
 }
@@ -1083,39 +2100,155 @@ type PollVotesConnectionEdge {
   node: PollVote!
 }
 
+"""
+Abstract base for all content types: `Note` (short microblog posts), `Article` (long-form blog posts), and `Question` (polls from federated instances). Most timeline and feed queries return this interface; use `__typename` or inline fragments to access type-specific fields.
+"""
 interface Post implements Node & Reactable {
+  """The actor who authored or boosted this post."""
   actor: Actor!
+
+  """
+  The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
+  """
   content: HTML!
   engagementStats: PostEngagementStats!
+
+  """
+  Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.
+  """
   excerpt: String!
+
+  """
+  A sanitized, truncated HTML preview of this post's content, clipped to roughly `maxChars` visible characters with valid tag structure preserved. Use this on feed cards instead of `content` to keep the rendered DOM small. Anchor tags are stripped — the surrounding card is expected to be the link to the full post. This does NOT fall back to `summary`; query `summary` separately when you want to display a real (e.g. LLM-generated) summary with its own affordances.
+  """
+  excerptHtml(maxChars: Int!): HTML!
+
+  """
+  Hashtags mentioned in the post, extracted from the post's tag map. Each entry includes the tag name and its canonical hashtag search URL.
+  """
   hashtags: [Hashtag!]!
   id: ID!
+
+  """
+  The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.
+  """
   iri: URL!
+
+  """
+  BCP 47 language tag of the post's primary content (e.g., `en`, `ja`). `null` when the language is unknown or not specified by the author.
+  """
   language: String
+
+  """
+  OpenGraph / oEmbed preview for the first link in the post. `null` when the post has no links or the metadata has not been fetched yet.
+  """
   link: PostLink
+
+  """
+  Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
+  """
   media: [PostMedium!]!
+
+  """
+  Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
+  """
   mentions(after: String, before: String, first: Int, last: Int): PostMentionsConnection!
+
+  """
+  The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
+  """
   name: String
   published: DateTime!
+  quotePolicy: QuotePolicy!
+  quoteTargetState: QuoteTargetState
+
+  """The post being quoted inline. `null` for posts that are not quotes."""
   quotedPost: Post
+
+  """Posts that quote this post inline."""
   quotes(after: String, before: String, first: Int, last: Int): PostQuotesConnection!
+  reactionGroup(customEmojiId: ID, emoji: String): ReactionGroup
   reactionGroups: [ReactionGroup!]!
+
+  """Posts that are direct replies to this post."""
   replies(after: String, before: String, first: Int, last: Int): PostRepliesConnection!
+
+  """The post this post is a reply to, or `null` for top-level posts."""
   replyTarget: Post
+
+  """
+  Whether the post is marked as sensitive (NSFW). Clients should hide the content behind a content warning when this is `true`.
+  """
   sensitive: Boolean!
+
+  """
+  The post being boosted. Non-null only for boost wrapper rows. When this is non-null, `content` is empty and `url` mirrors the shared post's URL.
+  """
   sharedPost: Post
+
+  """
+  Boost wrapper posts that reshare this post. Each edge represents a single boost by a specific actor.
+  """
   shares(after: String, before: String, first: Int, last: Int): PostSharesConnection!
+
+  """
+  Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.
+  """
   summary: String
   updated: DateTime!
+
+  """
+  The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier — `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles — **not** `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised — copied from the shared post in the boost case — and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.
+  """
   url: URL
+
+  """
+  The post row's primary key, stable for the lifetime of the post. ⚠️ This is **not** the UUID embedded in `Post.url` for source-backed local posts: local notes that originate here use `Note.sourceId` (= `noteSourceTable.id`) and local articles use `Article.publishedYear` + `Article.slug`. The row PK is the right token whenever there is no local source row — federated remote posts, local share wrappers (boosts, which carry no source and copy the shared post's URL), and Questions (whose originals come only from remote instances and whose local rows exist solely as share wrappers) — and for the internal route that resolves them. `actorByHandle.postByUuid` accepts either the row PK or a source UUID, but resolving by `uuid` for a source-backed local post yields a URL that differs from `Post.url`.
+  """
   uuid: UUID!
+
+  """
+  Whether the authenticated viewer is allowed to quote this post, based on `quotePolicy`, visibility, and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanQuote: Boolean!
+
+  """
+  Whether the authenticated viewer is allowed to reply to this post, based on visibility and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanReply: Boolean!
+
+  """
+  Whether the authenticated viewer (as the quoted post's author) can revoke a quote of their post. `true` only when the viewer is the author of `quotedPost` and the quoting post is either local or has an authorization IRI.
+  """
+  viewerCanRevokeQuote: Boolean!
+
+  """
+  Whether the authenticated viewer is allowed to boost this post, based on visibility and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanShare: Boolean!
+
+  """
+  Whether the authenticated viewer has bookmarked this post. Always `false` for unauthenticated requests.
+  """
   viewerHasBookmarked: Boolean!
+
+  """
+  Whether the authenticated viewer has pinned this post to their profile. Always `false` for unauthenticated requests.
+  """
   viewerHasPinned: Boolean!
+
+  """
+  Whether the authenticated viewer has boosted this post. Always `false` for unauthenticated requests.
+  """
   viewerHasShared: Boolean!
   visibility: PostVisibility!
 }
 
+"""
+Cached engagement counters for a post. Updated asynchronously; may be slightly stale. Query the live connections (`replies`, `shares`, etc.) directly when exact real-time counts matter.
+"""
 type PostEngagementStats {
+  bookmarks: Int!
   post: Post!
   quotes: Int!
   reactions: Int!
@@ -1123,16 +2256,69 @@ type PostEngagementStats {
   shares: Int!
 }
 
+"""
+OpenGraph / oEmbed metadata for a link embedded in a post. Populated asynchronously after the post is created; individual fields may be `null` until the metadata fetch completes or if the linked page does not expose the corresponding tag.
+"""
 type PostLink implements Node {
   author: String
   creator: Actor
   description: String
+
+  """
+  Size of this link's federated discussion: its non-bot public sharing posts plus their direct public (`public`/`unlisted`) replies and quotes.  Use this as the count of posts to read in the discussion (the `/news/{uuid}` page); unlike `postCount` it includes the replies and quotes, not just the shares.  Counts direct children only (deeper nesting is not traversed) and is viewer-independent (public posts only).
+  """
+  discussionCount: Int!
+
+  """
+  When this link was first shared publicly by a non-bot account, or `null` if it has never been.  Drives the `NEWEST` order.
+  """
+  firstSharedAt: DateTime
   id: ID!
   image: PostLinkImage
+
+  """
+  Timestamp of the freshest activity on this link's qualifying shares (the share itself, a reply, a quote, or a reaction); shares are public and authored by non-bot accounts.  A rapid repeat share by the same account does not refresh this (only a first share, a sufficiently-gapped re-share, or genuine replies/quotes/reactions do), so re-posting cannot keep a link pinned at the top.  `null` means the link is not a news story (no qualifying public share); such links are excluded from the feed.
+  """
+  latestActivityAt: DateTime
+
+  """
+  The moderator score penalty on this link (demoting it in the `POPULAR` feed).  `null` for non-moderators; moderators see `NONE` when the link is unpenalized.  Set it with `setNewsScorePenalty`.
+  """
+  penalty: NewsPenalty
+
+  """
+  Number of public, non-boost posts across the fediverse that share this link, excluding shares from bot (`Service`/`Application`) accounts.  Counts every such post, including an account's repeated shares of the same link (a high count with a modest `score` is expected, since repeats contribute diminishing weight).
+  """
+  postCount: Int!
+
+  """
+  Popularity-over-time rank used by the `POPULAR` feed order: `log10(max(1, weightedMass)) + recency`.  Computed by a batch job and refreshed incrementally; recompute is idempotent and the value is time-stable (it changes only when the underlying posts or engagement change, not as the clock advances).  Shares from bot accounts (`Service`/`Application` actors) never count, so a link shared only by bots stays at `0`, as do links never shared publicly.  When one account shares the same link repeatedly, each share after the first adds only a small, gap-dependent fraction of the base weight (and a rapid repeat does not refresh recency), so re-posting cannot inflate the rank.
+  """
+  score: Float!
+
+  """
+  The posts that share this link, most recently published first, filtered to those visible to the viewer.  Shares authored by bot accounts (`Service`/`Application` actors) are excluded, matching the scoring.  These are the roots of the link's discussion tree.
+  """
+  sharingPosts(after: String, before: String, first: Int, last: Int): PostLinkSharingPostsConnection!
   siteName: String
+
+  """
+  Counts of this link's public shares by origin (local / remote / Bluesky bridge), excluding shares from bot (`Service`/`Application`) accounts.
+  """
+  sourceBreakdown: NewsSourceBreakdown!
   title: String
   type: String
   url: URL!
+
+  """
+  The link's row UUID.  Use this for the stable discussion permalink `/news/{uuid}`; the opaque Relay `id` is for `node(id:)` lookups.
+  """
+  uuid: UUID!
+
+  """
+  Recency-independent engagement mass: the weighted sum over this link's public shares (excluding bot `Service`/`Application` accounts) of source weight times account reputation times (quotes, replies, reactions).  Repeated shares of the same link by the same account add diminishing base weight (recovering with the gap but always below a first share).  Drives the `ALL_TIME` order.
+  """
+  weightedMass: Float!
 }
 
 type PostLinkImage {
@@ -1144,6 +2330,19 @@ type PostLinkImage {
   width: Int
 }
 
+type PostLinkSharingPostsConnection {
+  edges: [PostLinkSharingPostsConnectionEdge!]!
+  pageInfo: PageInfo!
+}
+
+type PostLinkSharingPostsConnectionEdge {
+  cursor: String!
+  node: Post!
+}
+
+"""
+A media attachment on a post. For local posts this refers to an uploaded `Medium` stored on this instance; for federated posts the `url` points to the remote media URL on the originating instance.
+"""
 type PostMedium implements Node {
   alt: String
   height: Int
@@ -1195,25 +2394,65 @@ type PostSharesConnectionEdge {
   node: Post!
 }
 
+"""
+Discriminant used to filter a connection to a single post type. This enum does not appear on the `Post` interface itself; use __typename` or inline fragments to distinguish concrete types.
+"""
 enum PostType {
+  """
+  Long-form article with a title, year-based slug URL, and optional multi-language translations.
+  """
   ARTICLE
+
+  """
+  Short microblog post (equivalent to a Mastodon Status or ActivityPub Note).
+  """
   NOTE
+
+  """
+  ActivityPub Question (poll) originating from a federated instance. Creating new Questions locally is not supported.
+  """
   QUESTION
 }
 
+"""
+Controls who can see a post and whether it appears in timelines. Visibility is set at creation time and cannot be changed for posts that have already been federated to remote instances.
+"""
 enum PostVisibility {
+  """
+  Visible only to explicitly @-mentioned actors — the closest equivalent to a direct message. Not delivered to followers who were not mentioned.
+  """
   DIRECT
+
+  """
+  Visible only to the actor's approved followers. Never appears in any public timeline. Federated only to follower inboxes.
+  """
   FOLLOWERS
+
+  """
+  Not visible to anyone other than the author. Used internally for soft-deleted or administratively hidden posts; do not set this value when creating posts.
+  """
   NONE
+
+  """
+  Visible to everyone including unauthenticated visitors. Appears in the public timeline and the actor's public post list. Federated to all known instances.
+  """
   PUBLIC
+
+  """
+  Accessible via direct link but excluded from the public timeline. Use for posts that should be reachable without being broadcast widely.
+  """
   UNLISTED
 }
 
+"""
+Publish an article draft, converting it to a live `Article` post and deleting the draft. Sends an ActivityPub `Create` activity. Requires authentication.
+"""
 input PublishArticleDraftInput {
   allowLlmTranslation: Boolean
   clientMutationId: ID
   id: ID!
   language: Locale!
+  quotePolicy: QuotePolicy
   slug: String!
 }
 
@@ -1225,30 +2464,101 @@ type PublishArticleDraftPayload {
 
 union PublishArticleDraftResult = InvalidInputError | NotAuthenticatedError | PublishArticleDraftPayload
 
+"""
+Controls how much post content may be included in push notification payloads. Payloads can be displayed on a lock screen and pass through third-party push services.
+"""
+enum PushNotificationPreviewPolicy {
+  """
+  Include a short preview whenever the notification has post content, including restricted or sensitive posts.
+  """
+  ALL
+
+  """Never include post content previews in push notification payloads."""
+  NONE
+
+  """
+  Include a short preview only for non-sensitive `PUBLIC` or `UNLISTED` posts. Other notifications use generic copy.
+  """
+  PUBLIC_ONLY
+}
+
+"""
+Push delivery service for a registered notification target. Use `WEB_PUSH` for browser Push API subscriptions.
+"""
+enum PushNotificationService {
+  """Apple Push Notification service target used by iOS clients."""
+  APNS
+
+  """Firebase Cloud Messaging target used by Android clients."""
+  FCM
+
+  """Browser Push API subscription delivered with the Web Push protocol."""
+  WEB_PUSH
+}
+
 type Query {
+  """
+  Look up a local account by its username (without the `@host` suffix). Returns `null` when no account with that username exists.
+  """
   accountByUsername(username: String!): Account
+
+  """
+  All local accounts. Intended for internal tooling; prefer `adminAccounts` for paginated moderator views.
+  """
   accounts: [Account!]!
+
+  """
+  Look up an actor by their fediverse handle (e.g., `@alice@mastodon.social` or `alice@hackers.pub`). For `user@host` handles not already in the local cache, triggers an outbound WebFinger + ActivityPub fetch and persists the result; this only happens for authenticated requests, since unauthenticated callers are not allowed to spawn outbound federation lookups.
+  """
   actorByHandle(
     """Whether to allow local handles (e.g. @username)."""
     allowLocalHandle: Boolean = false
     handle: String!
   ): Actor
+
+  """
+  Look up an actor by their profile URL, resolving via ActivityPub when necessary. Only authenticated requests trigger outbound federation lookups; unauthenticated callers receive only cached results.
+  """
   actorByUrl(url: URL!): Actor
+
+  """
+  Look up an actor by their internal row UUID (`Actor.uuid`). Prefer `actorByHandle` for user-facing lookups; this is mainly for internal cross-references where a UUID is already known.
+  """
   actorByUuid(uuid: UUID!): Actor
 
   """
-  Moderator-only connection of every account, ordered by latest post `published` falling back to `account.updated`.  Returns null when the viewer is not a moderator; routes should guard with `viewer.moderator` and redirect non-moderators.
+  Moderator-only connection of every account.  Returns null when the viewer is not a moderator; routes should guard with `viewer.moderator` and redirect non-moderators.
   """
-  adminAccounts(after: String, before: String, first: Int, last: Int): AdminAccountConnection
+  adminAccounts(after: String, before: String, first: Int, last: Int, orderBy: AdminAccountOrderBy, orderDirection: OrderDirection, search: String): AdminAccountConnection
+
+  """
+  Look up a locally-authored article by the author's handle, publication year, and URL slug. This is the resolver for the canonical article permalink path `/@{handle}/{year}/{slug}`.
+  """
   articleByYearAndSlug(handle: String!, idOrYear: String!, slug: String!): Article
+
+  """
+  Look up an article draft by its global `id` or its `uuid`. Requires authentication; only returns drafts owned by the authenticated viewer.
+  """
   articleDraft(id: ID, uuid: UUID): ArticleDraft
   availableLocales: [Locale!]!
+
+  """
+  The authenticated viewer's bookmarked posts, newest-bookmarked first. Throws `AUTHENTICATION_REQUIRED` when called without a session.
+  """
   bookmarks(after: String, before: String, first: Int, last: Int, postType: PostType): QueryBookmarksConnection!
   codeOfConduct(
     """The locale for the Code of Conduct."""
     locale: Locale!
   ): Document!
+
+  """
+  Look up a known fediverse instance by its host name. Returns `null` if this instance has not been discovered yet.
+  """
   instanceByHost(host: String!): Instance
+
+  """
+  Look up a specific invitation link by its UUID and the inviter's username. Returns `null` if the link does not exist or the `username` does not match the link's owner (prevents link enumeration).
+  """
   invitationLink(id: UUID!, username: String!): InvitationLink
 
   """
@@ -1275,6 +2585,44 @@ type Query {
     """The locale for the Markdown guide."""
     locale: Locale!
   ): Document!
+
+  """
+  Moderator-only list of news feed exclusion patterns, newest first.  `null` for non-moderators.
+  """
+  newsExcludedPatterns: [NewsExcludedPattern!]
+
+  """
+  Moderator-only list of news links currently carrying a score penalty, heaviest first, for reviewing/clearing demotions (a buried link is no longer near the top of the feed).  `null` for non-moderators.
+  """
+  newsPenalizedStories: [PostLink!]
+
+  """
+  Moderator-only news scoring snapshot.  Returns `null` when the viewer is not a moderator; routes should guard with `viewer.moderator`.
+  """
+  newsScoreStatus: NewsScoreStatus
+
+  """
+  Links shared across the fediverse, ranked as a news feed.  Forward pagination only (`first`/`after`); `last`/`before` raise a `PAGINATION_ERROR`.  Pages are capped at 100 stories.  No authentication required.
+  """
+  newsStories(
+    after: String
+    before: String
+    first: Int
+    last: Int
+
+    """How to rank the feed.  Defaults to `POPULAR`."""
+    order: NewsOrder = POPULAR
+  ): QueryNewsStoriesConnection!
+
+  """
+  Look up a news story (a shared link) by its row UUID, for the discussion permalink `/news/{uuid}`.  Returns `null` for a malformed id, or for a link that is not a public news story: only links with a qualifying public share (`latestActivityAt` is not `null`) resolve, so a link seen only in followers-only or direct posts stays private.  A link hidden from the feed by an exclusion pattern (`excludedFromNews`) is still reachable here.
+  """
+  newsStory(
+    """
+    The link's row UUID (`PostLink.uuid`), as embedded in the `/news/{uuid}` permalink.
+    """
+    id: UUID!
+  ): PostLink
   node(id: ID!): Node
   nodes(ids: [ID!]!): [Node]!
 
@@ -1282,21 +2630,95 @@ type Query {
   Moderator-only orphan media preview.  Returns null when the viewer is not a moderator.
   """
   orphanMediaStatus: OrphanMediaStatus
-  personalTimeline(after: String, before: String, first: Int, last: Int, local: Boolean = false, postType: PostType, withoutShares: Boolean = false): QueryPersonalTimelineConnection!
+
+  """
+  Posts from accounts the authenticated viewer follows, newest first. Throws `AUTHENTICATION_REQUIRED` when called without a session. Pagination window (`first`/`last`) is capped at 250 posts. Use `languages` to filter by language (a base code like `"en"` matches `"en"` and all `"en-*"` variants), `local` to restrict to this instance only, and `withoutShares` to hide boost wrappers.
+  """
+  personalTimeline(
+    after: String
+    before: String
+    first: Int
+
+    """
+    Filter by base language code. Passing `"en"` returns posts with `language = "en"` or any `"en-*"` variant. Region-specific tags such as `"en-US"` are normalized to their base language and match all variants. At most 20 codes are accepted; passing more raises a `TOO_MANY_LANGUAGE_FILTERS` error.
+    """
+    languages: [Locale!] = []
+    last: Int
+    local: Boolean = false
+    postType: PostType
+    withoutShares: Boolean = false
+  ): QueryPersonalTimelineConnection!
+
+  """
+  Resolve a post by its URL, fetching it from the originating instance via ActivityPub if it is not already cached. Requires authentication (unauthenticated callers always receive `null`). Returns `null` if the post is not found or not visible to the viewer.
+  """
   postByUrl(url: String!): Post
   privacyPolicy(
     """The locale for the Privacy Policy."""
     locale: Locale!
   ): Document!
-  publicTimeline(after: String, before: String, first: Int, languages: [Locale!] = [], last: Int, local: Boolean = false, postType: PostType, withoutShares: Boolean = false): QueryPublicTimelineConnection!
+
+  """
+  All public posts from all known instances, newest first. Accessible without authentication. Pagination window (`first`/`last`) is capped at 250 posts. Use `languages` to filter by language, `local` to restrict to this instance only, and `withoutShares` to hide boost wrappers.
+  """
+  publicTimeline(
+    after: String
+    before: String
+    first: Int
+
+    """
+    Filter by base language code. Passing `"en"` returns posts with `language = "en"` or any `"en-*"` variant. Region-specific tags such as `"en-US"` are normalized to their base language and match all variants. At most 20 codes are accepted; passing more raises a `TOO_MANY_LANGUAGE_FILTERS` error.
+    """
+    languages: [Locale!] = []
+    last: Int
+    local: Boolean = false
+    postType: PostType
+    withoutShares: Boolean = false
+  ): QueryPublicTimelineConnection!
+
+  """
+  A small curated list of suggested accounts to follow, weighted toward accounts that write in the viewer's preferred locale. Capped at 50 results.
+  """
   recommendedActors(limit: Int = 10, locale: Locale): [Actor!]!
+
+  """
+  Renders a Markdown string to HTML. When `articleSourceId` is provided, `hp-medium:KEY` references in the markdown are resolved against that article source's attached media (e.g. for previewing edits to an existing article). Only the article's author may pass their own `articleSourceId`; otherwise the call is rejected.
+  """
+  renderMarkdown(
+    """
+    UUID of an `ArticleSource` owned by the viewer. When provided, the rendered HTML resolves `hp-medium:KEY` references against this source's media. The missing-medium placeholder is localized to the viewer's preferred locale.
+    """
+    articleSourceId: UUID
+
+    """
+    Markdown source text to render into sanitized `HTML`. Used by client-side previews while composing or editing posts.
+    """
+    content: String!
+  ): HTML!
+
+  """
+  Prefix search for @mention autocomplete. Matches against both username and host. Requires authentication to prevent unauthenticated callers from triggering outbound federation lookups. Capped at 50 results.
+  """
   searchActorsByHandle(limit: Int = 25, prefix: String!): [Actor!]!
   searchGuide(
     """The locale for the search guide."""
     locale: Locale!
   ): Document!
+
+  """
+  Look up a single actor or post by its fediverse handle (e.g., @alice@mastodon.social) or URL. Returns a local redirect URL, or null if nothing matches. For authenticated users, triggers federated WebFinger/ActivityPub lookups when the object is not already cached.
+  """
   searchObject(query: String!): SearchObjectResult
+
+  """
+  Full-text post search. Supports keyword operators (see the `searchGuide` query for syntax). Only forward pagination is supported (`before`/`last` are rejected). Excludes boost wrappers; returns only original posts.
+  """
   searchPost(after: String, before: String, first: Int, languages: [Locale!] = [], last: Int, query: String!): QuerySearchPostConnection!
+
+  """
+  Base language codes to show in the timeline language filter. When the viewer is authenticated and has language preferences set, returns the base codes of those locales (e.g. `ko-KR` → `ko`). Otherwise parses the `Accept-Language` request header and returns its base codes in preference order. Returns an empty list when no language information is available.
+  """
+  suggestedFilterLanguages: [Locale!]!
 
   """Verify a signup token and return the signup info if valid."""
   verifySignupToken(
@@ -1306,7 +2728,16 @@ type Query {
     """The signup token to verify."""
     token: UUID!
   ): SignupInfo
+
+  """
+  The `Account` of the currently authenticated user, or `null` when not authenticated. Use this as the entry point for all viewer-specific data (notifications, drafts, settings).
+  """
   viewer: Account
+
+  """
+  URL-safe Base64 VAPID public key for browser Push API subscriptions. Returns `null` when Web Push delivery is not configured on the server.
+  """
+  webPushVapidPublicKey: String
 }
 
 type QueryBookmarksConnection {
@@ -1317,6 +2748,16 @@ type QueryBookmarksConnection {
 type QueryBookmarksConnectionEdge {
   cursor: String!
   node: Post!
+}
+
+type QueryNewsStoriesConnection {
+  edges: [QueryNewsStoriesConnectionEdge!]!
+  pageInfo: PageInfo!
+}
+
+type QueryNewsStoriesConnectionEdge {
+  cursor: String!
+  node: PostLink!
 }
 
 type QueryPersonalTimelineConnection {
@@ -1338,10 +2779,21 @@ type QueryPublicTimelineConnection {
 }
 
 type QueryPublicTimelineConnectionEdge {
+  """
+  When this post was added to the timeline: either its publication time or when it was most recently boosted into the feed.
+  """
   added: DateTime!
   cursor: String!
+
+  """
+  The most recent account the viewer follows that boosted this post into the timeline, if the post reached the viewer via a boost.
+  """
   lastSharer: Actor
   node: Post!
+
+  """
+  Number of accounts the viewer follows that have boosted this post. Useful for 'N people you follow shared this' display.
+  """
   sharersCount: Int!
 }
 
@@ -1355,39 +2807,133 @@ type QuerySearchPostConnectionEdge {
   node: Post!
 }
 
+"""
+An ActivityPub Question (poll) originating from a federated instance. Hackers' Pub does not support creating `Question`s locally; local users can vote on and boost remote questions only. Always use `Post.uuid` (the row PK) for internal permalinks; there is no local `sourceId`.
+"""
 type Question implements Node & Post & Reactable {
   actor: Actor!
   content: HTML!
   engagementStats: PostEngagementStats!
+
+  """
+  Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.
+  """
   excerpt: String!
+
+  """
+  A sanitized, truncated HTML preview of this post's content, clipped to roughly `maxChars` visible characters with valid tag structure preserved. Use this on feed cards instead of `content` to keep the rendered DOM small. Anchor tags are stripped — the surrounding card is expected to be the link to the full post. This does NOT fall back to `summary`; query `summary` separately when you want to display a real (e.g. LLM-generated) summary with its own affordances.
+  """
+  excerptHtml(maxChars: Int!): HTML!
+
+  """
+  Hashtags mentioned in the post, extracted from the post's tag map. Each entry includes the tag name and its canonical hashtag search URL.
+  """
   hashtags: [Hashtag!]!
   id: ID!
   iri: URL!
   language: String
+
+  """
+  OpenGraph / oEmbed preview for the first link in the post. `null` when the post has no links or the metadata has not been fetched yet.
+  """
   link: PostLink
+
+  """
+  Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
+  """
   media: [PostMedium!]!
+
+  """
+  Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
+  """
   mentions(after: String, before: String, first: Int, last: Int): PostMentionsConnection!
+
+  """
+  The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
+  """
   name: String
   poll: Poll
   published: DateTime!
+  quotePolicy: QuotePolicy!
+  quoteTargetState: QuoteTargetState
   quotedPost: Post
+
+  """Posts that quote this post inline."""
   quotes(after: String, before: String, first: Int, last: Int): PostQuotesConnection!
+  reactionGroup(customEmojiId: ID, emoji: String): ReactionGroup
   reactionGroups: [ReactionGroup!]!
+
+  """Posts that are direct replies to this post."""
   replies(after: String, before: String, first: Int, last: Int): PostRepliesConnection!
+
+  """The post this post is a reply to, or `null` for top-level posts."""
   replyTarget: Post
+
+  """
+  Whether the post is marked as sensitive (NSFW). Clients should hide the content behind a content warning when this is `true`.
+  """
   sensitive: Boolean!
   sharedPost: Post
+
+  """
+  Boost wrapper posts that reshare this post. Each edge represents a single boost by a specific actor.
+  """
   shares(after: String, before: String, first: Int, last: Int): PostSharesConnection!
+
+  """
+  Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.
+  """
   summary: String
   updated: DateTime!
+
+  """
+  The canonical, human-readable URL of this question, as advertised by the originating instance. Question originals are only persisted from federated remote instances, and local share wrappers copy the shared post's URL, so this never encodes a local-source identifier — do not assume any relationship between its path and `Post.uuid`.
+  """
   url: URL
+
+  """
+  The post row's primary key, stable for the lifetime of the post. Question originals are only persisted from federated remote instances; local Question rows may also exist as share wrappers (boosts) when a local user reshares a remote question. Neither case carries a local source row (a DB check constraint forbids `noteSourceId` on non-Note rows), so this row PK is the right token to use when building internal permalinks for questions — though `Post.url` will still reflect whatever URL the originating instance advertised, which generally won't share this UUID.
+  """
   uuid: UUID!
+
+  """
+  Whether the authenticated viewer is allowed to quote this post, based on `quotePolicy`, visibility, and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanQuote: Boolean!
+
+  """
+  Whether the authenticated viewer is allowed to reply to this post, based on visibility and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanReply: Boolean!
+
+  """
+  Whether the authenticated viewer (as the quoted post's author) can revoke a quote of their post. `true` only when the viewer is the author of `quotedPost` and the quoting post is either local or has an authorization IRI.
+  """
+  viewerCanRevokeQuote: Boolean!
+
+  """
+  Whether the authenticated viewer is allowed to boost this post, based on visibility and block state. Always `false` for unauthenticated requests.
+  """
+  viewerCanShare: Boolean!
+
+  """
+  Whether the authenticated viewer has bookmarked this post. Always `false` for unauthenticated requests.
+  """
   viewerHasBookmarked: Boolean!
+
+  """
+  Whether the authenticated viewer has pinned this post to their profile. Always `false` for unauthenticated requests.
+  """
   viewerHasPinned: Boolean!
+
+  """
+  Whether the authenticated viewer has boosted this post. Always `false` for unauthenticated requests.
+  """
   viewerHasShared: Boolean!
   visibility: PostVisibility!
 }
 
+"""Notification that an actor quoted one of this account's posts."""
 type QuoteNotification implements Node & Notification {
   account: Account!
   actors(after: String, before: String, first: Int, last: Int): NotificationActorsConnection!
@@ -1397,6 +2943,58 @@ type QuoteNotification implements Node & Notification {
   uuid: UUID!
 }
 
+"""
+Controls who may embed this post as a quote in their own posts. Applies to both local and federated clients; cross-instance requests from restricted actors result in a `QuoteTargetState` on the quoting post.
+"""
+enum QuotePolicy {
+  """Anyone (followers and non-followers alike) may quote."""
+  EVERYONE
+
+  """
+  Only the post author's approved followers may quote. Non-followers' quote attempts are denied.
+  """
+  FOLLOWERS
+
+  """
+  Only the post author may quote their own post. Effectively disables quoting by others.
+  """
+  SELF
+}
+
+"""
+The cross-instance quote-request approval status for this post when it is itself the quoting post. Only non-null while the request is outstanding or has been rejected; once approved, this field returns `null`.
+"""
+enum QuoteTargetState {
+  """
+  The quoted post's author rejected the quote request. The quote should not be displayed to viewers.
+  """
+  DENIED
+
+  """
+  A cross-instance quote request has been sent to the quoted post's author and is awaiting their approval.
+  """
+  PENDING
+}
+
+"""
+Notification that the author updated a post this account previously quoted.
+"""
+type QuotedPostUpdatedNotification implements Node & Notification {
+  account: Account!
+  actors(after: String, before: String, first: Int, last: Int): NotificationActorsConnection!
+  created: DateTime!
+  id: ID!
+
+  """
+  The updated post. This may be `null` if the post was deleted after the notification was created.
+  """
+  post: Post
+  uuid: UUID!
+}
+
+"""
+Notification that one or more actors reacted with an emoji to one of this account's posts. The `emoji` and `customEmoji` fields identify which reaction triggered the notification.
+"""
 type ReactNotification implements Node & Notification {
   account: Account!
   actors(after: String, before: String, first: Int, last: Int): NotificationActorsConnection!
@@ -1408,8 +3006,12 @@ type ReactNotification implements Node & Notification {
   uuid: UUID!
 }
 
+"""
+An object that can receive emoji reactions. Implemented by `Post` types (`Note`, `Article`, `Question`).
+"""
 interface Reactable implements Node {
   id: ID!
+  reactionGroup(customEmojiId: ID, emoji: String): ReactionGroup
   reactionGroups: [ReactionGroup!]!
 }
 
@@ -1439,6 +3041,22 @@ type ReactionGroupReactorsConnectionEdge {
   cursor: String!
   node: Actor!
 }
+
+"""The result of a full news score recompute."""
+type RecomputeNewsScoresPayload {
+  """
+  Number of links with at least one qualifying public share that were (re)scored by this run.  Stale links dropped from the feed (they lost their last public share) are reset to zero but not counted here.
+  """
+  linksUpdated: Int!
+
+  """When the recompute ran."""
+  recomputedAt: DateTime!
+
+  """The scoring status after the run."""
+  status: NewsScoreStatus!
+}
+
+union RecomputeNewsScoresResult = NotAuthenticatedError | NotAuthorizedError | RecomputeNewsScoresPayload
 
 enum RedeemEmailError {
   EMAIL_ALREADY_TAKEN
@@ -1489,47 +3107,138 @@ type RegenerateInvitationsPayload {
 
 union RegenerateInvitationsResult = NotAuthenticatedError | NotAuthorizedError | RegenerateInvitationsPayload
 
+"""
+Returned by the deprecated APNS registration mutation when the token could not be stored. New clients should use the unified push target mutation instead.
+"""
 type RegisterApnsDeviceTokenFailedError {
+  """Maximum number of APNS device tokens this account may register."""
   limit: Int!
+
+  """Human-readable explanation of the APNS registration failure."""
   message: String!
 }
 
+"""
+Legacy input for registering an APNS device token. Use `RegisterPushNotificationTargetInput` for new clients.
+"""
 input RegisterApnsDeviceTokenInput {
   clientMutationId: ID
 
-  """The APNS device token."""
+  """APNS device token. Hex tokens are normalized before storage."""
   deviceToken: String!
 }
 
+"""
+Legacy APNS registration payload. New clients should read the unified `RegisterPushNotificationTargetPayload` fields instead.
+"""
 type RegisterApnsDeviceTokenPayload {
   clientMutationId: ID
+
+  """When this APNS token was first registered."""
   created: DateTime!
+
+  """Normalized APNS device token that was registered."""
   deviceToken: String!
+
+  """When this APNS token was last refreshed."""
   updated: DateTime!
 }
 
 union RegisterApnsDeviceTokenResult = InvalidInputError | NotAuthenticatedError | RegisterApnsDeviceTokenFailedError | RegisterApnsDeviceTokenPayload
 
+"""
+Returned by the deprecated FCM registration mutation when the token could not be stored. New clients should use the unified push target mutation instead.
+"""
 type RegisterFcmDeviceTokenFailedError {
+  """Maximum number of FCM device tokens this account may register."""
   limit: Int!
+
+  """Human-readable explanation of the FCM registration failure."""
   message: String!
 }
 
+"""
+Legacy input for registering an FCM device token. Use `RegisterPushNotificationTargetInput` for new clients.
+"""
 input RegisterFcmDeviceTokenInput {
   clientMutationId: ID
 
-  """The FCM device token."""
+  """FCM registration token. Surrounding whitespace is trimmed."""
   deviceToken: String!
 }
 
+"""
+Legacy FCM registration payload. New clients should read the unified `RegisterPushNotificationTargetPayload` fields instead.
+"""
 type RegisterFcmDeviceTokenPayload {
   clientMutationId: ID
+
+  """When this FCM token was first registered."""
   created: DateTime!
+
+  """Trimmed FCM registration token that was registered."""
   deviceToken: String!
+
+  """When this FCM token was last refreshed."""
   updated: DateTime!
 }
 
 union RegisterFcmDeviceTokenResult = InvalidInputError | NotAuthenticatedError | RegisterFcmDeviceTokenFailedError | RegisterFcmDeviceTokenPayload
+
+"""
+Register or refresh a push notification target for the authenticated viewer. `APNS` and `FCM` require `token`; `WEB_PUSH` requires `endpoint`, `p256dh`, and `auth` from the browser `PushSubscription`.
+"""
+input RegisterPushNotificationTargetInput {
+  """URL-safe Base64 `auth` secret from `PushSubscription`."""
+  auth: String
+  clientMutationId: ID
+
+  """
+  Browser push service endpoint from `PushSubscription.endpoint`. Required for `WEB_PUSH` and omitted otherwise.
+  """
+  endpoint: String
+
+  """
+  Optional browser subscription expiration time. `null` means the browser did not provide an expiration.
+  """
+  expirationTime: DateTime
+
+  """URL-safe Base64 `p256dh` encryption key from `PushSubscription`."""
+  p256dh: String
+
+  """Push service that owns the target."""
+  service: PushNotificationService!
+
+  """Device token for `APNS` or `FCM`. Must be omitted for `WEB_PUSH`."""
+  token: String
+}
+
+"""
+Successful response for `registerPushNotificationTarget`. Contains the normalized `token` or `endpoint` that was stored.
+"""
+type RegisterPushNotificationTargetPayload {
+  clientMutationId: ID
+
+  """When this target was first registered."""
+  created: DateTime!
+
+  """Browser Push API endpoint. `null` for APNS and FCM targets."""
+  endpoint: String
+
+  """Push service for the registered target."""
+  service: PushNotificationService!
+
+  """`APNS` or `FCM` device token. `null` for browser Web Push targets."""
+  token: String
+
+  """When this target was last refreshed or reassigned to an account."""
+  updated: DateTime!
+}
+
+"""
+Result of registering a push notification target. Successful responses return the stored target; invalid input and authentication failures are returned as typed errors.
+"""
+union RegisterPushNotificationTargetResult = InvalidInputError | NotAuthenticatedError | RegisterPushNotificationTargetPayload
 
 input RemoveFollowerInput {
   actorId: ID!
@@ -1544,9 +3253,21 @@ type RemoveFollowerPayload {
 
 union RemoveFollowerResult = InvalidInputError | NotAuthenticatedError | RemoveFollowerPayload
 
+"""The result of removing a news feed exclusion pattern."""
+type RemoveNewsExcludedPatternPayload {
+  """The removed pattern's id, or `null` if no pattern had that id."""
+  removedId: UUID
+}
+
+union RemoveNewsExcludedPatternResult = NotAuthenticatedError | NotAuthorizedError | RemoveNewsExcludedPatternPayload
+
+"""
+Remove an emoji reaction from a post. Sends an ActivityPub `Undo Like` activity. Idempotent: removing a reaction that doesn't exist returns `success: true`. Exactly one of `emoji` or `customEmojiId` must be provided. Requires authentication.
+"""
 input RemoveReactionFromPostInput {
   clientMutationId: ID
-  emoji: String!
+  customEmojiId: ID
+  emoji: String
   postId: ID!
 }
 
@@ -1557,6 +3278,7 @@ type RemoveReactionFromPostPayload {
 
 union RemoveReactionFromPostResult = InvalidInputError | NotAuthenticatedError | RemoveReactionFromPostPayload
 
+"""Notification that an actor replied to one of this account's posts."""
 type ReplyNotification implements Node & Notification {
   account: Account!
   actors(after: String, before: String, first: Int, last: Int): NotificationActorsConnection!
@@ -1566,6 +3288,9 @@ type ReplyNotification implements Node & Notification {
   uuid: UUID!
 }
 
+"""
+Request an LLM translation of an article into the given target language. Returns immediately; the translated `ArticleContent` appears asynchronously (check `beingTranslated`). Returns `LlmTranslationNotAllowedError` if translation is disabled on the article or the target language matches the source language.
+"""
 input RequestArticleTranslationInput {
   articleId: ID!
   clientMutationId: ID
@@ -1579,6 +3304,25 @@ type RequestArticleTranslationPayload {
 
 union RequestArticleTranslationResult = InvalidInputError | LlmTranslationNotAllowedError | NotAuthenticatedError | RequestArticleTranslationPayload
 
+"""
+As the quoted post's author, revoke permission for a quote of your post. Sends a revocation activity to the quoting instance. Only the `quotedPost`'s author may call this.
+"""
+input RevokeQuoteInput {
+  clientMutationId: ID
+  quotePostId: ID!
+}
+
+type RevokeQuotePayload {
+  clientMutationId: ID
+  quote: Post!
+  quotedPost: Post!
+}
+
+union RevokeQuoteResult = InvalidInputError | NotAuthenticatedError | RevokeQuotePayload
+
+"""
+Create or update an article draft. Omit `id` to create a new draft. Requires authentication.
+"""
 input SaveArticleDraftInput {
   clientMutationId: ID
   content: Markdown!
@@ -1599,6 +3343,9 @@ union SaveArticleDraftResult = InvalidInputError | NotAuthenticatedError | SaveA
 
 union SearchObjectResult = EmptySearchQueryError | SearchedObject
 
+"""
+Result of a searchObject lookup: a local redirect URL pointing to the matched actor's profile page or post.
+"""
 type SearchedObject {
   url: String!
 }
@@ -1620,9 +3367,14 @@ type Session {
   userAgent: String
 }
 
+union SetNewsScorePenaltyResult = NotAuthenticatedError | NotAuthorizedError | PostLink
+
 """A lowercase hex-encoded SHA-256 digest."""
 scalar Sha256
 
+"""
+Notification that an actor boosted (reshared) one of this account's posts.
+"""
 type ShareNotification implements Node & Notification {
   account: Account!
   actors(after: String, before: String, first: Int, last: Int): NotificationActorsConnection!
@@ -1632,6 +3384,9 @@ type ShareNotification implements Node & Notification {
   uuid: UUID!
 }
 
+"""
+Boost (reshare) a post by creating a share wrapper post and sending an ActivityPub `Announce` activity. Returns the wrapper post as `share` and the original post as `originalPost`. Requires authentication.
+"""
 input SharePostInput {
   clientMutationId: ID
   postId: ID!
@@ -1647,6 +3402,22 @@ union SharePostResult = InvalidInputError | NotAuthenticatedError | SharePostPay
 
 type SharedPostDeletionNotAllowedError {
   inputPath: String!
+}
+
+"""
+Notification that the author updated a post this account previously boosted (reshared).
+"""
+type SharedPostUpdatedNotification implements Node & Notification {
+  account: Account!
+  actors(after: String, before: String, first: Int, last: Int): NotificationActorsConnection!
+  created: DateTime!
+  id: ID!
+
+  """
+  The updated post. This may be `null` if the post was deleted after the notification was created.
+  """
+  post: Post
+  uuid: UUID!
 }
 
 enum SignupBioError {
@@ -1693,6 +3464,9 @@ type StandardEmoji {
   raw: String!
 }
 
+"""
+Step 1 of direct image upload: obtain a pre-signed URL and headers for a PUT request. After uploading, call `finishMediumUpload` with the returned `uploadId`. Requires authentication.
+"""
 input StartMediumUploadInput {
   clientMutationId: ID
 
@@ -1739,6 +3513,9 @@ type UnblockActorPayload {
 
 union UnblockActorResult = InvalidInputError | NotAuthenticatedError | UnblockActorPayload
 
+"""
+Remove a post from the viewer's bookmarks. Idempotent. Requires authentication.
+"""
 input UnbookmarkPostInput {
   clientMutationId: ID
   postId: ID!
@@ -1765,6 +3542,69 @@ type UnfollowActorPayload {
 
 union UnfollowActorResult = InvalidInputError | NotAuthenticatedError | UnfollowActorPayload
 
+"""
+Unfollow a hashtag. Idempotent: unfollowing a tag not followed succeeds silently. Requires authentication.
+"""
+input UnfollowHashtagInput {
+  clientMutationId: ID
+
+  """Hashtag name to unfollow (with or without leading `#`)."""
+  tag: String!
+}
+
+type UnfollowHashtagPayload {
+  clientMutationId: ID
+
+  """The normalized hashtag name that was unfollowed."""
+  tag: String!
+
+  """The authenticated viewer's account after unfollowing."""
+  viewer: Account!
+}
+
+union UnfollowHashtagResult = InvalidInputError | NotAuthenticatedError | UnfollowHashtagPayload
+
+input UnmuteActorInput {
+  """The global ID of the `Actor` to unmute."""
+  actorId: ID!
+  clientMutationId: ID
+}
+
+type UnmuteActorPayload {
+  clientMutationId: ID
+
+  """The actor that was unmuted."""
+  mutee: Actor!
+
+  """The viewer's actor that performed the unmute."""
+  muter: Actor!
+}
+
+union UnmuteActorResult = InvalidInputError | NotAuthenticatedError | UnmuteActorPayload
+
+"""
+Remove a hashtag from the sidebar. Idempotent: unpinning an already-unpinned tag succeeds silently. Requires authentication.
+"""
+input UnpinHashtagInput {
+  clientMutationId: ID
+
+  """Hashtag name to unpin (with or without leading `#`)."""
+  tag: String!
+}
+
+type UnpinHashtagPayload {
+  clientMutationId: ID
+
+  """The normalized hashtag name that was unpinned."""
+  tag: String!
+
+  """The authenticated viewer's account after unpinning."""
+  viewer: Account!
+}
+
+union UnpinHashtagResult = InvalidInputError | NotAuthenticatedError | UnpinHashtagPayload
+
+"""Remove a pin from the viewer's profile. Requires authentication."""
 input UnpinPostInput {
   clientMutationId: ID
   postId: ID!
@@ -1778,36 +3618,107 @@ type UnpinPostPayload {
 
 union UnpinPostResult = InvalidInputError | NotAuthenticatedError | UnpinPostPayload
 
+"""
+Legacy input for unregistering an APNS device token. Use `UnregisterPushNotificationTargetInput` for new clients.
+"""
 input UnregisterApnsDeviceTokenInput {
   clientMutationId: ID
 
-  """The APNS device token."""
+  """APNS device token. Hex tokens are normalized before removal."""
   deviceToken: String!
 }
 
+"""
+Legacy APNS unregister payload. New clients should read the unified `UnregisterPushNotificationTargetPayload` fields instead.
+"""
 type UnregisterApnsDeviceTokenPayload {
   clientMutationId: ID
+
+  """Normalized APNS device token requested for removal."""
   deviceToken: String!
+
+  """
+  `true` when an owned APNS token was deleted. `false` when the token did not exist or belonged to another account.
+  """
   unregistered: Boolean!
 }
 
 union UnregisterApnsDeviceTokenResult = InvalidInputError | NotAuthenticatedError | UnregisterApnsDeviceTokenPayload
 
+"""
+Legacy input for unregistering an FCM device token. Use `UnregisterPushNotificationTargetInput` for new clients.
+"""
 input UnregisterFcmDeviceTokenInput {
   clientMutationId: ID
 
-  """The FCM device token."""
+  """FCM registration token. Surrounding whitespace is trimmed."""
   deviceToken: String!
 }
 
+"""
+Legacy FCM unregister payload. New clients should read the unified `UnregisterPushNotificationTargetPayload` fields instead.
+"""
 type UnregisterFcmDeviceTokenPayload {
   clientMutationId: ID
+
+  """Trimmed FCM registration token requested for removal."""
   deviceToken: String!
+
+  """
+  `true` when an owned FCM token was deleted. `false` when the token did not exist or belonged to another account.
+  """
   unregistered: Boolean!
 }
 
 union UnregisterFcmDeviceTokenResult = InvalidInputError | NotAuthenticatedError | UnregisterFcmDeviceTokenPayload
 
+"""
+Remove a push notification target owned by the authenticated viewer. `APNS` and `FCM` identify targets by `token`; `WEB_PUSH` identifies targets by `endpoint`.
+"""
+input UnregisterPushNotificationTargetInput {
+  clientMutationId: ID
+
+  """
+  Browser push service endpoint for `WEB_PUSH`. Must be omitted for `APNS` and `FCM`.
+  """
+  endpoint: String
+
+  """Push service that owns the target."""
+  service: PushNotificationService!
+
+  """Device token for `APNS` or `FCM`. Must be omitted for `WEB_PUSH`."""
+  token: String
+}
+
+"""
+Successful response for `unregisterPushNotificationTarget`. Identifies the target requested for removal and whether it was owned by the viewer.
+"""
+type UnregisterPushNotificationTargetPayload {
+  clientMutationId: ID
+
+  """`WEB_PUSH` endpoint requested for removal."""
+  endpoint: String
+
+  """Push service for the requested target."""
+  service: PushNotificationService!
+
+  """`APNS` or `FCM` device token requested for removal."""
+  token: String
+
+  """
+  `true` when an owned target was deleted. `false` when the target did not exist or belonged to a different account.
+  """
+  unregistered: Boolean!
+}
+
+"""
+Result of unregistering a push notification target. Successful responses report whether a matching target was removed; invalid input and authentication failures are returned as typed errors.
+"""
+union UnregisterPushNotificationTargetResult = InvalidInputError | NotAuthenticatedError | UnregisterPushNotificationTargetPayload
+
+"""
+Undo a boost by deleting the share wrapper post and sending an ActivityPub `Undo Announce` activity. Pass the original post's `id` (not the wrapper's). Requires authentication.
+"""
 input UnsharePostInput {
   clientMutationId: ID
   postId: ID!
@@ -1820,12 +3731,20 @@ type UnsharePostPayload {
 
 union UnsharePostResult = InvalidInputError | NotAuthenticatedError | UnsharePostPayload
 
+"""
+Update the authenticated viewer's account settings. Only the account holder may update their own account.
+"""
 input UpdateAccountInput {
   avatarMediumId: UUID
   avatarUrl: URL @deprecated(reason: "Use avatarMediumId instead.")
   bio: String
   clientMutationId: ID
   defaultNoteVisibility: PostVisibility
+
+  """
+  New default quote policy for notes. Ignored and stored as `SELF` when the effective `defaultNoteVisibility` is `FOLLOWERS`, `DIRECT`, or `NONE` (whether set in this request or already stored on the account).
+  """
+  defaultQuotePolicy: QuotePolicy
   defaultShareVisibility: PostVisibility
   hideForeignLanguages: Boolean
   hideFromInvitationTree: Boolean
@@ -1834,6 +3753,11 @@ input UpdateAccountInput {
   locales: [Locale!]
   name: String
   preferAiSummary: Boolean
+
+  """
+  New policy for including post content previews in push notification payloads.
+  """
+  pushNotificationPreviewPolicy: PushNotificationPreviewPolicy
   username: String
 }
 
@@ -1842,6 +3766,9 @@ type UpdateAccountPayload {
   clientMutationId: ID
 }
 
+"""
+Edit an existing article's content, title, or tags. Only the article's author may update it. Sends an ActivityPub `Update` activity. Requires authentication.
+"""
 input UpdateArticleInput {
   allowLlmTranslation: Boolean
   articleId: ID!
@@ -1872,6 +3799,34 @@ type UpdateArticlePayload {
 
 union UpdateArticleResult = InvalidInputError | NotAuthenticatedError | UpdateArticlePayload
 
+"""
+Edit the content, language, or quote policy of an existing local note. Visibility cannot be changed after creation. Only the note's author may call this. Sends an ActivityPub `Update` activity to the appropriate recipients. Requires authentication.
+"""
+input UpdateNoteInput {
+  clientMutationId: ID
+
+  """New Markdown body. Omit to keep the existing content."""
+  content: Markdown
+
+  """New language. Omit to keep the existing language."""
+  language: Locale
+
+  """Global ID of the note to update."""
+  noteId: ID!
+
+  """New quote policy. Omit to keep the existing policy."""
+  quotePolicy: QuotePolicy
+}
+
+type UpdateNotePayload {
+  clientMutationId: ID
+
+  """The note after the update has been applied."""
+  note: Note!
+}
+
+union UpdateNoteResult = InvalidInputError | NotAuthenticatedError | UpdateNotePayload
+
 input VoteOnPollInput {
   clientMutationId: ID
   optionIndices: [Int!]!
@@ -1891,14 +3846,43 @@ union VoteOnPollResult = InvalidInputError | NotAuthenticatedError | VoteOnPollP
 Result of looking up a remote follower via WebFinger, including their ActivityPub profile and remote follow URL.
 """
 type WebFingerResult {
+  """The instance domain for this actor."""
   domain: String
+
+  """
+  Map of custom emoji shortcode to image URL, extracted from the actor's ActivityPub tag list. `null` when there are no custom emojis.
+  """
   emojis: JSON
+
+  """
+  Normalized fediverse handle (`user@domain`) derived from the WebFinger lookup.
+  """
   handle: String
+
+  """URL of the actor's avatar image."""
   iconUrl: URL
+
+  """The actor's display name, as a plain string."""
   name: String
+
+  """
+  The `preferredUsername` from the actor's ActivityPub profile. May differ from `handle`'s local part for actors that use domain aliasing.
+  """
   preferredUsername: String
+
+  """
+  The OStatus subscribe URL for initiating a follow from another instance (the `href` of the `http://ostatus.org/schema/1.0/subscribe` WebFinger link). `null` when the remote instance does not advertise one.
+  """
   remoteFollowUrl: URL
+
+  """
+  The software name of the remote instance (e.g., `mastodon`, `misskey`), lowercased. Falls back to `"unknown"` when NodeInfo is unavailable.
+  """
   software: String
+
+  """The actor's bio/summary text, as a plain string."""
   summary: String
+
+  """The actor's web profile URL."""
   url: URL
 }

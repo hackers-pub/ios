@@ -27,10 +27,12 @@ public extension HackersPub.Interfaces {
       "PostMedium",
       "Question",
       "QuoteNotification",
+      "QuotedPostUpdatedNotification",
       "ReactNotification",
       "Reaction",
       "ReplyNotification",
-      "ShareNotification"
+      "ShareNotification",
+      "SharedPostUpdatedNotification"
     ]
   )
 }

@@ -56,6 +56,7 @@ public extension HackersPub {
         ActorArticlesQuery.Data.self
       ] }
 
+      /// Look up an actor by their fediverse handle (e.g., `@alice@mastodon.social` or `alice@hackers.pub`). For `user@host` handles not already in the local cache, triggers an outbound WebFinger + ActivityPub fetch and persists the result; this only happens for authenticated requests, since unauthenticated callers are not allowed to spawn outbound federation lookups.
       public var actorByHandle: ActorByHandle? { __data["actorByHandle"] }
 
       /// ActorByHandle
@@ -81,6 +82,7 @@ public extension HackersPub {
         ] }
 
         public var id: HackersPub.ID { __data["id"] }
+        /// This actor's locally-authored `Article`-type posts, newest first. Only includes articles that have a local `articleSource` row; remote articles federated in from other instances are excluded.
         public var articles: Articles { __data["articles"] }
 
         /// ActorByHandle.Articles
@@ -141,21 +143,34 @@ public extension HackersPub {
               ] }
 
               public var id: HackersPub.ID { __data["id"] }
+              /// The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
               public var name: String? { __data["name"] }
               public var published: HackersPub.DateTime { __data["published"] }
+              /// Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.
               public var summary: String? { __data["summary"] }
+              /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
               public var content: HackersPub.HTML { __data["content"] }
+              /// Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.
               public var excerpt: String { __data["excerpt"] }
+              /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier — `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles — **not** `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised — copied from the shared post in the boost case — and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.
               public var url: HackersPub.URL? { __data["url"] }
+              /// The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.
               public var iri: HackersPub.URL { __data["iri"] }
+              /// Whether the authenticated viewer has boosted this post. Always `false` for unauthenticated requests.
               public var viewerHasShared: Bool { __data["viewerHasShared"] }
+              /// Whether the authenticated viewer has bookmarked this post. Always `false` for unauthenticated requests.
               public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
+              /// The actor who authored or boosted this post.
               public var actor: Actor { __data["actor"] }
+              /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
               public var media: [Medium] { __data["media"] }
+              /// The post being boosted. Non-null only for boost wrapper rows. When this is non-null, `content` is empty and `url` mirrors the shared post's URL.
               public var sharedPost: SharedPost? { __data["sharedPost"] }
+              /// The post being quoted inline. `null` for posts that are not quotes.
               public var quotedPost: QuotedPost? { __data["quotedPost"] }
               public var engagementStats: EngagementStats { __data["engagementStats"] }
               public var reactionGroups: [ReactionGroup] { __data["reactionGroups"] }
+              /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
               public var mentions: Mentions { __data["mentions"] }
 
               public struct Fragments: FragmentContainer {

@@ -35,6 +35,7 @@ public extension HackersPub {
         ActorRelationshipQuery.Data.self
       ] }
 
+      /// Look up an actor by their fediverse handle (e.g., `@alice@mastodon.social` or `alice@hackers.pub`). For `user@host` handles not already in the local cache, triggers an outbound WebFinger + ActivityPub fetch and persists the result; this only happens for authenticated requests, since unauthenticated callers are not allowed to spawn outbound federation lookups.
       public var actorByHandle: ActorByHandle? { __data["actorByHandle"] }
 
       /// ActorByHandle
@@ -59,10 +60,15 @@ public extension HackersPub {
         ] }
 
         public var id: HackersPub.ID { __data["id"] }
+        /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
         public var handle: String { __data["handle"] }
+        /// True if this actor belongs to the currently authenticated viewer. Always false for unauthenticated requests.
         public var isViewer: Bool { __data["isViewer"] }
+        /// True if the authenticated viewer follows this actor. Always false for unauthenticated requests or when the actor is the viewer themselves.
         public var viewerFollows: Bool { __data["viewerFollows"] }
+        /// True if this actor follows the authenticated viewer. Always false for unauthenticated requests.
         public var followsViewer: Bool { __data["followsViewer"] }
+        /// True if the authenticated viewer has blocked this actor. Always false for unauthenticated requests.
         public var viewerBlocks: Bool { __data["viewerBlocks"] }
       }
     }

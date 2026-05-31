@@ -32,6 +32,7 @@ public extension HackersPub {
         RevokePasskeyMutation.Data.self
       ] }
 
+      /// Delete a passkey from the account. Returns the deleted passkey's global ID, or `null` if the passkey was not found. Requires authentication and ownership of the passkey.
       public var revokePasskey: HackersPub.ID? { __data["revokePasskey"] }
     }
   }

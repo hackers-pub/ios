@@ -32,6 +32,7 @@ public extension HackersPub {
         SearchObjectQuery.Data.self
       ] }
 
+      /// Look up a single actor or post by its fediverse handle (e.g., @alice@mastodon.social) or URL. Returns a local redirect URL, or null if nothing matches. For authenticated users, triggers federated WebFinger/ActivityPub lookups when the object is not already cached.
       public var searchObject: SearchObject? { __data["searchObject"] }
 
       /// SearchObject

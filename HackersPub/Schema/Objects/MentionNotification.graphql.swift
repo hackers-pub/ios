@@ -4,6 +4,7 @@
 import ApolloAPI
 
 public extension HackersPub.Objects {
+  /// Notification that an actor @-mentioned this account in a post.
   static let MentionNotification = ApolloAPI.Object(
     typename: "MentionNotification",
     implementedInterfaces: [

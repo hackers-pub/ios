@@ -32,6 +32,7 @@ public extension HackersPub {
         ArticleDraftQuery.Data.self
       ] }
 
+      /// Look up an article draft by its global `id` or its `uuid`. Requires authentication; only returns drafts owned by the authenticated viewer.
       public var articleDraft: ArticleDraft? { __data["articleDraft"] }
 
       /// ArticleDraft

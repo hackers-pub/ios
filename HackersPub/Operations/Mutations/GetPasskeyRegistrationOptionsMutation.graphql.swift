@@ -32,6 +32,7 @@ public extension HackersPub {
         GetPasskeyRegistrationOptionsMutation.Data.self
       ] }
 
+      /// Generate WebAuthn registration options for adding a new passkey. Pass a fresh `sessionId` UUID, then send the authenticator's response to `verifyPasskeyRegistration`. Requires authentication.
       public var getPasskeyRegistrationOptions: HackersPub.JSON { __data["getPasskeyRegistrationOptions"] }
     }
   }

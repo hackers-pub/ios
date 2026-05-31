@@ -80,6 +80,7 @@ public extension HackersPub {
             PostSharesQuery.Data.Node.AsPost.self
           ] }
 
+          /// Boost wrapper posts that reshare this post. Each edge represents a single boost by a specific actor.
           public var shares: Shares { __data["shares"] }
 
           /// Node.AsPost.Shares
@@ -140,6 +141,7 @@ public extension HackersPub {
                 ] }
 
                 public var id: HackersPub.ID { __data["id"] }
+                /// The actor who authored or boosted this post.
                 public var actor: Actor { __data["actor"] }
 
                 /// Node.AsPost.Shares.Edge.Node.Actor
@@ -162,8 +164,11 @@ public extension HackersPub {
                   ] }
 
                   public var id: HackersPub.ID { __data["id"] }
+                  /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set.
                   public var name: HackersPub.HTML? { __data["name"] }
+                  /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
                   public var handle: String { __data["handle"] }
+                  /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.
                   public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
                 }
               }

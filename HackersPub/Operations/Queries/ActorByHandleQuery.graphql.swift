@@ -55,6 +55,7 @@ public extension HackersPub {
         ActorByHandleQuery.Data.self
       ] }
 
+      /// Look up an actor by their fediverse handle (e.g., `@alice@mastodon.social` or `alice@hackers.pub`). For `user@host` handles not already in the local cache, triggers an outbound WebFinger + ActivityPub fetch and persists the result; this only happens for authenticated requests, since unauthenticated callers are not allowed to spawn outbound federation lookups.
       public var actorByHandle: ActorByHandle? { __data["actorByHandle"] }
 
       /// ActorByHandle
@@ -88,14 +89,23 @@ public extension HackersPub {
         ] }
 
         public var id: HackersPub.ID { __data["id"] }
+        /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
         public var handle: String { __data["handle"] }
+        /// True if this actor belongs to the currently authenticated viewer. Always false for unauthenticated requests.
         public var isViewer: Bool { __data["isViewer"] }
+        /// True if the authenticated viewer follows this actor. Always false for unauthenticated requests or when the actor is the viewer themselves.
         public var viewerFollows: Bool { __data["viewerFollows"] }
+        /// True if this actor follows the authenticated viewer. Always false for unauthenticated requests.
         public var followsViewer: Bool { __data["followsViewer"] }
+        /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set.
         public var name: HackersPub.HTML? { __data["name"] }
+        /// The actor's biography rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no bio.
         public var bio: HackersPub.HTML? { __data["bio"] }
+        /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.
         public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+        /// True if the authenticated viewer has blocked this actor. Always false for unauthenticated requests.
         public var viewerBlocks: Bool { __data["viewerBlocks"] }
+        /// All of this actor's posts (Notes, Articles, Questions, and boost wrappers), newest published first. Filtered to posts visible to the current viewer.
         public var posts: Posts { __data["posts"] }
 
         /// ActorByHandle.Posts
@@ -171,21 +181,34 @@ public extension HackersPub {
               ] }
 
               public var id: HackersPub.ID { __data["id"] }
+              /// The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
               public var name: String? { __data["name"] }
               public var published: HackersPub.DateTime { __data["published"] }
+              /// Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.
               public var summary: String? { __data["summary"] }
+              /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
               public var content: HackersPub.HTML { __data["content"] }
+              /// Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.
               public var excerpt: String { __data["excerpt"] }
+              /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier — `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles — **not** `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised — copied from the shared post in the boost case — and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.
               public var url: HackersPub.URL? { __data["url"] }
+              /// The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.
               public var iri: HackersPub.URL { __data["iri"] }
+              /// Whether the authenticated viewer has boosted this post. Always `false` for unauthenticated requests.
               public var viewerHasShared: Bool { __data["viewerHasShared"] }
+              /// Whether the authenticated viewer has bookmarked this post. Always `false` for unauthenticated requests.
               public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
+              /// The actor who authored or boosted this post.
               public var actor: Actor { __data["actor"] }
+              /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
               public var media: [Medium] { __data["media"] }
+              /// The post being boosted. Non-null only for boost wrapper rows. When this is non-null, `content` is empty and `url` mirrors the shared post's URL.
               public var sharedPost: SharedPost? { __data["sharedPost"] }
+              /// The post being quoted inline. `null` for posts that are not quotes.
               public var quotedPost: QuotedPost? { __data["quotedPost"] }
               public var engagementStats: EngagementStats { __data["engagementStats"] }
               public var reactionGroups: [ReactionGroup] { __data["reactionGroups"] }
+              /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
               public var mentions: Mentions { __data["mentions"] }
 
               /// ActorByHandle.Posts.Edge.Node.Actor
@@ -208,8 +231,11 @@ public extension HackersPub {
                 ] }
 
                 public var id: HackersPub.ID { __data["id"] }
+                /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set.
                 public var name: HackersPub.HTML? { __data["name"] }
+                /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
                 public var handle: String { __data["handle"] }
+                /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.
                 public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
               }
 
@@ -270,18 +296,29 @@ public extension HackersPub {
                 ] }
 
                 public var id: HackersPub.ID { __data["id"] }
+                /// The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
                 public var name: String? { __data["name"] }
                 public var published: HackersPub.DateTime { __data["published"] }
+                /// Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.
                 public var summary: String? { __data["summary"] }
+                /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
                 public var content: HackersPub.HTML { __data["content"] }
+                /// Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.
                 public var excerpt: String { __data["excerpt"] }
+                /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier — `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles — **not** `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised — copied from the shared post in the boost case — and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.
                 public var url: HackersPub.URL? { __data["url"] }
+                /// The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.
                 public var iri: HackersPub.URL { __data["iri"] }
+                /// Whether the authenticated viewer has boosted this post. Always `false` for unauthenticated requests.
                 public var viewerHasShared: Bool { __data["viewerHasShared"] }
+                /// Whether the authenticated viewer has bookmarked this post. Always `false` for unauthenticated requests.
                 public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
+                /// The actor who authored or boosted this post.
                 public var actor: Actor { __data["actor"] }
+                /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
                 public var media: [Medium] { __data["media"] }
                 public var engagementStats: EngagementStats { __data["engagementStats"] }
+                /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
                 public var mentions: Mentions { __data["mentions"] }
 
                 /// ActorByHandle.Posts.Edge.Node.SharedPost.Actor
@@ -304,8 +341,11 @@ public extension HackersPub {
                   ] }
 
                   public var id: HackersPub.ID { __data["id"] }
+                  /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set.
                   public var name: HackersPub.HTML? { __data["name"] }
+                  /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
                   public var handle: String { __data["handle"] }
+                  /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.
                   public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
                 }
 
@@ -413,6 +453,7 @@ public extension HackersPub {
                         ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node.SharedPost.Mentions.Edge.Node.self
                       ] }
 
+                      /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
                       public var handle: String { __data["handle"] }
                     }
                   }
@@ -445,14 +486,22 @@ public extension HackersPub {
                 ] }
 
                 public var id: HackersPub.ID { __data["id"] }
+                /// The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
                 public var name: String? { __data["name"] }
                 public var published: HackersPub.DateTime { __data["published"] }
+                /// Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.
                 public var summary: String? { __data["summary"] }
+                /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
                 public var content: HackersPub.HTML { __data["content"] }
+                /// Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.
                 public var excerpt: String { __data["excerpt"] }
+                /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier — `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles — **not** `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised — copied from the shared post in the boost case — and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.
                 public var url: HackersPub.URL? { __data["url"] }
+                /// The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.
                 public var iri: HackersPub.URL { __data["iri"] }
+                /// The actor who authored or boosted this post.
                 public var actor: Actor { __data["actor"] }
+                /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
                 public var media: [Medium] { __data["media"] }
 
                 /// ActorByHandle.Posts.Edge.Node.QuotedPost.Actor
@@ -475,8 +524,11 @@ public extension HackersPub {
                   ] }
 
                   public var id: HackersPub.ID { __data["id"] }
+                  /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set.
                   public var name: HackersPub.HTML? { __data["name"] }
+                  /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
                   public var handle: String { __data["handle"] }
+                  /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.
                   public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
                 }
 
@@ -717,6 +769,7 @@ public extension HackersPub {
                     ] }
 
                     public var id: HackersPub.ID { __data["id"] }
+                    /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
                     public var handle: String { __data["handle"] }
                   }
                 }

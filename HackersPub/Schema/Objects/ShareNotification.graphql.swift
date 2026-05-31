@@ -4,6 +4,7 @@
 import ApolloAPI
 
 public extension HackersPub.Objects {
+  /// Notification that an actor boosted (reshared) one of this account's posts.
   static let ShareNotification = ApolloAPI.Object(
     typename: "ShareNotification",
     implementedInterfaces: [

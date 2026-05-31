@@ -82,6 +82,7 @@ public extension HackersPub {
           ] }
 
           public var id: HackersPub.ID { __data["id"] }
+          /// All available language versions of this article's content. Pass `language` to get only the best-matching locale (BCP 47 negotiation). Pass `includeBeingTranslated: true` to also include language versions whose LLM translation is still in progress.
           public var contents: [Content] { __data["contents"] }
 
           /// Node.AsArticle.Content
@@ -108,13 +109,18 @@ public extension HackersPub {
             ] }
 
             public var id: HackersPub.ID { __data["id"] }
+            /// BCP 47 language tag identifying this content version.
             public var language: HackersPub.Locale { __data["language"] }
             public var title: String { __data["title"] }
+            /// Rendered HTML of this language version, with media URLs resolved and external links annotated.
             public var content: HackersPub.HTML { __data["content"] }
+            /// LLM-generated summary for this language version. `null` until generation completes. Check `summaryStarted` to distinguish between "not requested" and "in progress".
             public var summary: String? { __data["summary"] }
             /// Table of contents for the article content.
             public var toc: HackersPub.JSON { __data["toc"] }
+            /// Whether an LLM translation into this language is currently in progress. When `true`, the content may be incomplete.
             public var beingTranslated: Bool { __data["beingTranslated"] }
+            /// Canonical URL for this language version. For the article's primary language this is `/@username/year/slug`; for other language versions it appends `/{language}` to that path.
             public var url: HackersPub.URL { __data["url"] }
           }
         }
