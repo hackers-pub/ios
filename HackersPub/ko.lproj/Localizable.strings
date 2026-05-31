@@ -1,6 +1,7 @@
 /* Tab labels */
 "tab.timeline" = "타임라인";
 "tab.notifications" = "알림";
+"tab.news" = "뉴스";
 "tab.explore" = "탐색";
 "tab.bookmarks" = "북마크";
 "tab.search" = "검색";
@@ -15,6 +16,7 @@
 "nav.search" = "검색";
 "nav.timeline" = "타임라인";
 "nav.notifications" = "알림";
+"nav.news" = "뉴스";
 "nav.newPost" = "새 단문";
 "nav.reply" = "답글";
 
@@ -141,6 +143,58 @@
 "explore.scope.global" = "페디버스";
 "explore.scope" = "범위";
 
+/* News */
+"news.sort" = "뉴스 정렬";
+"news.sort.popular" = "인기";
+"news.sort.newest" = "최신";
+"news.sort.allTime" = "전체";
+"news.empty.title" = "아직 뉴스가 없습니다";
+"news.empty.description" = "페디버스에서 공유된 링크가 여기에 표시됩니다.";
+"news.detail.notFound.title" = "뉴스를 찾을 수 없음";
+"news.detail.notFound.description" = "이 링크는 더 이상 공개 뉴스로 표시되지 않을 수 있습니다.";
+"news.discussion.empty.title" = "아직 토론이 없습니다";
+"news.discussion.empty.description" = "아직 이 링크를 공개 단문으로 공유한 사람이 없습니다.";
+"news.opinions.count" = "의견 %d개";
+"news.lastActive" = "마지막 활동 %@";
+"news.firstShared" = "처음 공유 %@";
+"news.shareLink" = "이 링크 공유";
+"news.composeLink" = "링크로 단문 작성";
+"news.openLink" = "링크 열기";
+"news.source.local" = "해커스펍 %d개";
+"news.source.remote" = "페디버스 %d개";
+"news.source.bluesky" = "Bluesky %d개";
+"news.moderation.title" = "관리";
+"news.moderation.demote" = "낮추기";
+"news.moderation.bury" = "숨기기";
+"news.moderation.clear" = "패널티 지우기";
+"news.moderation.failed" = "뉴스 관리 상태를 업데이트하지 못했습니다.";
+"news.admin.title" = "뉴스 관리";
+"news.admin.scores" = "점수";
+"news.admin.scoredLinks" = "피드 링크 수";
+"news.admin.lastRecomputed" = "마지막 재계산";
+"news.admin.never" = "없음";
+"news.admin.notAvailable" = "뉴스 관리를 사용할 수 없습니다.";
+"news.admin.notAuthorized" = "뉴스를 관리할 권한이 없습니다.";
+"news.admin.recompute" = "뉴스 점수 재계산";
+"news.admin.recompute.description" = "공유된 모든 링크의 인기 점수를 다시 계산합니다. 보통 점수는 자동으로 최신 상태를 유지합니다.";
+"news.admin.recompute.failed" = "뉴스 점수를 재계산하지 못했습니다.";
+"news.admin.excludedPatterns" = "제외 URL 패턴";
+"news.admin.excludedPatterns.description" = "URL 패턴과 일치하는 링크를 뉴스 피드에서 숨깁니다. 토론 페이지는 직접 링크로 계속 접근할 수 있습니다.";
+"news.admin.pattern" = "URL 패턴";
+"news.admin.note" = "메모(선택)";
+"news.admin.addPattern" = "패턴 추가";
+"news.admin.addPattern.failed" = "제외 패턴을 추가하지 못했습니다.";
+"news.admin.removePattern.failed" = "제외 패턴을 삭제하지 못했습니다.";
+"news.admin.noPatterns" = "아직 제외 패턴이 없습니다.";
+"news.admin.penalizedStories" = "패널티 링크";
+"news.admin.penalizedStories.description" = "모더레이터가 인기 피드에서 낮춘 링크입니다.";
+"news.admin.noPenalizedStories" = "패널티가 적용된 링크가 없습니다.";
+"news.admin.clearPenalty" = "패널티 지우기";
+"news.admin.clearPenalty.failed" = "패널티를 지우지 못했습니다.";
+"news.penalty.bury" = "숨겨짐";
+"news.penalty.demote" = "낮춰짐";
+"news.penalty.none" = "패널티 없음";
+
 /* Search */
 "search.title" = "검색";
 "search.noResults.title" = "결과 없음";
@@ -156,6 +210,8 @@
 "common.newPost" = "새 단문";
 "common.error" = "오류";
 "common.cancel" = "취소";
+"common.done" = "완료";
+"common.delete" = "삭제";
 
 /* Passkeys */
 "passkey.error.failed" = "패스키 작업에 실패했습니다. 다시 시도해주세요.";

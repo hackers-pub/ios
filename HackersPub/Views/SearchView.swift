@@ -189,6 +189,8 @@ struct SearchView: View {
                     ActorProfileViewWrapper(handle: handle)
                 case .post(let id):
                     PostDetailView(postId: id)
+                case .newsStory(let id):
+                    NewsStoryDetailView(storyId: id)
                 }
             }
             .toolbar {

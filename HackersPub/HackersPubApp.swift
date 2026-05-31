@@ -66,11 +66,13 @@ struct HackersPubApp: App {
 enum NavigationDestination: Hashable {
     case profile(handle: String)
     case post(id: String)
+    case newsStory(id: String)
 }
 
 enum AppTab: String {
     case timeline
     case notifications
+    case news
     case explore
     case bookmarks
     case search
@@ -113,6 +115,10 @@ class NavigationCoordinator {
 
     func navigateToPost(id: String, on tab: AppTab) {
         append(.post(id: id), to: tab, requested: true)
+    }
+
+    func navigateToNewsStory(id: String, on tab: AppTab = .news) {
+        append(.newsStory(id: id), to: tab, requested: true)
     }
 
     func popToRoot() {

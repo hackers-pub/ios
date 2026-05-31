@@ -4,6 +4,7 @@ import Foundation
 enum HackersPubDeepLinkRoute: Equatable {
     case profile(handle: String)
     case postURL(String)
+    case newsStory(id: String)
     case signInVerification(token: String, code: String)
     case tagSearch(String)
 }
@@ -55,6 +56,10 @@ enum HackersPubURLRouter {
 
         if segments.count == 2, segments[0] == "tags", !segments[1].isEmpty {
             return .tagSearch(segments[1])
+        }
+
+        if segments.count == 2, segments[0] == "news", isUUID(segments[1]) {
+            return .newsStory(id: segments[1])
         }
 
         if isSignInPath(segments) {
@@ -116,6 +121,10 @@ enum HackersPubURLRouter {
 
         if first == "tags", segments.count >= 2, !segments[1].isEmpty {
             return .tagSearch(segments[1])
+        }
+
+        if first == "news", segments.count >= 2, isUUID(segments[1]) {
+            return .newsStory(id: segments[1])
         }
 
         if first == "verify" {
@@ -444,6 +453,9 @@ enum DeepLinkNavigator {
                     }
                 }
             }
+
+        case .newsStory(let id):
+            navigationCoordinator.navigateToNewsStory(id: id)
 
         case .signInVerification(let token, let code):
             navigationCoordinator.setCurrentTab(.signIn, requested: true)
