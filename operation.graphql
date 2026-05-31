@@ -2221,3 +2221,168 @@ mutation UpdateAccountMutation($id: ID!, $name: String, $bio: String, $avatarMed
     }
   }
 }
+
+query NewsStoriesQuery($order: NewsOrder = POPULAR, $after: String, $first: Int = 25) {
+  viewer {
+    id
+    moderator
+  }
+  newsStories(order: $order, first: $first, after: $after) {
+    edges {
+      cursor
+      node {
+        id
+        uuid
+        url
+        title
+        siteName
+        description
+        discussionCount
+        latestActivityAt
+        penalty
+        image {
+          url
+          alt
+          width
+          height
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+query NewsStoryDetailQuery($id: UUID!, $after: String, $first: Int = 20) {
+  newsStory(id: $id) {
+    id
+    uuid
+    url
+    title
+    siteName
+    description
+    discussionCount
+    firstSharedAt
+    latestActivityAt
+    image {
+      url
+      alt
+      width
+      height
+    }
+    sourceBreakdown {
+      local
+      remote
+      bluesky
+    }
+    sharingPosts(first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+          ...ProfilePostFields
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
+mutation SetNewsScorePenaltyMutation($id: UUID!, $penalty: NewsPenalty!) {
+  setNewsScorePenalty(id: $id, penalty: $penalty) {
+    __typename
+    ... on PostLink {
+      id
+      penalty
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+    ... on NotAuthorizedError {
+      notAuthorized
+    }
+  }
+}
+
+query NewsAdminQuery {
+  viewer {
+    id
+    moderator
+  }
+  newsScoreStatus {
+    scoredLinkCount
+    lastRecomputedAt
+  }
+  newsExcludedPatterns {
+    id
+    pattern
+    note
+    created
+  }
+  newsPenalizedStories {
+    id
+    uuid
+    url
+    title
+    penalty
+  }
+}
+
+mutation RecomputeNewsScoresMutation {
+  recomputeNewsScores {
+    __typename
+    ... on RecomputeNewsScoresPayload {
+      linksUpdated
+      status {
+        scoredLinkCount
+        lastRecomputedAt
+      }
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+    ... on NotAuthorizedError {
+      notAuthorized
+    }
+  }
+}
+
+mutation AddNewsExcludedPatternMutation($pattern: String!, $note: String) {
+  addNewsExcludedPattern(pattern: $pattern, note: $note) {
+    __typename
+    ... on NewsExcludedPattern {
+      id
+      pattern
+      note
+      created
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+    ... on NotAuthorizedError {
+      notAuthorized
+    }
+  }
+}
+
+mutation RemoveNewsExcludedPatternMutation($id: UUID!) {
+  removeNewsExcludedPattern(id: $id) {
+    __typename
+    ... on RemoveNewsExcludedPatternPayload {
+      removedId
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+    ... on NotAuthorizedError {
+      notAuthorized
+    }
+  }
+}

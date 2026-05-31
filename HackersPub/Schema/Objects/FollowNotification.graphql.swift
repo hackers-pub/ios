@@ -4,6 +4,7 @@
 import ApolloAPI
 
 public extension HackersPub.Objects {
+  /// Notification that one or more actors followed this account.
   static let FollowNotification = ApolloAPI.Object(
     typename: "FollowNotification",
     implementedInterfaces: [

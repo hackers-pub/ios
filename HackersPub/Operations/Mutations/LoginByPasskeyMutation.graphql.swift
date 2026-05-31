@@ -43,6 +43,7 @@ public extension HackersPub {
         LoginByPasskeyMutation.Data.self
       ] }
 
+      /// Authenticate using a WebAuthn passkey. First call `getPasskeyAuthenticationOptions` with a fresh `sessionId` UUID, then pass the authenticator's response back here as `authenticationResponse`. Returns `null` when verification fails.
       public var loginByPasskey: LoginByPasskey? { __data["loginByPasskey"] }
 
       /// LoginByPasskey
@@ -91,6 +92,7 @@ public extension HackersPub {
           public var name: String { __data["name"] }
           @available(*, deprecated, message: "Use avatarMediumId instead.")
           public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+          /// Full fediverse handle including the instance host, e.g., @alice@hackers.pub. Suitable for display and for cross-instance @-mention targeting.
           public var handle: String { __data["handle"] }
         }
       }

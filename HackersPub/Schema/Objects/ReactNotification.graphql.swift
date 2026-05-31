@@ -4,6 +4,7 @@
 import ApolloAPI
 
 public extension HackersPub.Objects {
+  /// Notification that one or more actors reacted with an emoji to one of this account's posts. The `emoji` and `customEmoji` fields identify which reaction triggered the notification.
   static let ReactNotification = ApolloAPI.Object(
     typename: "ReactNotification",
     implementedInterfaces: [

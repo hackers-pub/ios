@@ -48,6 +48,7 @@ public extension HackersPub {
         VerifyPasskeyRegistrationMutation.Data.self
       ] }
 
+      /// Complete passkey registration by verifying the authenticator response from `getPasskeyRegistrationOptions`. On success, the new `Passkey` is returned. Requires authentication.
       public var verifyPasskeyRegistration: VerifyPasskeyRegistration { __data["verifyPasskeyRegistration"] }
 
       /// VerifyPasskeyRegistration
@@ -90,8 +91,10 @@ public extension HackersPub {
           ] }
 
           public var id: HackersPub.ID { __data["id"] }
+          /// User-provided label for this passkey (e.g., "MacBook Touch ID"). Set at registration time via `verifyPasskeyRegistration`.
           public var name: String { __data["name"] }
           public var created: HackersPub.DateTime { __data["created"] }
+          /// `null` if this passkey has never been used to authenticate.
           public var lastUsed: HackersPub.DateTime? { __data["lastUsed"] }
         }
       }

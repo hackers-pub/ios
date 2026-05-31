@@ -26,6 +26,7 @@ public extension HackersPub {
         ViewerPasskeysQuery.Data.self
       ] }
 
+      /// The `Account` of the currently authenticated user, or `null` when not authenticated. Use this as the entry point for all viewer-specific data (notifications, drafts, settings).
       public var viewer: Viewer? { __data["viewer"] }
 
       /// Viewer
@@ -104,8 +105,10 @@ public extension HackersPub {
               ] }
 
               public var id: HackersPub.ID { __data["id"] }
+              /// User-provided label for this passkey (e.g., "MacBook Touch ID"). Set at registration time via `verifyPasskeyRegistration`.
               public var name: String { __data["name"] }
               public var created: HackersPub.DateTime { __data["created"] }
+              /// `null` if this passkey has never been used to authenticate.
               public var lastUsed: HackersPub.DateTime? { __data["lastUsed"] }
             }
           }

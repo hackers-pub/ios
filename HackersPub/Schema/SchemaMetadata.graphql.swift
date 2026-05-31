@@ -70,7 +70,11 @@ public extension HackersPub {
       case "MediumUploadHeader": return HackersPub.Objects.MediumUploadHeader
       case "MentionNotification": return HackersPub.Objects.MentionNotification
       case "Mutation": return HackersPub.Objects.Mutation
+      case "NewsExcludedPattern": return HackersPub.Objects.NewsExcludedPattern
+      case "NewsScoreStatus": return HackersPub.Objects.NewsScoreStatus
+      case "NewsSourceBreakdown": return HackersPub.Objects.NewsSourceBreakdown
       case "NotAuthenticatedError": return HackersPub.Objects.NotAuthenticatedError
+      case "NotAuthorizedError": return HackersPub.Objects.NotAuthorizedError
       case "Note": return HackersPub.Objects.Note
       case "NotificationActorsConnection": return HackersPub.Objects.NotificationActorsConnection
       case "NotificationActorsConnectionEdge": return HackersPub.Objects.NotificationActorsConnectionEdge
@@ -80,6 +84,9 @@ public extension HackersPub {
       case "Poll": return HackersPub.Objects.Poll
       case "PostEngagementStats": return HackersPub.Objects.PostEngagementStats
       case "PostLink": return HackersPub.Objects.PostLink
+      case "PostLinkImage": return HackersPub.Objects.PostLinkImage
+      case "PostLinkSharingPostsConnection": return HackersPub.Objects.PostLinkSharingPostsConnection
+      case "PostLinkSharingPostsConnectionEdge": return HackersPub.Objects.PostLinkSharingPostsConnectionEdge
       case "PostMedium": return HackersPub.Objects.PostMedium
       case "PostMentionsConnection": return HackersPub.Objects.PostMentionsConnection
       case "PostMentionsConnectionEdge": return HackersPub.Objects.PostMentionsConnectionEdge
@@ -93,6 +100,8 @@ public extension HackersPub {
       case "Query": return HackersPub.Objects.Query
       case "QueryBookmarksConnection": return HackersPub.Objects.QueryBookmarksConnection
       case "QueryBookmarksConnectionEdge": return HackersPub.Objects.QueryBookmarksConnectionEdge
+      case "QueryNewsStoriesConnection": return HackersPub.Objects.QueryNewsStoriesConnection
+      case "QueryNewsStoriesConnectionEdge": return HackersPub.Objects.QueryNewsStoriesConnectionEdge
       case "QueryPersonalTimelineConnection": return HackersPub.Objects.QueryPersonalTimelineConnection
       case "QueryPersonalTimelineConnectionEdge": return HackersPub.Objects.QueryPersonalTimelineConnectionEdge
       case "QueryPublicTimelineConnection": return HackersPub.Objects.QueryPublicTimelineConnection
@@ -101,11 +110,14 @@ public extension HackersPub {
       case "QuerySearchPostConnectionEdge": return HackersPub.Objects.QuerySearchPostConnectionEdge
       case "Question": return HackersPub.Objects.Question
       case "QuoteNotification": return HackersPub.Objects.QuoteNotification
+      case "QuotedPostUpdatedNotification": return HackersPub.Objects.QuotedPostUpdatedNotification
       case "ReactNotification": return HackersPub.Objects.ReactNotification
       case "Reaction": return HackersPub.Objects.Reaction
       case "ReactionGroupReactorsConnection": return HackersPub.Objects.ReactionGroupReactorsConnection
       case "ReactionGroupReactorsConnectionEdge": return HackersPub.Objects.ReactionGroupReactorsConnectionEdge
+      case "RecomputeNewsScoresPayload": return HackersPub.Objects.RecomputeNewsScoresPayload
       case "RemoveFollowerPayload": return HackersPub.Objects.RemoveFollowerPayload
+      case "RemoveNewsExcludedPatternPayload": return HackersPub.Objects.RemoveNewsExcludedPatternPayload
       case "RemoveReactionFromPostPayload": return HackersPub.Objects.RemoveReactionFromPostPayload
       case "ReplyNotification": return HackersPub.Objects.ReplyNotification
       case "SaveArticleDraftPayload": return HackersPub.Objects.SaveArticleDraftPayload
@@ -114,6 +126,7 @@ public extension HackersPub {
       case "ShareNotification": return HackersPub.Objects.ShareNotification
       case "SharePostPayload": return HackersPub.Objects.SharePostPayload
       case "SharedPostDeletionNotAllowedError": return HackersPub.Objects.SharedPostDeletionNotAllowedError
+      case "SharedPostUpdatedNotification": return HackersPub.Objects.SharedPostUpdatedNotification
       case "StartMediumUploadPayload": return HackersPub.Objects.StartMediumUploadPayload
       case "UnblockActorPayload": return HackersPub.Objects.UnblockActorPayload
       case "UnbookmarkPostPayload": return HackersPub.Objects.UnbookmarkPostPayload

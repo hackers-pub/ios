@@ -32,6 +32,7 @@ public extension HackersPub {
         PostByUrlQuery.Data.self
       ] }
 
+      /// Resolve a post by its URL, fetching it from the originating instance via ActivityPub if it is not already cached. Requires authentication (unauthenticated callers always receive `null`). Returns `null` if the post is not found or not visible to the viewer.
       public var postByUrl: PostByUrl? { __data["postByUrl"] }
 
       /// PostByUrl

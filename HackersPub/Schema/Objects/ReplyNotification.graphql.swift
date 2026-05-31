@@ -4,6 +4,7 @@
 import ApolloAPI
 
 public extension HackersPub.Objects {
+  /// Notification that an actor replied to one of this account's posts.
   static let ReplyNotification = ApolloAPI.Object(
     typename: "ReplyNotification",
     implementedInterfaces: [

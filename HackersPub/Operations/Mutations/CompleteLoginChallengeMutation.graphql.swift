@@ -43,6 +43,7 @@ public extension HackersPub {
         CompleteLoginChallengeMutation.Data.self
       ] }
 
+      /// Exchange the `(token, code)` pair from a magic link email for a session. Returns `null` when the challenge does not exist or the code does not match. The returned `Session.id` is the bearer token to include in the `Authorization` header for subsequent authenticated requests.
       public var completeLoginChallenge: CompleteLoginChallenge? { __data["completeLoginChallenge"] }
 
       /// CompleteLoginChallenge
@@ -91,6 +92,7 @@ public extension HackersPub {
           public var name: String { __data["name"] }
           @available(*, deprecated, message: "Use avatarMediumId instead.")
           public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+          /// Full fediverse handle including the instance host, e.g., @alice@hackers.pub. Suitable for display and for cross-instance @-mention targeting.
           public var handle: String { __data["handle"] }
         }
       }

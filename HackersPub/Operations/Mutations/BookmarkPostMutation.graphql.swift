@@ -93,6 +93,7 @@ public extension HackersPub {
             ] }
 
             public var id: HackersPub.ID { __data["id"] }
+            /// Whether the authenticated viewer has bookmarked this post. Always `false` for unauthenticated requests.
             public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
           }
         }

@@ -4,6 +4,7 @@
 import ApolloAPI
 
 public extension HackersPub.Objects {
+  /// Notification that an actor quoted one of this account's posts.
   static let QuoteNotification = ApolloAPI.Object(
     typename: "QuoteNotification",
     implementedInterfaces: [

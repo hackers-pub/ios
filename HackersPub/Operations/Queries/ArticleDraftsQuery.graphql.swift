@@ -26,6 +26,7 @@ public extension HackersPub {
         ArticleDraftsQuery.Data.self
       ] }
 
+      /// The `Account` of the currently authenticated user, or `null` when not authenticated. Use this as the entry point for all viewer-specific data (notifications, drafts, settings).
       public var viewer: Viewer? { __data["viewer"] }
 
       /// Viewer
@@ -46,6 +47,7 @@ public extension HackersPub {
         ] }
 
         public var id: HackersPub.ID { __data["id"] }
+        /// Unpublished article drafts belonging to this account, most recently updated first. Only visible to the account holder.
         public var articleDrafts: ArticleDrafts { __data["articleDrafts"] }
 
         /// Viewer.ArticleDrafts

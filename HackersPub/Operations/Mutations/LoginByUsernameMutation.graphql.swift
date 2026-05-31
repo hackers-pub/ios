@@ -48,6 +48,7 @@ public extension HackersPub {
         LoginByUsernameMutation.Data.self
       ] }
 
+      /// Initiate passwordless sign-in by username. Sends a magic link to all email addresses on the account. The link embeds `{token}` and `{code}` as URI Template variables in `verifyUrl`. Complete the flow by calling `completeLoginChallenge` with those values.
       public var loginByUsername: LoginByUsername { __data["loginByUsername"] }
 
       /// LoginByUsername
