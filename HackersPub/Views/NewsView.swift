@@ -49,6 +49,7 @@ struct NewsView: View {
     @State private var showingSettings = false
     @State private var showingAdmin = false
     @State private var composeSeed: NewsComposeSeed?
+    @State private var fetchGeneration = 0
 
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
@@ -203,6 +204,7 @@ struct NewsView: View {
     }
 
     private func fetchStories(reset: Bool) async {
+        let generation = nextFetchGeneration()
         if reset {
             endCursor = nil
             hasNextPage = false
@@ -210,36 +212,40 @@ struct NewsView: View {
         if edges.isEmpty || reset {
             isLoading = true
         }
-        defer { isLoading = false }
 
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.NewsStoriesQuery(order: .some(selectedSort.order), after: nil, first: 25),
                 cachePolicy: .networkOnly
             )
+            guard generation == fetchGeneration, !Task.isCancelled else { return }
             let connection = response.data?.newsStories
             edges = connection?.edges ?? []
             hasNextPage = connection?.pageInfo.hasNextPage ?? false
             endCursor = connection?.pageInfo.endCursor
             isModerator = response.data?.viewer?.moderator ?? false
             errorMessage = nil
+            isLoading = false
         } catch {
+            guard generation == fetchGeneration, !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
+            isLoading = false
             print("Error loading news stories: \(error)")
         }
     }
 
     private func loadMore() async {
         guard hasNextPage, let endCursor, !isLoading else { return }
+        let generation = fetchGeneration
 
         isLoading = true
-        defer { isLoading = false }
 
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.NewsStoriesQuery(order: .some(selectedSort.order), after: .some(endCursor), first: 25),
                 cachePolicy: .networkOnly
             )
+            guard generation == fetchGeneration, !Task.isCancelled else { return }
             let connection = response.data?.newsStories
             let existingIDs = Set(edges.map(\.node.id))
             edges.append(contentsOf: (connection?.edges ?? []).filter { !existingIDs.contains($0.node.id) })
@@ -247,10 +253,18 @@ struct NewsView: View {
             self.endCursor = connection?.pageInfo.endCursor
             isModerator = response.data?.viewer?.moderator ?? isModerator
             errorMessage = nil
+            isLoading = false
         } catch {
+            guard generation == fetchGeneration, !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
+            isLoading = false
             print("Error loading more news stories: \(error)")
         }
+    }
+
+    private func nextFetchGeneration() -> Int {
+        fetchGeneration += 1
+        return fetchGeneration
     }
 
     private func setPenalty(_ penalty: HackersPub.NewsPenalty, for storyId: String) async {
@@ -414,6 +428,7 @@ struct NewsStoryDetailView: View {
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var composeSeed: NewsComposeSeed?
+    @State private var fetchGeneration = 0
 
     @Environment(AuthManager.self) private var authManager
     @Environment(ExternalURLRouter.self) private var externalURLRouter
@@ -533,6 +548,7 @@ struct NewsStoryDetailView: View {
     }
 
     private func fetchStory(reset: Bool) async {
+        let generation = nextFetchGeneration()
         if reset {
             endCursor = nil
             hasNextPage = false
@@ -540,45 +556,57 @@ struct NewsStoryDetailView: View {
         if story == nil || reset {
             isLoading = true
         }
-        defer { isLoading = false }
 
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.NewsStoryDetailQuery(id: storyId, after: nil, first: 20),
                 cachePolicy: .networkOnly
             )
+            guard generation == fetchGeneration, !Task.isCancelled else { return }
             story = response.data?.newsStory
             sharingPosts = response.data?.newsStory?.sharingPosts.edges ?? []
             hasNextPage = response.data?.newsStory?.sharingPosts.pageInfo.hasNextPage ?? false
             endCursor = response.data?.newsStory?.sharingPosts.pageInfo.endCursor
             errorMessage = nil
+            isLoading = false
         } catch {
+            guard generation == fetchGeneration, !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
+            isLoading = false
             print("Error loading news story: \(error)")
         }
     }
 
     private func loadMore() async {
         guard hasNextPage, let endCursor, !isLoading else { return }
+        let generation = fetchGeneration
 
         isLoading = true
-        defer { isLoading = false }
 
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.NewsStoryDetailQuery(id: storyId, after: .some(endCursor), first: 20),
                 cachePolicy: .networkOnly
             )
+            guard generation == fetchGeneration, !Task.isCancelled else { return }
             let connection = response.data?.newsStory?.sharingPosts
             let existingIDs = Set(sharingPosts.map(\.node.id))
             sharingPosts.append(contentsOf: (connection?.edges ?? []).filter { !existingIDs.contains($0.node.id) })
             hasNextPage = connection?.pageInfo.hasNextPage ?? false
             self.endCursor = connection?.pageInfo.endCursor
             errorMessage = nil
+            isLoading = false
         } catch {
+            guard generation == fetchGeneration, !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
+            isLoading = false
             print("Error loading more news discussion: \(error)")
         }
+    }
+
+    private func nextFetchGeneration() -> Int {
+        fetchGeneration += 1
+        return fetchGeneration
     }
 
     private func openExternalURL(_ value: String) {
