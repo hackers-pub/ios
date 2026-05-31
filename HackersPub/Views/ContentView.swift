@@ -2,9 +2,12 @@ import SwiftUI
 @preconcurrency import Apollo
 
 struct ContentView: View {
+    private static let tabViewCustomizationStorageKey = "tabViewCustomization"
+
     @State private var searchText = ""
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    @State private var tabViewCustomization = Self.loadTabViewCustomization()
     @State private var selectedTab: String = "timeline"
     @State private var showingComposeView = false
 
@@ -25,67 +28,73 @@ struct ContentView: View {
     private var mainContent: some View {
         TabView(selection: $selectedTab) {
             if authManager.isAuthenticated {
-                Tab(value: "timeline") {
+                Tab(NSLocalizedString("tab.timeline", comment: "Timeline tab"), systemImage: "house", value: "timeline", role: nil) {
                     PersonalTimelineView(showingComposeView: $showingComposeView)
-                } label: {
-                    tabIcon("house", label: NSLocalizedString("tab.timeline", comment: "Timeline tab"))
                 }
+                .customizationID("timeline")
+                .customizationBehavior(.disabled, for: .tabBar)
 
-                Tab(value: "notifications") {
+                Tab(NSLocalizedString("tab.notifications", comment: "Notifications tab"), systemImage: "bell", value: "notifications", role: nil) {
                     NotificationsView()
-                } label: {
-                    tabIcon("bell", label: NSLocalizedString("tab.notifications", comment: "Notifications tab"))
                 }
+                .customizationID("notifications")
 
-                Tab(value: "explore") {
+                Tab(NSLocalizedString("tab.news", comment: "News tab"), systemImage: "newspaper", value: "news", role: nil) {
+                    NewsView()
+                }
+                .customizationID("news")
+
+                Tab(NSLocalizedString("tab.explore", comment: "Explore tab"), systemImage: "globe", value: "explore", role: nil) {
                     ExploreView(showingComposeView: $showingComposeView)
-                } label: {
-                    tabIcon("globe", label: NSLocalizedString("tab.explore", comment: "Explore tab"))
                 }
+                .customizationID("explore")
 
-                Tab(value: "bookmarks") {
+                Tab(NSLocalizedString("tab.bookmarks", comment: "Bookmarks tab"), systemImage: "bookmark", value: "bookmarks", role: nil) {
                     NavigationStack(path: navigationCoordinator.pathBinding(for: .bookmarks)) {
                         BookmarksView(showingComposeView: $showingComposeView)
                     }
-                } label: {
-                    tabIcon("bookmark", label: NSLocalizedString("tab.bookmarks", comment: "Bookmarks tab"))
                 }
+                .customizationID("bookmarks")
+                .defaultVisibility(.hidden, for: .tabBar)
 
-                Tab(value: "search", role: .search) {
+                Tab(NSLocalizedString("tab.search", comment: "Search tab"), systemImage: "magnifyingglass", value: "search", role: .search) {
                     SearchView(searchText: $searchText, showingComposeView: $showingComposeView)
                         .searchable(text: $searchText)
                         .textInputAutocapitalization(.never)
                 }
+                .customizationID("search")
             } else {
-                Tab(value: "local") {
+                Tab(NSLocalizedString("tab.local", comment: "Local tab"), systemImage: "cat", value: "local", role: nil) {
                     LocalTimelineView()
-                } label: {
-                    tabIcon("cat", label: NSLocalizedString("tab.local", comment: "Local tab"))
                 }
                 .customizationID("local")
+                .customizationBehavior(.disabled, for: .tabBar)
 
-                Tab(value: "global") {
+                Tab(NSLocalizedString("tab.fediverse", comment: "Fediverse tab"), systemImage: "globe", value: "global", role: nil) {
                     TimelineView()
-                } label: {
-                    tabIcon("globe", label: NSLocalizedString("tab.fediverse", comment: "Fediverse tab"))
                 }
+                .customizationID("global")
 
-                Tab(value: "search", role: .search) {
+                Tab(NSLocalizedString("tab.news", comment: "News tab"), systemImage: "newspaper", value: "news", role: nil) {
+                    NewsView()
+                }
+                .customizationID("news")
+
+                Tab(NSLocalizedString("tab.search", comment: "Search tab"), systemImage: "magnifyingglass", value: "search", role: .search) {
                     SearchView(searchText: $searchText)
                         .searchable(text: $searchText)
                         .textInputAutocapitalization(.never)
                 }
+                .customizationID("search")
 
-                Tab(value: "signIn") {
+                Tab(NSLocalizedString("tab.signIn", comment: "Sign in tab"), systemImage: "rectangle.portrait.and.arrow.right", value: "signIn", role: nil) {
                     SignInView()
-                } label: {
-                    tabIcon(
-                        "rectangle.portrait.and.arrow.right",
-                        label: NSLocalizedString("tab.signIn", comment: "Sign in tab")
-                    )
                 }
+                .customizationID("signIn")
             }
         }
+        .tabViewStyle(.sidebarAdaptable)
+        .tabViewCustomization($tabViewCustomization)
         .task {
             // Set default tab based on auth state
             if !applyRequestedTabIfAvailable(isAuthenticated: authManager.isAuthenticated) {
@@ -114,6 +123,9 @@ struct ContentView: View {
         }
         .onChange(of: navigationCoordinator.requestedSearchText) { _, _ in
             applyRequestedSearchText()
+        }
+        .onChange(of: tabViewCustomization) { _, customization in
+            Self.saveTabViewCustomization(customization)
         }
     }
 
@@ -145,10 +157,10 @@ struct ContentView: View {
 
     private func isSelectable(tab: AppTab, isAuthenticated: Bool) -> Bool {
         if isAuthenticated {
-            return [.timeline, .notifications, .explore, .bookmarks, .search].contains(tab)
+            return [.timeline, .notifications, .news, .explore, .bookmarks, .search].contains(tab)
         }
 
-        return [.local, .global, .search, .signIn].contains(tab)
+        return [.local, .global, .news, .search, .signIn].contains(tab)
     }
 
     private func migrateDeepLinkPathIfNeeded(isAuthenticated: Bool) -> Bool {
@@ -167,9 +179,20 @@ struct ContentView: View {
         return false
     }
 
-    private func tabIcon(_ systemImage: String, label: String) -> some View {
-        Image(systemName: systemImage)
-            .accessibilityLabel(label)
+    private static func loadTabViewCustomization() -> TabViewCustomization {
+        guard
+            let data = UserDefaults.standard.data(forKey: tabViewCustomizationStorageKey),
+            let customization = try? JSONDecoder().decode(TabViewCustomization.self, from: data)
+        else {
+            return TabViewCustomization()
+        }
+
+        return customization
+    }
+
+    private static func saveTabViewCustomization(_ customization: TabViewCustomization) {
+        guard let data = try? JSONEncoder().encode(customization) else { return }
+        UserDefaults.standard.set(data, forKey: tabViewCustomizationStorageKey)
     }
 }
 
