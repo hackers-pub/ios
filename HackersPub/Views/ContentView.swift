@@ -7,7 +7,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
-    @State private var tabViewCustomization = Self.loadTabViewCustomization()
+    @State private var tabViewCustomization = TabViewCustomization()
     @State private var selectedTab: String = "timeline"
     @State private var showingComposeView = false
 
@@ -96,6 +96,7 @@ struct ContentView: View {
         .tabViewStyle(.sidebarAdaptable)
         .tabViewCustomization($tabViewCustomization)
         .task {
+            tabViewCustomization = Self.loadTabViewCustomization(isAuthenticated: authManager.isAuthenticated)
             // Set default tab based on auth state
             if !applyRequestedTabIfAvailable(isAuthenticated: authManager.isAuthenticated) {
                 selectedTab = authManager.isAuthenticated ? "timeline" : "local"
@@ -104,6 +105,7 @@ struct ContentView: View {
             applyRequestedSearchText()
         }
         .onChange(of: authManager.isAuthenticated) { _, isAuth in
+            tabViewCustomization = Self.loadTabViewCustomization(isAuthenticated: isAuth)
             // Switch to appropriate tab when auth state changes
             if applyRequestedTabIfAvailable(isAuthenticated: isAuth) {
                 return
@@ -125,7 +127,7 @@ struct ContentView: View {
             applyRequestedSearchText()
         }
         .onChange(of: tabViewCustomization) { _, customization in
-            Self.saveTabViewCustomization(customization)
+            Self.saveTabViewCustomization(customization, isAuthenticated: authManager.isAuthenticated)
         }
     }
 
@@ -179,9 +181,9 @@ struct ContentView: View {
         return false
     }
 
-    private static func loadTabViewCustomization() -> TabViewCustomization {
+    private static func loadTabViewCustomization(isAuthenticated: Bool) -> TabViewCustomization {
         guard
-            let data = UserDefaults.standard.data(forKey: tabViewCustomizationStorageKey),
+            let data = UserDefaults.standard.data(forKey: tabViewCustomizationStorageKey(isAuthenticated: isAuthenticated)),
             let customization = try? JSONDecoder().decode(TabViewCustomization.self, from: data)
         else {
             return TabViewCustomization()
@@ -190,9 +192,13 @@ struct ContentView: View {
         return customization
     }
 
-    private static func saveTabViewCustomization(_ customization: TabViewCustomization) {
+    private static func saveTabViewCustomization(_ customization: TabViewCustomization, isAuthenticated: Bool) {
         guard let data = try? JSONEncoder().encode(customization) else { return }
-        UserDefaults.standard.set(data, forKey: tabViewCustomizationStorageKey)
+        UserDefaults.standard.set(data, forKey: tabViewCustomizationStorageKey(isAuthenticated: isAuthenticated))
+    }
+
+    private static func tabViewCustomizationStorageKey(isAuthenticated: Bool) -> String {
+        "\(tabViewCustomizationStorageKey).\(isAuthenticated ? "authenticated" : "guest")"
     }
 }
 
