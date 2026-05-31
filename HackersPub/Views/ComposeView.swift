@@ -61,7 +61,8 @@ struct ComposeView: View {
         replyToPostId: String? = nil,
         quotedPostId: String? = nil,
         replyToActor: String? = nil,
-        initialMentions: [String] = []
+        initialMentions: [String] = [],
+        initialContent: String = ""
     ) {
         self.replyToPostId = replyToPostId
         self.quotedPostId = quotedPostId
@@ -71,9 +72,9 @@ struct ComposeView: View {
         // 초기 멘션 목록이 있으면 content에 자동으로 추가
         if !self.initialMentions.isEmpty {
             let mentionsText = self.initialMentions.joined(separator: " ")
-            _content = State(initialValue: mentionsText + " ")
+            _content = State(initialValue: mentionsText + " " + initialContent)
         } else {
-            _content = State(initialValue: "")
+            _content = State(initialValue: initialContent)
         }
     }
 

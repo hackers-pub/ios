@@ -318,6 +318,8 @@ struct TimelineView: View {
                     ActorProfileViewWrapper(handle: handle)
                 case .post(let id):
                     PostDetailView(postId: id)
+                case .newsStory(let id):
+                    NewsStoryDetailView(storyId: id)
                 }
             }
         }
@@ -626,6 +628,8 @@ struct PersonalTimelineView: View {
                     ActorProfileViewWrapper(handle: handle)
                 case .post(let id):
                     PostDetailView(postId: id)
+                case .newsStory(let id):
+                    NewsStoryDetailView(storyId: id)
                 }
             }
         }
@@ -910,6 +914,8 @@ struct LocalTimelineView: View {
                     ActorProfileViewWrapper(handle: handle)
                 case .post(let id):
                     PostDetailView(postId: id)
+                case .newsStory(let id):
+                    NewsStoryDetailView(storyId: id)
                 }
             }
         }

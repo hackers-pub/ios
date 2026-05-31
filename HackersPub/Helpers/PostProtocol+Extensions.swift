@@ -227,6 +227,22 @@ extension HackersPub.BookmarksQuery.Data.Bookmarks.Edge.Node: PostProtocol {
     }
 }
 
+// MARK: - News Extensions
+
+extension HackersPub.NewsStoryDetailQuery.Data.NewsStory.SharingPosts.Edge.Node: PostProtocol {
+    typealias SharedPostType = HackersPub.ProfilePostFields.SharedPost
+    typealias QuotedPostType = HackersPub.ProfilePostFields.QuotedPost
+    typealias EngagementStatsType = HackersPub.ProfilePostFields.EngagementStats
+
+    var isArticle: Bool {
+        return __typename == "Article"
+    }
+
+    var mentionedHandles: [String] {
+        return self.mentions.edges.map { $0.node.handle }
+    }
+}
+
 // MARK: - Notifications Extensions
 
 extension HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsMentionNotification.Post: PostProtocol {
@@ -668,6 +684,33 @@ extension HackersPub.ActorArticlesQuery.Data.ActorByHandle.Articles.Edge.Node: R
 }
 
 extension HackersPub.BookmarksQuery.Data.Bookmarks.Edge.Node: ReactionCapablePostProtocol {
+    var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
+        reactionGroups.compactMap { group in
+            if let emojiGroup = group.asEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "emoji:\(emojiGroup.emoji)",
+                    emoji: emojiGroup.emoji,
+                    customEmojiName: nil,
+                    customEmojiImageUrl: nil,
+                    totalCount: emojiGroup.reactors.totalCount,
+                    viewerHasReacted: emojiGroup.reactors.viewerHasReacted
+                )
+            } else if let customGroup = group.asCustomEmojiReactionGroup {
+                return ReactionGroupSnapshot(
+                    id: "custom:\(customGroup.customEmoji.id)",
+                    emoji: nil,
+                    customEmojiName: customGroup.customEmoji.name,
+                    customEmojiImageUrl: customGroup.customEmoji.imageUrl,
+                    totalCount: customGroup.reactors.totalCount,
+                    viewerHasReacted: customGroup.reactors.viewerHasReacted
+                )
+            }
+            return nil
+        }
+    }
+}
+
+extension HackersPub.NewsStoryDetailQuery.Data.NewsStory.SharingPosts.Edge.Node: ReactionCapablePostProtocol {
     var reactionGroupsSnapshot: [ReactionGroupSnapshot] {
         reactionGroups.compactMap { group in
             if let emojiGroup = group.asEmojiReactionGroup {

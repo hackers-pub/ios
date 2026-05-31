@@ -1,6 +1,7 @@
 /* Tab labels */
 "tab.timeline" = "Timeline";
 "tab.notifications" = "Notifications";
+"tab.news" = "News";
 "tab.explore" = "Explore";
 "tab.bookmarks" = "Bookmarks";
 "tab.search" = "Search";
@@ -15,6 +16,7 @@
 "nav.search" = "Search";
 "nav.timeline" = "Timeline";
 "nav.notifications" = "Notifications";
+"nav.news" = "News";
 "nav.newPost" = "New Note";
 "nav.reply" = "Reply";
 
@@ -141,6 +143,58 @@
 "explore.scope.global" = "Fediverse";
 "explore.scope" = "Scope";
 
+/* News */
+"news.sort" = "News sort";
+"news.sort.popular" = "Popular";
+"news.sort.newest" = "Newest";
+"news.sort.allTime" = "All-time";
+"news.empty.title" = "No news yet";
+"news.empty.description" = "Links shared across the fediverse will appear here.";
+"news.detail.notFound.title" = "News story not found";
+"news.detail.notFound.description" = "This link may no longer be available as a public news story.";
+"news.discussion.empty.title" = "No discussion yet";
+"news.discussion.empty.description" = "No one has shared this link in a public note yet.";
+"news.opinions.count" = "%d opinions";
+"news.lastActive" = "Last active %@";
+"news.firstShared" = "First shared %@";
+"news.shareLink" = "Share this link";
+"news.composeLink" = "Write note with link";
+"news.openLink" = "Open link";
+"news.source.local" = "%d from Hackers' Pub";
+"news.source.remote" = "%d from the fediverse";
+"news.source.bluesky" = "%d from Bluesky";
+"news.moderation.title" = "Moderate";
+"news.moderation.demote" = "Demote";
+"news.moderation.bury" = "Bury";
+"news.moderation.clear" = "Clear penalty";
+"news.moderation.failed" = "Failed to update news moderation.";
+"news.admin.title" = "News Admin";
+"news.admin.scores" = "Scores";
+"news.admin.scoredLinks" = "Links in feed";
+"news.admin.lastRecomputed" = "Last recomputed";
+"news.admin.never" = "Never";
+"news.admin.notAvailable" = "News administration is not available.";
+"news.admin.notAuthorized" = "You are not authorized to manage News.";
+"news.admin.recompute" = "Recompute news scores";
+"news.admin.recompute.description" = "Rebuilds the popularity score for every shared link. Scores normally stay fresh automatically.";
+"news.admin.recompute.failed" = "Failed to recompute news scores.";
+"news.admin.excludedPatterns" = "Excluded URL patterns";
+"news.admin.excludedPatterns.description" = "Hide links matching a URL pattern from the News feed. Discussion pages stay reachable by direct link.";
+"news.admin.pattern" = "URL pattern";
+"news.admin.note" = "Note (optional)";
+"news.admin.addPattern" = "Add pattern";
+"news.admin.addPattern.failed" = "Failed to add exclusion pattern.";
+"news.admin.removePattern.failed" = "Failed to remove exclusion pattern.";
+"news.admin.noPatterns" = "No exclusion patterns yet.";
+"news.admin.penalizedStories" = "Penalized links";
+"news.admin.penalizedStories.description" = "Links a moderator has demoted in the popular feed.";
+"news.admin.noPenalizedStories" = "No penalized links.";
+"news.admin.clearPenalty" = "Clear penalty";
+"news.admin.clearPenalty.failed" = "Failed to clear penalty.";
+"news.penalty.bury" = "Buried";
+"news.penalty.demote" = "Demoted";
+"news.penalty.none" = "No penalty";
+
 /* Search */
 "search.title" = "Search";
 "search.noResults.title" = "No results";
@@ -156,6 +210,8 @@
 "common.newPost" = "New Note";
 "common.error" = "Error";
 "common.cancel" = "Cancel";
+"common.done" = "Done";
+"common.delete" = "Delete";
 
 /* Passkeys */
 "passkey.error.failed" = "Passkey operation failed. Please try again.";
