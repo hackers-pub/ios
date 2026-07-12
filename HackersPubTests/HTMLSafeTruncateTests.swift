@@ -1,6 +1,7 @@
 @testable import HackersPub
 import Testing
 
+// swiftlint:disable:next type_body_length
 struct HTMLSafeTruncateTests {
     // MARK: - Basic Truncation
 
@@ -93,6 +94,31 @@ struct HTMLSafeTruncateTests {
             options: HTMLTruncateOptions(keepImageTag: true)
         )
         #expect(result.contains("<img"))
+    }
+
+    @Test func imageWithQuotedGreaterThanIsRemovedWithoutAttributeResidue() {
+        let html = #"<p>x<img alt="a>b" src="u.jpg">y</p>"#
+        let result = html.htmlTruncated(limit: 100)
+
+        #expect(result == "<p>xy</p>")
+    }
+
+    @Test func bareAndSelfClosingImageTagsAreRemovedByDefault() {
+        let result = "<p>a<img>b<img/>c</p>".htmlTruncated(limit: 100)
+
+        #expect(result == "<p>abc</p>")
+    }
+
+    @Test func keepImageTagIsAppliedWhileBuildingTruncatedOutput() {
+        let html = #"<p><img alt="a>b" src="u.jpg">abc</p>"#
+        let withoutImages = html.htmlTruncated(limit: 1)
+        let withImages = html.htmlTruncated(
+            limit: 1,
+            options: HTMLTruncateOptions(keepImageTag: true)
+        )
+
+        #expect(withoutImages == "<p>a\u{2026}</p>")
+        #expect(withImages == #"<p><img alt="a>b" src="u.jpg">a\#u{2026}</p>"#)
     }
 
     @Test func selfClosingBrTag() {
@@ -216,6 +242,55 @@ struct HTMLSafeTruncateTests {
         #expect(!result.contains("color: red"))
     }
 
+    // MARK: - Ignored Markup and Malformed Unsafe Tags
+
+    @Test func commentDoesNotConsumeVisibleLengthOrRetokenizeItsContents() {
+        let html = "<p>A<!-- <script> -->B</p><p>rest of post</p>"
+        let result = html.htmlTruncated(limit: 100)
+
+        #expect(result == "<p>AB</p><p>rest of post</p>")
+    }
+
+    @Test func declarationsProcessingInstructionsAndCDATAAreNotRendered() {
+        let html = "<!DOCTYPE html><?xml version=\"1.0\"?><![CDATA[hidden]]><p>RealText</p>"
+        let result = html.htmlTruncated(limit: 8)
+
+        #expect(result == "<p>RealText</p>")
+    }
+
+    @Test func ignoredMarkupDoesNotConsumeTruncationBudget() {
+        let html = "<!-- abcdefghij --><p>RealText</p>"
+        let result = html.htmlTruncated(limit: 8)
+
+        #expect(result == "<p>RealText</p>")
+    }
+
+    @Test func pseudoTagWithoutASCIILetterRemainsVisibleText() {
+        let result = "I <3 Swift> forever".htmlTruncated(limit: 4)
+
+        #expect(result == "I <3\u{2026}")
+        #expect(!result.contains("</3>"))
+    }
+
+    @Test func unterminatedUnsafeCloseFailsClosed() {
+        let result = "<p>Hi</p><script>x</script".htmlTruncated(limit: 100)
+
+        #expect(result == "<p>Hi</p>")
+    }
+
+    @Test func unterminatedUnsafeOpenFailsClosed() {
+        let result = "<p>Hi</p><style".htmlTruncated(limit: 100)
+
+        #expect(result == "<p>Hi</p>")
+    }
+
+    @Test func malformedUnsafeMarkupNeverFallsBackToOriginalHTML() {
+        let html = "<script>alert('x')</script"
+        let result = html.htmlTruncated(limit: 100)
+
+        #expect(result == "")
+    }
+
     // MARK: - Ellipsis Position
 
     @Test func ellipsisAppearsAfterTruncatedText() {
@@ -235,6 +310,27 @@ struct HTMLSafeTruncateTests {
         let options = HTMLTruncateOptions(ellipsis: " [...]")
         let result = html.htmlTruncated(limit: 5, options: options)
         #expect(result == "Hello [...]")
+    }
+
+    @Test func readMoreIsEscapedAfterOpenFormattingTagsAreClosed() {
+        let html = #"<p><strong><a href="https://example.com">Long linked text</a></strong></p>"#
+        let options = HTMLTruncateOptions(readMoreText: "Read <more> & go")
+        let result = html.htmlTruncated(limit: 4, options: options)
+
+        #expect(
+            result == #"<p><strong><a href="https://example.com">Long</a></strong></p>\#u{2026} <span>"#
+                + HTMLReadMoreMarker.start
+                + "Read &lt;more&gt; &amp; go"
+                + HTMLReadMoreMarker.end
+                + "</span>"
+        )
+    }
+
+    @Test func mixedCaseClosingTagDoesNotLeaveAnExtraOpenTag() {
+        let html = "<DIV>Hello</div><p>World more</p>"
+        let result = html.htmlTruncated(limit: 9)
+
+        #expect(result == "<DIV>Hello</div><p>Worl\u{2026}</p>")
     }
 
     @Test func noEllipsisWhenNotTruncated() {

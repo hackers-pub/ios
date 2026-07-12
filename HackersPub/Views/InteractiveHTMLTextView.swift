@@ -20,6 +20,7 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
     var sneakPeekPostId: String?
     var sneakPeekActorHandle: String?
     var sneakPeekShareURL: URL?
+    let attributedStringImporter: HTMLAttributedStringImporter
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject private var fontSettings = FontSettingsManager.shared
@@ -35,7 +36,8 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         externalURLRouter: ExternalURLRouter? = nil,
         sneakPeekPostId: String? = nil,
         sneakPeekActorHandle: String? = nil,
-        sneakPeekShareURL: URL? = nil
+        sneakPeekShareURL: URL? = nil,
+        attributedStringImporter: HTMLAttributedStringImporter = .production
     ) {
         self.html = html
         _height = height
@@ -48,6 +50,7 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         self.sneakPeekPostId = sneakPeekPostId
         self.sneakPeekActorHandle = sneakPeekActorHandle
         self.sneakPeekShareURL = sneakPeekShareURL
+        self.attributedStringImporter = attributedStringImporter
     }
 
     func makeCoordinator() -> Coordinator {
@@ -78,7 +81,7 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
     }
 
     func updateUIView(_ label: UILabel, context: Context) {
-        context.coordinator.parent = self
+        context.coordinator.update(parent: self)
         if let selfSizingLabel = label as? SelfSizingHTMLLabel {
             selfSizingLabel.onHeightChange = { [weak coordinator = context.coordinator] measuredHeight in
                 coordinator?.updateMeasuredHeight(measuredHeight)
@@ -130,10 +133,20 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         private var pendingCommitTarget: CommitTarget?
         private var relationshipState: ActorRelationshipState?
         private var relationshipHandle: String?
-        private var isLoadingRelationship = false
+        private let relationshipStateUpdateGate = ActorRelationshipStateUpdateGate()
         private var isApplyingRelationshipAction = false
+        private var renderGeneration = 0
 
         init(parent: InteractiveHTMLTextView) {
+            self.parent = parent
+        }
+
+        func update(parent: InteractiveHTMLTextView) {
+            if self.parent.sneakPeekActorHandle != parent.sneakPeekActorHandle {
+                relationshipStateUpdateGate.invalidate()
+                relationshipState = nil
+                relationshipHandle = nil
+            }
             self.parent = parent
         }
 
@@ -149,12 +162,14 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         ) {
             guard cacheKey != lastCacheKey else { return }
             lastCacheKey = cacheKey
+            renderGeneration &+= 1
             renderTask?.cancel()
+            let importer = parent.attributedStringImporter
 
             renderTask = Task { [weak self] in
                 guard let self else { return }
                 do {
-                    let attributed = try await HTMLTextRenderer.attributedString(
+                    let attributed = try await importer(
                         cacheKey: cacheKey,
                         html: html,
                         uiFont: uiFont,
@@ -171,9 +186,11 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
                 } catch {
                     guard !Task.isCancelled else { return }
                     await MainActor.run {
-                        self.label?.text = html
-                        self.label?.font = uiFont
-                        self.label?.textColor = uiColor
+                        self.label?.attributedText = HTMLTextRenderer.visibleTextFallback(
+                            html: html,
+                            uiFont: uiFont,
+                            uiColor: uiColor
+                        )
                         self.label?.invalidateIntrinsicContentSize()
                         self.label?.setNeedsLayout()
                         self.label?.layoutIfNeeded()
@@ -184,9 +201,19 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
         }
 
         func updateMeasuredHeight(_ measuredHeight: CGFloat) {
-            guard measuredHeight > 0 else { return }
-            if abs(parent.height - measuredHeight) > 0.5 {
-                parent.height = measuredHeight
+            let scheduledGeneration = renderGeneration
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      HTMLHeightUpdatePolicy.shouldApply(
+                          currentGeneration: self.renderGeneration,
+                          scheduledGeneration: scheduledGeneration,
+                          currentHeight: Double(self.parent.height),
+                          measuredHeight: Double(measuredHeight)
+                      )
+                else {
+                    return
+                }
+                self.parent.height = measuredHeight
             }
         }
 
@@ -415,26 +442,40 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
 
         private func performRelationshipAction(_ action: ActorRelationshipAction) {
             guard !isApplyingRelationshipAction else { return }
-            guard let relationshipState else {
+            guard let relationshipState,
+                  let handle = relationshipHandle,
+                  relationshipState.handle == handle,
+                  parent.sneakPeekActorHandle == handle
+            else {
                 Task {
                     _ = await loadRelationshipIfNeeded(forceNetwork: true)
                 }
                 return
             }
 
+            let request = relationshipStateUpdateGate.begin(handle: handle)
             isApplyingRelationshipAction = true
             Task {
                 defer { isApplyingRelationshipAction = false }
                 do {
                     try await ActorRelationshipService.perform(action: action, actorId: relationshipState.actorId)
-                    if let handle = parent.sneakPeekActorHandle {
-                        self.relationshipState = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly)
-                        self.relationshipHandle = handle
-                    }
+                    guard canApplyRelationshipStateUpdate(request) else { return }
+                    let refreshedRelationship = try await ActorRelationshipService.fetch(
+                        handle: handle,
+                        cachePolicy: .networkOnly
+                    )
+                    guard canApplyRelationshipStateUpdate(request) else { return }
+                    self.relationshipState = refreshedRelationship
+                    self.relationshipHandle = handle
                 } catch {
+                    guard canApplyRelationshipStateUpdate(request) else { return }
                     presentErrorAlert(message: error.localizedDescription)
                 }
             }
+        }
+
+        private func canApplyRelationshipStateUpdate(_ request: ActorRelationshipRequestToken) -> Bool {
+            relationshipStateUpdateGate.allows(request, currentHandle: parent.sneakPeekActorHandle)
         }
 
         @discardableResult
@@ -442,33 +483,33 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
             guard parent.authManager?.isAuthenticated == true,
                   let handle = parent.sneakPeekActorHandle
             else {
+                relationshipStateUpdateGate.invalidate()
                 relationshipState = nil
                 relationshipHandle = nil
                 return nil
-            }
-
-            if isLoadingRelationship {
-                return relationshipState
             }
 
             if !forceNetwork, relationshipHandle == handle, let relationshipState {
                 return relationshipState
             }
 
-            isLoadingRelationship = true
-            defer { isLoadingRelationship = false }
+            let request = relationshipStateUpdateGate.begin(handle: handle)
             do {
                 let fetchedRelationship = try await ActorRelationshipService.fetch(
                     handle: handle,
                     cachePolicy: forceNetwork ? .networkOnly : .networkFirst
                 )
+                guard canApplyRelationshipStateUpdate(request) else {
+                    return nil
+                }
                 relationshipState = fetchedRelationship
                 relationshipHandle = handle
                 return fetchedRelationship
             } catch {
-                relationshipState = nil
-                relationshipHandle = nil
-                return nil
+                guard canApplyRelationshipStateUpdate(request) else {
+                    return nil
+                }
+                return relationshipHandle == handle ? relationshipState : nil
             }
         }
 
@@ -476,7 +517,7 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
             UIContextMenuConfiguration(
                 identifier: nil,
                 previewProvider: {
-                    SFSafariViewController(url: url)
+                    SafariPreviewPolicy.url(for: url).map { SFSafariViewController(url: $0) }
                 },
                 actionProvider: { [weak self] _ in
                     guard let self else { return UIMenu(children: []) }
@@ -526,38 +567,51 @@ struct InteractiveHTMLTextView: UIViewRepresentable {
             return min(380, max(280, screenWidth - 24))
         }
 
-        private var previewHeight: CGFloat { 560 }
+        private var previewHeight: CGFloat {
+            560
+        }
 
         private func commit(target: CommitTarget) {
             switch target {
-            case .post(let postId):
+            case let .post(postId):
                 parent.navigationCoordinator?.navigateToPost(id: postId)
-            case .link(let url):
+            case let .link(url):
                 route(url: url)
             }
         }
 
         private func route(url: URL) {
-            guard let navigationCoordinator = parent.navigationCoordinator else {
-                let router = parent.externalURLRouter ?? .shared
-                if HackersPubURLRouter.isHackersPubWebURL(url) {
-                    router.openInApp(url)
-                } else {
-                    router.open(url)
-                }
+            switch RendererLinkRoutingPolicy.action(
+                for: url,
+                hasNavigationCoordinator: parent.navigationCoordinator != nil
+            ) {
+            case .consumeOwnedScheme:
                 return
+            case .inAppBrowser:
+                let router = parent.externalURLRouter ?? .shared
+                router.openInApp(url)
+                return
+            case .external:
+                (parent.externalURLRouter ?? .shared).open(url)
+                return
+            case .deepLink:
+                guard let navigationCoordinator = parent.navigationCoordinator else { return }
+                DeepLinkNavigator.open(
+                    url,
+                    authManager: parent.authManager ?? .shared,
+                    navigationCoordinator: navigationCoordinator,
+                    externalURLRouter: parent.externalURLRouter ?? .shared
+                )
             }
-
-            DeepLinkNavigator.open(
-                url,
-                authManager: parent.authManager ?? .shared,
-                navigationCoordinator: navigationCoordinator,
-                externalURLRouter: parent.externalURLRouter ?? .shared
-            )
         }
 
         private func presentShareSheet(items: [Any]) {
-            ShareSheetPresenter.present(items: items, from: label)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let error = await ShareSheetPresentationCaller.shared.present(items: items, from: label) {
+                    presentErrorAlert(message: error.userFacingMessage)
+                }
+            }
         }
 
         private func presentErrorAlert(message: String) {

@@ -46,6 +46,10 @@ struct FontSettingsSnapshot: Equatable {
             Coordinator(isLoading: $isLoading)
         }
 
+        static func dismantleNSView(_ nsView: WKWebView, coordinator _: Coordinator) {
+            HTMLWebViewLifecycle.dismantle(nsView)
+        }
+
         class Coordinator: NSObject, WKNavigationDelegate {
             var isLoading: Binding<Bool>
             var lastHTML: String = ""
@@ -71,7 +75,12 @@ struct FontSettingsSnapshot: Equatable {
             func webView(_: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
                 if navigationAction.navigationType == .linkActivated {
                     if let url = navigationAction.request.url {
-                        NSWorkspace.shared.open(url)
+                        if ExternalURLOpeningPolicy.action(
+                            for: url,
+                            useInAppBrowser: false
+                        ) != .consumeOwnedScheme {
+                            NSWorkspace.shared.open(url)
+                        }
                         decisionHandler(.cancel)
                         return
                     }
@@ -87,12 +96,15 @@ struct FontSettingsSnapshot: Equatable {
         @ObservedObject private var fontSettings = FontSettingsManager.shared
         @Environment(\.dynamicTypeSize) private var dynamicTypeSize
         @Environment(ExternalURLRouter.self) private var externalURLRouter
+        @Environment(AuthManager.self) private var authManager
+        @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
         func makeUIView(context: Context) -> WKWebView {
-            let webView = WKWebView()
+            let webView = WKWebView(frame: .zero, configuration: HTMLWebSecurityConfiguration.make())
             webView.isOpaque = false
             webView.backgroundColor = .clear
             webView.navigationDelegate = context.coordinator
+            webView.uiDelegate = context.coordinator
             return webView
         }
 
@@ -100,6 +112,8 @@ struct FontSettingsSnapshot: Equatable {
             // Update the coordinator's binding reference
             context.coordinator.isLoading = $isLoading
             context.coordinator.externalURLRouter = externalURLRouter
+            context.coordinator.authManager = authManager
+            context.coordinator.navigationCoordinator = navigationCoordinator
 
             // Check if HTML or font settings have changed
             let currentFontSettings = FontSettingsSnapshot(from: fontSettings)
@@ -111,6 +125,7 @@ struct FontSettingsSnapshot: Equatable {
                 context.coordinator.lastHTML = html
                 context.coordinator.lastFontSettings = currentFontSettings
                 context.coordinator.lastDynamicTypeSize = dynamicTypeSize
+                context.coordinator.beginInitialDocumentLoad()
                 webView.loadHTMLString(html, baseURL: nil)
             }
         }
@@ -119,15 +134,44 @@ struct FontSettingsSnapshot: Equatable {
             Coordinator(isLoading: $isLoading)
         }
 
-        class Coordinator: NSObject, WKNavigationDelegate {
+        static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+            HTMLWebViewLifecycle.dismantle(uiView)
+            coordinator.detach()
+        }
+
+        class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
             var isLoading: Binding<Bool>
             var lastHTML: String = ""
             var lastFontSettings: FontSettingsSnapshot?
             var lastDynamicTypeSize: DynamicTypeSize?
             var externalURLRouter: ExternalURLRouter?
+            private var pendingInitialDocumentLoads = 0
+            var authManager: AuthManager?
+            var navigationCoordinator: NavigationCoordinator?
 
             init(isLoading: Binding<Bool>) {
                 self.isLoading = isLoading
+            }
+
+            func beginInitialDocumentLoad() {
+                pendingInitialDocumentLoads += 1
+            }
+
+            func navigationDecision(
+                for request: HTMLWebNavigationRequest
+            ) -> HTMLWebNavigationPolicy.Decision {
+                let decision = HTMLWebNavigationPolicy.decision(
+                    for: request,
+                    allowsInitialDocumentLoad: pendingInitialDocumentLoads > 0
+                )
+                if decision == .allowInitialDocument, pendingInitialDocumentLoads > 0 {
+                    pendingInitialDocumentLoads -= 1
+                }
+                return decision
+            }
+
+            func detach() {
+                pendingInitialDocumentLoads = 0
             }
 
             func webView(_: WKWebView, didStartProvisionalNavigation _: WKNavigation!) {
@@ -142,16 +186,68 @@ struct FontSettingsSnapshot: Equatable {
                 isLoading.wrappedValue = false
             }
 
-            // swiftlint:disable:next line_length
+            // swiftlint:disable:next line_length cyclomatic_complexity
             func webView(_: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
                 if navigationAction.navigationType == .linkActivated {
                     if let url = navigationAction.request.url {
-                        (externalURLRouter ?? .shared).open(url)
+                        switch RendererLinkRoutingPolicy.action(
+                            for: url,
+                            hasNavigationCoordinator: navigationCoordinator != nil
+                        ) {
+                        case .consumeOwnedScheme:
+                            break
+                        case .inAppBrowser:
+                            (externalURLRouter ?? .shared).openInApp(url)
+                        case .external:
+                            (externalURLRouter ?? .shared).open(url)
+                        case .deepLink:
+                            if let navigationCoordinator {
+                                DeepLinkNavigator.open(
+                                    url,
+                                    authManager: authManager ?? .shared,
+                                    navigationCoordinator: navigationCoordinator,
+                                    externalURLRouter: externalURLRouter ?? .shared
+                                )
+                            }
+                        }
                         decisionHandler(.cancel)
                         return
                     }
                 }
-                decisionHandler(.allow)
+
+                let kind: HTMLWebNavigationKind
+                switch navigationAction.navigationType {
+                case .linkActivated:
+                    kind = .linkActivated
+                case .formSubmitted:
+                    kind = .formSubmitted
+                default:
+                    kind = .other
+                }
+                let request = HTMLWebNavigationRequest(
+                    url: navigationAction.request.url,
+                    kind: kind,
+                    isMainFrame: navigationAction.targetFrame?.isMainFrame ?? false
+                )
+
+                switch navigationDecision(for: request) {
+                case .allowInitialDocument:
+                    decisionHandler(.allow)
+                case let .route(url):
+                    (externalURLRouter ?? .shared).open(url)
+                    decisionHandler(.cancel)
+                case .cancel:
+                    decisionHandler(.cancel)
+                }
+            }
+
+            func webView(
+                _: WKWebView,
+                createWebViewWith _: WKWebViewConfiguration,
+                for _: WKNavigationAction,
+                windowFeatures _: WKWindowFeatures
+            ) -> WKWebView? {
+                nil
             }
         }
     }

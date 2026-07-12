@@ -1,7 +1,7 @@
+@preconcurrency import Apollo
+import SafariServices
 import SwiftUI
 import WebKit
-import SafariServices
-@preconcurrency import Apollo
 
 // MARK: - Content Hash for Deduplication
 
@@ -88,6 +88,26 @@ final class HTMLHeightCache: @unchecked Sendable {
                     }
                 }
             }
+
+            func webView(
+                _: WKWebView,
+                decidePolicyFor navigationAction: WKNavigationAction,
+                decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+            ) {
+                guard navigationAction.navigationType == .linkActivated,
+                      let url = navigationAction.request.url
+                else {
+                    decisionHandler(.allow)
+                    return
+                }
+
+                switch RendererWebViewNavigationPolicy.action(for: url) {
+                case .allow:
+                    decisionHandler(.allow)
+                case .cancel:
+                    decisionHandler(.cancel)
+                }
+            }
         }
     }
 #else
@@ -126,7 +146,7 @@ final class HTMLHeightCache: @unchecked Sendable {
         // MARK: - UIViewRepresentable
 
         func makeUIView(context: Context) -> WKWebView {
-            let configuration = WKWebViewConfiguration()
+            let configuration = HTMLWebSecurityConfiguration.make()
             configuration.userContentController.add(context.coordinator, name: "tapHandler")
             configuration.userContentController.add(context.coordinator, name: "linkPressHandler")
             configuration.userContentController.add(context.coordinator, name: "heightHandler")
@@ -156,150 +176,6 @@ final class HTMLHeightCache: @unchecked Sendable {
             let contextMenuInteraction = UIContextMenuInteraction(delegate: context.coordinator)
             webView.addInteraction(contextMenuInteraction)
 
-            // Disable pinch to zoom, hide scrollbars, and add tap detection
-            let source = """
-            var meta = document.createElement('meta');
-            meta.name = 'viewport';
-            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-            document.getElementsByTagName('head')[0].appendChild(meta);
-
-            // Keep the embedded document non-scrollable; the parent SwiftUI
-            // ScrollView owns vertical scrolling for feed cells.
-            var style = document.createElement('style');
-            style.textContent = 'html, body { overflow: hidden !important; } ::-webkit-scrollbar { display: none; }';
-            document.getElementsByTagName('head')[0].appendChild(style);
-
-            function computedDocumentHeight() {
-                var body = document.body;
-                var contentRoot = document.getElementById('content-root');
-                var bodyStyle = body ? window.getComputedStyle(body) : null;
-                var bodyPaddingTop = bodyStyle ? parseFloat(bodyStyle.paddingTop || '0') : 0;
-                var bodyPaddingBottom = bodyStyle ? parseFloat(bodyStyle.paddingBottom || '0') : 0;
-                var contentRect = contentRoot ? contentRoot.getBoundingClientRect() : null;
-                return Math.ceil(Math.max(
-                    contentRoot ? contentRoot.scrollHeight : 0,
-                    contentRoot ? contentRoot.offsetHeight : 0,
-                    contentRect ? contentRect.height : 0
-                ) + bodyPaddingTop + bodyPaddingBottom + 8);
-            }
-
-            var pendingHeightFrame = false;
-            function reportHeightSoon() {
-                if (pendingHeightFrame) {
-                    return;
-                }
-                pendingHeightFrame = true;
-                requestAnimationFrame(function() {
-                    pendingHeightFrame = false;
-                    window.webkit.messageHandlers.heightHandler.postMessage(computedDocumentHeight());
-                });
-            }
-
-            function resetScrollPosition() {
-                window.scrollTo(0, 0);
-                if (document.documentElement) {
-                    document.documentElement.scrollTop = 0;
-                }
-                if (document.body) {
-                    document.body.scrollTop = 0;
-                }
-            }
-
-            var pressStartTimestamp = 0;
-            var ignoreClickUntil = 0;
-            function closestAnchor(node) {
-                var current = node;
-                while (current) {
-                    if (current.tagName === 'A') {
-                        return current;
-                    }
-                    current = current.parentElement;
-                }
-                return null;
-            }
-            function markPressStart(event) {
-                pressStartTimestamp = Date.now();
-                var anchor = closestAnchor(event.target);
-                if (anchor && anchor.href) {
-                    window.webkit.messageHandlers.linkPressHandler.postMessage(encodeURI(anchor.href));
-                } else {
-                    window.webkit.messageHandlers.linkPressHandler.postMessage("");
-                }
-            }
-            function isInsideLink(node) {
-                return closestAnchor(node) !== null;
-            }
-            document.addEventListener('touchstart', markPressStart, true);
-            document.addEventListener('pointerdown', markPressStart, true);
-            document.addEventListener('mousedown', markPressStart, true);
-            document.addEventListener('DOMContentLoaded', function() { resetScrollPosition(); reportHeightSoon(); }, true);
-            window.addEventListener('load', function() { resetScrollPosition(); reportHeightSoon(); }, true);
-            window.addEventListener('resize', reportHeightSoon, true);
-
-            var observer = new MutationObserver(function() {
-                reportHeightSoon();
-            });
-            observer.observe(document.documentElement || document.body, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                characterData: true
-            });
-
-            function bindImageHeightListeners(root) {
-                var images = (root || document).querySelectorAll ? (root || document).querySelectorAll('img') : [];
-                for (var i = 0; i < images.length; i++) {
-                    var img = images[i];
-                    if (img.__heightListenerBound) {
-                        continue;
-                    }
-                    img.__heightListenerBound = true;
-                    img.addEventListener('load', reportHeightSoon, true);
-                    img.addEventListener('error', reportHeightSoon, true);
-                }
-            }
-            bindImageHeightListeners(document);
-            document.addEventListener('DOMNodeInserted', function(e) {
-                bindImageHeightListeners(e.target);
-                reportHeightSoon();
-            }, true);
-
-            // Detect taps on non-link elements
-            document.addEventListener('click', function(e) {
-                if (Date.now() < ignoreClickUntil) {
-                    return;
-                }
-                if (pressStartTimestamp > 0 && Date.now() - pressStartTimestamp > \(InteractionTiming.pressToTapThresholdMs)) {
-                    return;
-                }
-                if (isInsideLink(e.target)) {
-                    return; // Don't send tap message if clicking on a link
-                }
-                // Only send tap message if not clicking on a link
-                window.webkit.messageHandlers.tapHandler.postMessage('tap');
-                e.preventDefault();
-            }, true);
-            \(suppressLongPressInteractions ? """
-            document.addEventListener('selectstart', function(e) {
-                if (isInsideLink(e.target)) {
-                    return;
-                }
-                e.preventDefault();
-            }, true);
-            """ : "")
-            setTimeout(reportHeightSoon, 100);
-            setTimeout(reportHeightSoon, 300);
-            setTimeout(reportHeightSoon, 700);
-            setTimeout(reportHeightSoon, 1500);
-            reportHeightSoon();
-            """
-            let script = WKUserScript(
-                source: source,
-                injectionTime: .atDocumentEnd,
-                forMainFrameOnly: true
-            )
-            configuration.userContentController.addUserScript(script)
-
             return webView
         }
 
@@ -321,15 +197,13 @@ final class HTMLHeightCache: @unchecked Sendable {
             // Skip reload if nothing relevant changed (same html + same style + same size)
             guard contentKey != context.coordinator.lastContentKey else { return }
             context.coordinator.lastContentKey = contentKey
+            let renderToken = context.coordinator.beginRender(for: contentKey)
 
             // If we already measured the height for this exact content, reuse it immediately
             if let cached = HTMLHeightCache.shared.height(for: contentKey) {
                 if height != cached {
                     DispatchQueue.main.async {
-                        guard context.coordinator.lastContentKey == contentKey else { return }
-                        if context.coordinator.parent.height != cached {
-                            context.coordinator.parent.height = cached
-                        }
+                        context.coordinator.applyMeasuredHeight(cached, for: renderToken)
                     }
                 }
             }
@@ -339,23 +213,42 @@ final class HTMLHeightCache: @unchecked Sendable {
             var css = HTMLStyles.generateCSS(fontSize: fontSize, fontFamily: fontSettings.cssFontFamily)
             if suppressLongPressInteractions {
                 css += """
-                
+
                 body, body *:not(a):not(a *) {
                     -webkit-user-select: none !important;
                     user-select: none !important;
                 }
                 """
             }
-            let styledHTML = HTMLStyles.wrapHTML(html, css: css)
+            let sanitizedHTML = HTMLServerContentSanitizer.sanitize(html)
+            let styledHTML = HTMLStyles.wrapHTML(sanitizedHTML, css: css)
 
-            // Capture the content key for this navigation so didFinish can verify it.
-            context.coordinator.pendingContentKey = contentKey
+            let userContentController = webView.configuration.userContentController
+            userContentController.removeAllUserScripts()
+            let source = HTMLWebViewScriptBuilder.source(
+                suppressLongPressInteractions: suppressLongPressInteractions,
+                pressToTapThresholdMs: InteractionTiming.pressToTapThresholdMs,
+                renderGeneration: renderToken.generation
+            )
+            userContentController.addUserScript(WKUserScript(
+                source: source,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true
+            ))
+
+            context.coordinator.beginInitialDocumentLoad()
             webView.scrollView.setContentOffset(.zero, animated: false)
-            webView.loadHTMLString(styledHTML, baseURL: nil)
+            let navigation = webView.loadHTMLString(styledHTML, baseURL: nil)
+            context.coordinator.bindNavigationIdentity(navigation, to: renderToken)
         }
 
         func makeCoordinator() -> Coordinator {
             Coordinator(self)
+        }
+
+        static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+            HTMLWebViewLifecycle.dismantle(uiView)
+            coordinator.detach()
         }
 
         // MARK: - Coordinator
@@ -368,10 +261,8 @@ final class HTMLHeightCache: @unchecked Sendable {
 
             var parent: HTMLWebView
             var lastContentKey: HTMLContentKey?
-            /// Content key captured at navigation start, used to verify
-            /// that the finished navigation still matches the current content.
-            var pendingContentKey: HTMLContentKey?
             weak var webView: WKWebView?
+            private var renderSession = HTMLWebRenderSession()
             private var ignoreTapUntil: Date = .distantPast
             private var relationshipHandle: String?
             private var relationshipState: ActorRelationshipState?
@@ -380,28 +271,79 @@ final class HTMLHeightCache: @unchecked Sendable {
             private var lastPressedLinkURL: URL?
             private var lastPressedLinkAt: Date = .distantPast
             private var pendingCommitTarget: ContextMenuCommitTarget?
+            private var pendingInitialDocumentLoads = 0
 
             init(_ parent: HTMLWebView) {
                 self.parent = parent
             }
 
-            func webView(_ webView: WKWebView, didFinish _: WKNavigation!) {
-                // Verify the finished navigation matches the most recently requested content.
-                // If a newer load was initiated while this one was in-flight, discard the result
-                // to prevent caching a height under the wrong content key.
-                guard let pending = pendingContentKey, pending == lastContentKey else { return }
+            func beginInitialDocumentLoad() {
+                pendingInitialDocumentLoads += 1
+            }
 
-                measureAndApplyHeight(from: webView, key: pending)
+            func navigationDecision(
+                for request: HTMLWebNavigationRequest
+            ) -> HTMLWebNavigationPolicy.Decision {
+                let decision = HTMLWebNavigationPolicy.decision(
+                    for: request,
+                    allowsInitialDocumentLoad: pendingInitialDocumentLoads > 0
+                )
+                if decision == .allowInitialDocument {
+                    pendingInitialDocumentLoads -= 1
+                }
+                return decision
+            }
+
+            @discardableResult
+            func beginRender(for contentKey: HTMLContentKey) -> HTMLWebRenderToken {
+                renderSession.begin(for: contentKey)
+            }
+
+            func bindNavigationIdentity(
+                _ navigationIdentity: AnyObject?,
+                to token: HTMLWebRenderToken
+            ) {
+                renderSession.bindNavigationIdentity(navigationIdentity, to: token)
+            }
+
+            func renderToken(
+                forFinishedNavigationIdentity navigationIdentity: AnyObject?
+            ) -> HTMLWebRenderToken? {
+                renderSession.token(forFinishedNavigationIdentity: navigationIdentity)
+            }
+
+            func detach() {
+                renderSession.invalidate()
+                lastContentKey = nil
+                lastPressedLinkURL = nil
+                lastPressedLinkAt = .distantPast
+                pendingCommitTarget = nil
+                pendingInitialDocumentLoads = 0
+                webView = nil
+            }
+
+            func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+                guard let renderToken = renderToken(
+                    forFinishedNavigationIdentity: navigation
+                ) else {
+                    return
+                }
+
+                measureAndApplyHeight(from: webView, token: renderToken)
                 let delayedMeasurements: [TimeInterval] = [0.15, 0.4, 0.8, 1.5, 2.5, 4.0, 6.0]
                 for delay in delayedMeasurements {
                     DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak webView] in
                         guard let self, let webView else { return }
-                        self.measureAndApplyHeight(from: webView, key: pending)
+                        self.measureAndApplyHeight(from: webView, token: renderToken)
                     }
                 }
             }
 
-            private func measureAndApplyHeight(from webView: WKWebView, key: HTMLContentKey) {
+            private func measureAndApplyHeight(
+                from webView: WKWebView,
+                token: HTMLWebRenderToken
+            ) {
+                guard renderSession.accepts(token) else { return }
                 webView.evaluateJavaScript(
                     """
                     (function() {
@@ -433,14 +375,40 @@ final class HTMLHeightCache: @unchecked Sendable {
                     guard let measuredHeight, measuredHeight > 0 else { return }
 
                     DispatchQueue.main.async {
-                        // Re-check after the async gap to avoid stale writes.
-                        guard let currentKey = self.lastContentKey, currentKey == key else { return }
-                        HTMLHeightCache.shared.setHeight(measuredHeight, for: key)
-                        if abs(self.parent.height - measuredHeight) > 0.5 {
-                            self.parent.height = measuredHeight
-                        }
+                        self.applyMeasuredHeight(measuredHeight, for: token)
                     }
                 }
+            }
+
+            @discardableResult
+            func processHeightMessageBody(_ body: Any) -> Bool {
+                guard let message = HTMLWebHeightMessage(body: body),
+                      let token = renderSession.activeToken,
+                      token.generation == message.generation
+                else {
+                    return false
+                }
+
+                return applyMeasuredHeight(message.height, for: token)
+            }
+
+            @discardableResult
+            func applyMeasuredHeight(
+                _ measuredHeight: CGFloat,
+                for token: HTMLWebRenderToken
+            ) -> Bool {
+                guard measuredHeight.isFinite,
+                      measuredHeight > 0,
+                      renderSession.accepts(token)
+                else {
+                    return false
+                }
+
+                HTMLHeightCache.shared.setHeight(measuredHeight, for: token.contentKey)
+                if abs(parent.height - measuredHeight) > 0.5 {
+                    parent.height = measuredHeight
+                }
+                return true
             }
 
             func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -454,14 +422,40 @@ final class HTMLHeightCache: @unchecked Sendable {
                 decidePolicyFor navigationAction: WKNavigationAction,
                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
             ) {
-                if navigationAction.navigationType == .linkActivated {
-                    if let url = navigationAction.request.url {
-                        route(url: url)
-                    }
-                    decisionHandler(.cancel)
-                } else {
-                    decisionHandler(.allow)
+                let kind: HTMLWebNavigationKind
+                switch navigationAction.navigationType {
+                case .linkActivated:
+                    kind = .linkActivated
+                case .formSubmitted:
+                    kind = .formSubmitted
+                default:
+                    kind = .other
                 }
+                let request = HTMLWebNavigationRequest(
+                    url: navigationAction.request.url,
+                    kind: kind,
+                    isMainFrame: navigationAction.targetFrame?.isMainFrame ?? false
+                )
+
+                switch navigationDecision(for: request) {
+                case .allowInitialDocument:
+                    decisionHandler(.allow)
+                case let .route(url):
+                    route(url: url)
+                    decisionHandler(.cancel)
+                case .cancel:
+                    decisionHandler(.cancel)
+                }
+            }
+
+            func webView(
+                _: WKWebView,
+                createWebViewWith _: WKWebViewConfiguration,
+                for _: WKNavigationAction,
+                windowFeatures _: WKWindowFeatures
+            ) -> WKWebView? {
+                // Never create a secondary browsing surface from remote markup.
+                nil
             }
 
             func userContentController(
@@ -486,28 +480,7 @@ final class HTMLHeightCache: @unchecked Sendable {
                 }
 
                 if message.name == "heightHandler" {
-                    guard let key = lastContentKey else { return }
-
-                    let measuredHeight: CGFloat?
-                    if let number = message.body as? NSNumber {
-                        measuredHeight = CGFloat(truncating: number)
-                    } else if let doubleValue = message.body as? Double {
-                        measuredHeight = CGFloat(doubleValue)
-                    } else if let intValue = message.body as? Int {
-                        measuredHeight = CGFloat(intValue)
-                    } else {
-                        measuredHeight = nil
-                    }
-
-                    guard let measuredHeight, measuredHeight > 0 else { return }
-
-                    DispatchQueue.main.async {
-                        guard self.lastContentKey == key else { return }
-                        HTMLHeightCache.shared.setHeight(measuredHeight, for: key)
-                        if abs(self.parent.height - measuredHeight) > 0.5 {
-                            self.parent.height = measuredHeight
-                        }
-                    }
+                    processHeightMessageBody(message.body)
                     return
                 }
 
@@ -588,35 +561,16 @@ final class HTMLHeightCache: @unchecked Sendable {
             }
 
             private func normalizedURL(from rawURL: String) -> URL? {
-                let trimmed = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return nil }
-
-                if let parsed = URL(string: trimmed), parsed.scheme != nil {
-                    return parsed
-                }
-
-                let spaceEscaped = trimmed.replacingOccurrences(of: " ", with: "%20")
-                if let parsed = URL(string: spaceEscaped), parsed.scheme != nil {
-                    return parsed
-                }
-
-                if let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed),
-                   let parsed = URL(string: encoded),
-                   parsed.scheme != nil
-                {
-                    return parsed
-                }
-
-                return nil
+                HTMLURLNormalizer.normalize(rawURL)
             }
 
             private func commitContextMenuTarget(_ target: ContextMenuCommitTarget) {
                 switch target {
-                case .post(let id):
+                case let .post(id):
                     DispatchQueue.main.async {
                         self.parent.navigationCoordinator?.navigateToPost(id: id)
                     }
-                case .link(let url):
+                case let .link(url):
                     DispatchQueue.main.async {
                         self.route(url: url)
                     }
@@ -624,22 +578,28 @@ final class HTMLHeightCache: @unchecked Sendable {
             }
 
             private func route(url: URL) {
-                guard let navigationCoordinator = parent.navigationCoordinator else {
-                    let router = parent.externalURLRouter ?? .shared
-                    if HackersPubURLRouter.isHackersPubWebURL(url) {
-                        router.openInApp(url)
-                    } else {
-                        router.open(url)
-                    }
+                switch RendererLinkRoutingPolicy.action(
+                    for: url,
+                    hasNavigationCoordinator: parent.navigationCoordinator != nil
+                ) {
+                case .consumeOwnedScheme:
                     return
+                case .inAppBrowser:
+                    let router = parent.externalURLRouter ?? .shared
+                    router.openInApp(url)
+                    return
+                case .external:
+                    (parent.externalURLRouter ?? .shared).open(url)
+                    return
+                case .deepLink:
+                    guard let navigationCoordinator = parent.navigationCoordinator else { return }
+                    DeepLinkNavigator.open(
+                        url,
+                        authManager: parent.authManager ?? .shared,
+                        navigationCoordinator: navigationCoordinator,
+                        externalURLRouter: parent.externalURLRouter ?? .shared
+                    )
                 }
-
-                DeepLinkNavigator.open(
-                    url,
-                    authManager: parent.authManager ?? .shared,
-                    navigationCoordinator: navigationCoordinator,
-                    externalURLRouter: parent.externalURLRouter ?? .shared
-                )
             }
 
             private func makePostPreviewController(postId: String) -> UIViewController {
@@ -690,7 +650,7 @@ final class HTMLHeightCache: @unchecked Sendable {
                 UIContextMenuConfiguration(
                     identifier: nil,
                     previewProvider: {
-                        SFSafariViewController(url: url)
+                        SafariPreviewPolicy.url(for: url).map { SFSafariViewController(url: $0) }
                     },
                     actionProvider: { [weak self] _ in
                         guard let self else { return UIMenu(children: []) }
@@ -860,7 +820,12 @@ final class HTMLHeightCache: @unchecked Sendable {
             }
 
             private func presentShareSheet(items: [Any]) {
-                ShareSheetPresenter.present(items: items, from: webView)
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if let error = await ShareSheetPresentationCaller.shared.present(items: items, from: webView) {
+                        presentErrorAlert(message: error.userFacingMessage)
+                    }
+                }
             }
 
             private func presentErrorAlert(message: String) {
@@ -897,7 +862,6 @@ final class HTMLHeightCache: @unchecked Sendable {
 
                 return root
             }
-
         }
     }
 #endif

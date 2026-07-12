@@ -1,4 +1,3 @@
-import Kingfisher
 import SafariServices
 import SwiftUI
 import UIKit
@@ -16,10 +15,12 @@ enum HTMLContentRenderingContext {
     case profileBio
 }
 
-private enum HTMLContentRendererKind {
-    case richWebView
-    case interactiveText
-    case staticText
+private struct HTMLMediaContainerWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
 }
 
 struct MediaItem: Identifiable {
@@ -51,29 +52,16 @@ struct HTMLContentView: View {
     var sneakPeekActorHandle: String?
     var sneakPeekShareURL: URL?
     @State private var selectedMedia: MediaItem?
-    @State private var webViewHeight: CGFloat = 0
+    @State private var richContentState = HTMLContentReloadState()
     @State private var lightweightTextHeight: CGFloat = 0
-    @State private var isLoading: Bool = true
+    @State private var mediaContainerWidth: CGFloat = 0
     @State private var isVisible: Bool = false
     @State private var mediaActionMessage: String?
     @State private var isSavingImage = false
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(ExternalURLRouter.self) private var externalURLRouter
-
-    private var carouselHeight: CGFloat {
-        guard let firstMedia = media.first,
-              let width = firstMedia.width,
-              let height = firstMedia.height,
-              width > 0
-        else {
-            return 300
-        }
-        let aspectRatio = CGFloat(height) / CGFloat(width)
-        // Assume available width is roughly screen width minus padding
-        let estimatedWidth: CGFloat = 350
-        return min(estimatedWidth * aspectRatio, 500)
-    }
+    @Environment(\.displayScale) private var displayScale
 
     private func previewSize(for item: MediaItem) -> CGSize {
         guard let width = item.width,
@@ -102,46 +90,27 @@ struct HTMLContentView: View {
         return min(estimatedLines * 20, 200) // Cap at 200pt for initial estimate
     }
 
-    private var usesRichWebView: Bool {
-        rendererKind == .richWebView
-    }
-
-    private var usesInteractiveLightweightText: Bool {
-        rendererKind == .interactiveText
-    }
-
-    private var rendererKind: HTMLContentRendererKind {
-        switch renderingContext {
-        case .feedPreview, .embeddedPreview, .profileBio:
-            return hasInteractiveTextBehavior ? .interactiveText : .staticText
-        case .detail, .document:
-            if renderMode == .richWebView {
-                return .richWebView
+    private func richHeightBinding(for html: String) -> Binding<CGFloat> {
+        Binding(
+            get: { richContentState.height(for: html) },
+            set: { measuredHeight in
+                richContentState.applyMeasuredHeight(measuredHeight, for: html)
             }
-            return hasInteractiveTextBehavior ? .interactiveText : .staticText
-        }
-    }
-
-    private var hasInteractiveTextBehavior: Bool {
-        onTap != nil || sneakPeekPostId != nil || sneakPeekShareURL != nil || containsAnchorHTML
-    }
-
-    private var containsAnchorHTML: Bool {
-        let normalized = html.lowercased()
-        return normalized.contains("<a ") || normalized.contains("<a\n") || normalized.contains("href=")
-    }
-
-    private var mediaDownsamplingSize: CGSize {
-        CGSize(width: 350 * UIScreen.main.scale, height: carouselHeight * UIScreen.main.scale)
+        )
     }
 
     var body: some View {
+        let plan = renderPlan
+
         VStack(alignment: .leading, spacing: 8) {
-            if usesRichWebView {
+            if plan.rendererKind == .richWebView {
                 // Display text content with smooth transition
                 ZStack(alignment: .topLeading) {
+                    let richContentHeight = richContentState.height(for: html)
+                    let isRichContentLoading = richContentState.isLoading(for: html)
+
                     // Placeholder skeleton while loading
-                    if isLoading, webViewHeight == 0 {
+                    if isRichContentLoading, richContentHeight == 0 {
                         VStack(alignment: .leading, spacing: 8) {
                             RoundedRectangle(cornerRadius: 4)
                                 .fill(Color.gray.opacity(0.2))
@@ -167,7 +136,7 @@ struct HTMLContentView: View {
                     if isVisible {
                         HTMLWebView(
                             html: html,
-                            height: $webViewHeight,
+                            height: richHeightBinding(for: html),
                             onTap: onTap,
                             authManager: authManager,
                             navigationCoordinator: navigationCoordinator,
@@ -178,44 +147,57 @@ struct HTMLContentView: View {
                             sneakPeekShareURL: sneakPeekShareURL,
                             onLinkPressStateChange: nil
                         )
-                        .id(sneakPeekPostId ?? html)
-                        .frame(height: webViewHeight > 0 ? webViewHeight : estimatedMinHeight)
+                        .id(plan.contentIdentity)
+                        .frame(height: richContentHeight > 0 ? richContentHeight : estimatedMinHeight)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .opacity(webViewHeight > 0 ? 1 : 0)
-                        .onChange(of: webViewHeight) { _, newValue in
-                            if newValue > 0, isLoading {
-                                isLoading = false
-                            }
-                        }
+                        .opacity(richContentHeight > 0 ? 1 : 0)
                     }
                 }
-                .id(sneakPeekPostId ?? html)
+                .id(plan.contentIdentity)
                 // Gate heavy web-view creation on actual visibility
                 .onAppear {
+                    richContentState.beginRendering(html: html)
                     isVisible = true
                 }
-            } else if usesInteractiveLightweightText {
-                InteractiveHTMLTextView(
-                    html: html,
-                    height: $lightweightTextHeight,
-                    font: .body,
-                    color: .primary,
-                    onTap: onTap,
-                    authManager: authManager,
-                    navigationCoordinator: navigationCoordinator,
-                    externalURLRouter: externalURLRouter,
-                    sneakPeekPostId: sneakPeekPostId,
-                    sneakPeekActorHandle: sneakPeekActorHandle,
-                    sneakPeekShareURL: sneakPeekShareURL
-                )
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(minHeight: lightweightTextHeight > 0 ? lightweightTextHeight : estimatedMinHeight)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 4)
-                    .padding(.bottom, 2)
-                    .onChange(of: html) { _, _ in
-                        lightweightTextHeight = 0
+                .onChange(of: html) { _, newHTML in
+                    richContentState.beginRendering(html: newHTML)
+                }
+            } else if plan.rendererKind == .interactiveText {
+                Group {
+                    if plan.allowsTextSelection {
+                        SelectableHTMLTextView(
+                            html: html,
+                            height: $lightweightTextHeight,
+                            font: .body,
+                            color: .primary,
+                            authManager: authManager,
+                            navigationCoordinator: navigationCoordinator,
+                            externalURLRouter: externalURLRouter
+                        )
+                    } else {
+                        InteractiveHTMLTextView(
+                            html: html,
+                            height: $lightweightTextHeight,
+                            font: .body,
+                            color: .primary,
+                            onTap: onTap,
+                            authManager: authManager,
+                            navigationCoordinator: navigationCoordinator,
+                            externalURLRouter: externalURLRouter,
+                            sneakPeekPostId: sneakPeekPostId,
+                            sneakPeekActorHandle: sneakPeekActorHandle,
+                            sneakPeekShareURL: sneakPeekShareURL
+                        )
                     }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(minHeight: lightweightTextHeight > 0 ? lightweightTextHeight : estimatedMinHeight)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+                .padding(.bottom, 2)
+                .onChange(of: html) { _, _ in
+                    lightweightTextHeight = 0
+                }
             } else {
                 HTMLTextView(html: html)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -224,41 +206,52 @@ struct HTMLContentView: View {
             }
 
             // Display images in carousel if present
-            if !media.isEmpty {
+            if !plan.media.isEmpty {
                 TabView {
-                    ForEach(media) { item in
-                        let resolved = item.thumbnailUrl.flatMap { URL(string: $0) } ?? URL(string: item.url)
-                        if let thumbnailURL = resolved {
-                            KFImage(thumbnailURL)
-                                .placeholder {
-                                    ZStack {
-                                        Color.gray.opacity(0.1)
-                                        ProgressView()
-                                    }
+                    if mediaContainerWidth > 0 {
+                        ForEach(plan.media) { mediaPlan in
+                            HTMLRetryableRemoteImage(
+                                url: mediaPlan.sourceURL,
+                                alternativeText: mediaPlan.item.alt,
+                                downsamplingSize: mediaPlan.downsamplingSize,
+                                cancelsOnDisappear: mediaPlan.cancelsOnDisappear
+                            )
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedMedia = mediaPlan.item
+                            }
+                            .uiContextMenu(
+                                makeConfiguration: {
+                                    makeMediaContextMenuConfiguration(for: mediaPlan.item)
+                                },
+                                onCommit: {
+                                    selectedMedia = mediaPlan.item
                                 }
-                                .downsampling(size: mediaDownsamplingSize)
-                                .cancelOnDisappear(true)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    selectedMedia = item
-                                }
-                                .uiContextMenu(
-                                    makeConfiguration: {
-                                        makeMediaContextMenuConfiguration(for: item)
-                                    },
-                                    onCommit: {
-                                        selectedMedia = item
-                                    }
-                                )
+                            )
+                        }
+                    } else {
+                        ZStack {
+                            Color.gray.opacity(0.1)
+                            ProgressView()
                         }
                     }
                 }
                 .tabViewStyle(.page)
-                .frame(height: carouselHeight)
+                .frame(height: plan.carouselHeight)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: HTMLMediaContainerWidthKey.self,
+                            value: proxy.size.width
+                        )
+                    }
+                }
+                .onPreferenceChange(HTMLMediaContainerWidthKey.self) { width in
+                    guard width > 0, mediaContainerWidth != width else { return }
+                    mediaContainerWidth = width
+                }
             }
         }
         .fullScreenCover(item: $selectedMedia) { item in
@@ -290,12 +283,21 @@ struct HTMLContentView: View {
     }
 
     private func openLink(_ url: URL) {
-        DeepLinkNavigator.open(
-            url,
-            authManager: authManager,
-            navigationCoordinator: navigationCoordinator,
-            externalURLRouter: externalURLRouter
-        )
+        switch RendererLinkRoutingPolicy.action(for: url, hasNavigationCoordinator: true) {
+        case .consumeOwnedScheme:
+            return
+        case .inAppBrowser:
+            externalURLRouter.openInApp(url)
+        case .external:
+            externalURLRouter.open(url)
+        case .deepLink:
+            DeepLinkNavigator.open(
+                url,
+                authManager: authManager,
+                navigationCoordinator: navigationCoordinator,
+                externalURLRouter: externalURLRouter
+            )
+        }
     }
 
     private func makePostContextMenuConfiguration() -> UIContextMenuConfiguration? {
@@ -331,7 +333,7 @@ struct HTMLContentView: View {
                 title: NSLocalizedString("sneakpeek.action.sharePost", comment: "Share post"),
                 image: UIImage(systemName: "square.and.arrow.up")
             ) { _ in
-                ShareSheetPresenter.present(items: [sneakPeekShareURL])
+                presentShareSheet(items: [sneakPeekShareURL])
             }
             children.append(shareAction)
         }
@@ -343,7 +345,7 @@ struct HTMLContentView: View {
         UIContextMenuConfiguration(
             identifier: nil,
             previewProvider: {
-                SFSafariViewController(url: url)
+                SafariPreviewPolicy.url(for: url).map { SFSafariViewController(url: $0) }
             },
             actionProvider: { _ in
                 let openAction = UIAction(
@@ -357,7 +359,7 @@ struct HTMLContentView: View {
                     title: NSLocalizedString("sneakpeek.action.shareLink", comment: "Share link"),
                     image: UIImage(systemName: "square.and.arrow.up")
                 ) { _ in
-                    ShareSheetPresenter.present(items: [url])
+                    presentShareSheet(items: [url])
                 }
 
                 return UIMenu(children: [openAction, shareAction])
@@ -420,12 +422,38 @@ struct HTMLContentView: View {
                     title: NSLocalizedString("image.action.share", comment: "Share image"),
                     image: UIImage(systemName: "square.and.arrow.up")
                 ) { _ in
-                    ShareSheetPresenter.present(items: [mediaURL])
+                    presentShareSheet(items: [mediaURL])
                 }
             )
         }
 
         return UIMenu(children: elements)
+    }
+
+    private func presentShareSheet(items: [Any]) {
+        Task { @MainActor in
+            if let error = await ShareSheetPresentationCaller.shared.present(items: items) {
+                mediaActionMessage = error.userFacingMessage
+            }
+        }
+    }
+}
+
+private extension HTMLContentView {
+    var renderPlan: HTMLContentRenderPlan {
+        HTMLContentRenderPlan.make(
+            .init(
+                html: html,
+                media: media,
+                renderMode: renderMode,
+                renderingContext: renderingContext,
+                hasTapHandler: onTap != nil,
+                sneakPeekPostId: sneakPeekPostId,
+                sneakPeekShareURL: sneakPeekShareURL,
+                mediaContainerWidth: mediaContainerWidth,
+                displayScale: displayScale
+            )
+        )
     }
 }
 
@@ -523,16 +551,14 @@ private struct ImageSneakPeekPreview: View {
         ZStack {
             Color.black
 
-            if let url = URL(string: item.url) {
-                KFImage(url)
-                    .placeholder {
-                        ProgressView()
-                    }
-                    .cancelOnDisappear(true)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            HTMLRetryableRemoteImage(
+                url: URL(string: item.url),
+                alternativeText: item.alt,
+                cancelsOnDisappear: true,
+                failureBackground: .black,
+                failureForeground: .white
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
@@ -596,43 +622,54 @@ struct FullScreenImageView: View {
         self.showsToolbar = showsToolbar
         self.showsAltText = showsAltText
         self.onClose = onClose
-        let index = allMedia.firstIndex(where: { $0.id == mediaItem.id }) ?? 0
+        let index = HTMLMediaPager.initialIndex(for: mediaItem, in: allMedia)
         _currentIndex = State(initialValue: index)
     }
 
     private var currentMedia: MediaItem {
-        allMedia[currentIndex]
+        HTMLMediaPager.currentMedia(
+            fallback: mediaItem,
+            allMedia: allMedia,
+            index: currentIndex
+        )
     }
 
     @ViewBuilder
     private var imagePager: some View {
-        TabView(selection: $currentIndex) {
-            ForEach(Array(allMedia.enumerated()), id: \.element.id) { index, item in
-                VStack {
-                    if let url = URL(string: item.url) {
-                        KFImage(url)
-                            .placeholder {
-                                ProgressView()
-                            }
-                            .resizable()
-                            .scaledToFit()
-                    }
-
-                    if showsAltText, let alt = item.alt, !alt.isEmpty {
-                        Text(alt)
-                            .font(.body)
-                            .foregroundStyle(.white)
-                            .padding()
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .padding()
-                    }
+        if allMedia.isEmpty {
+            imagePage(mediaItem)
+        } else {
+            TabView(selection: $currentIndex) {
+                ForEach(Array(allMedia.enumerated()), id: \.element.id) { index, item in
+                    imagePage(item)
+                        .tag(index)
                 }
-                .tag(index)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+        }
+    }
+
+    private func imagePage(_ item: MediaItem) -> some View {
+        VStack {
+            HTMLRetryableRemoteImage(
+                url: URL(string: item.url),
+                alternativeText: item.alt,
+                failureBackground: .black,
+                failureForeground: .white,
+                showsAlternativeTextInFailure: false
+            )
+
+            if showsAltText, let alt = item.alt, !alt.isEmpty {
+                Text(alt)
+                    .font(.body)
+                    .foregroundStyle(.white)
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding()
             }
         }
-        .tabViewStyle(.page(indexDisplayMode: .always))
-        .indexViewStyle(.page(backgroundDisplayMode: .always))
     }
 
     var body: some View {

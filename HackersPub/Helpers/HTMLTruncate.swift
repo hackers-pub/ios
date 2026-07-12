@@ -7,8 +7,8 @@ public struct HTMLTruncateOptions {
     public let keepImageTag: Bool
     public let ellipsis: String
     /// Optional text displayed after the ellipsis when truncation occurs
-    /// (e.g. "Read more"). When non-nil the text is wrapped in a styled
-    /// `<span>` so it appears as a link-like indicator inside the HTML.
+    /// (e.g. "Read more"). When non-nil the text is marked so the app's HTML
+    /// renderer can give it link-like emphasis without making it a URL.
     public let readMoreText: String?
 
     public init(
@@ -24,6 +24,13 @@ public struct HTMLTruncateOptions {
     public static let `default` = HTMLTruncateOptions()
 }
 
+/// Private-use characters that carry app-generated read-more semantics through
+/// Foundation's HTML importer. `HTMLTextRenderer` removes both before display.
+enum HTMLReadMoreMarker {
+    static let start = "\u{E000}"
+    static let end = "\u{E001}"
+}
+
 // MARK: - String Extension
 
 public extension String {
@@ -35,11 +42,7 @@ public extension String {
     func htmlTruncated(limit: Int, options: HTMLTruncateOptions = .default) -> String {
         guard limit > 0 else { return "" }
 
-        do {
-            return try HTMLSafeTruncator.truncate(html: self, limit: limit, options: options)
-        } catch {
-            return self
-        }
+        return HTMLSafeTruncator.truncate(html: self, limit: limit, options: options)
     }
 }
 
@@ -50,44 +53,32 @@ public extension String {
 /// tag structure.
 enum HTMLSafeTruncator {
     /// Truncate *html* so that at most *limit* visible characters remain.
-    static func truncate(html: String, limit: Int, options: HTMLTruncateOptions) throws -> String {
-        let tokens = try HTMLTokenizer.tokenize(html)
+    static func truncate(html: String, limit: Int, options: HTMLTruncateOptions) -> String {
+        let tokens = HTMLTokenizer.tokenize(html)
         let visibleLength = visibleTextLength(of: tokens)
 
         guard visibleLength > limit else {
-            let safe = rebuildSafe(tokens: tokens)
-            return options.keepImageTag ? safe : stripImgTags(safe)
+            return rebuildSafe(tokens: tokens, options: options)
         }
 
-        let truncated = buildTruncatedOutput(tokens: tokens, limit: limit, options: options)
-        return options.keepImageTag ? truncated : stripImgTags(truncated)
+        return buildTruncatedOutput(tokens: tokens, limit: limit, options: options)
     }
 }
 
 // MARK: - Safe Rebuild
 
+private struct HTMLTruncationState {
+    var result = ""
+    var tagStack: [String] = []
+    var counted = 0
+}
+
 private extension HTMLSafeTruncator {
     /// Rebuild the HTML from tokens, stripping unsafe (script/style) content.
-    static func rebuildSafe(tokens: [HTMLToken]) -> String {
+    static func rebuildSafe(tokens: [HTMLToken], options: HTMLTruncateOptions) -> String {
         var result = ""
         for token in tokens {
-            switch token {
-            case let .text(value):
-                result += value
-            case let .entity(raw, _):
-                result += raw
-            case let .openTag(raw, name):
-                guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { continue }
-                result += raw
-            case let .closeTag(raw, name):
-                guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { continue }
-                result += raw
-            case let .voidTag(raw, name):
-                guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { continue }
-                result += raw
-            case .unsafeContent:
-                continue
-            }
+            appendSafeRebuiltToken(token, result: &result, options: options)
         }
         return result
     }
@@ -101,51 +92,92 @@ private extension HTMLSafeTruncator {
         limit: Int,
         options: HTMLTruncateOptions
     ) -> String {
-        var result = ""
-        var tagStack: [String] = []
-        var counted = 0
+        var state = HTMLTruncationState()
 
         for token in tokens {
-            if counted >= limit { break }
-            processToken(token, result: &result, tagStack: &tagStack, counted: &counted, limit: limit)
+            if state.counted >= limit {
+                break
+            }
+            processToken(
+                token,
+                state: &state,
+                limit: limit,
+                options: options
+            )
         }
 
-        result += options.ellipsis
         if let readMore = options.readMoreText {
-            // Use system link color via -apple-system-link so the indicator
-            // adapts to Light / Dark Mode automatically.
-            result += " <span style=\"color: -apple-system-link;\">\(readMore)</span>"
+            appendClosingTags(to: &state.result, tagStack: state.tagStack)
+            state.result += options.ellipsis
+            state.result += " <span>\(HTMLReadMoreMarker.start)"
+            state.result += escapeHTMLText(readMore)
+            state.result += "\(HTMLReadMoreMarker.end)</span>"
+        } else {
+            state.result += options.ellipsis
+            appendClosingTags(to: &state.result, tagStack: state.tagStack)
         }
-        appendClosingTags(to: &result, tagStack: tagStack)
-        return result
+        return state.result
     }
 
     static func processToken(
         _ token: HTMLToken,
-        result: inout String,
-        tagStack: inout [String],
-        counted: inout Int,
-        limit: Int
+        state: inout HTMLTruncationState,
+        limit: Int,
+        options: HTMLTruncateOptions
     ) {
         switch token {
         case let .text(value):
-            let (appended, consumed) = truncateVisibleText(value, remaining: limit - counted)
-            result += appended
-            counted += consumed
+            let (appended, consumed) = truncateVisibleText(value, remaining: limit - state.counted)
+            state.result += appended
+            state.counted += consumed
         case let .entity(raw, _):
-            guard counted < limit else { return }
-            result += raw
-            counted += 1
+            guard state.counted < limit else { return }
+            state.result += raw
+            state.counted += 1
         case let .openTag(raw, name):
-            processOpenTag(raw: raw, name: name, result: &result, tagStack: &tagStack)
+            processOpenTag(raw: raw, name: name, result: &state.result, tagStack: &state.tagStack)
         case let .closeTag(raw, name):
-            processCloseTag(raw: raw, name: name, result: &result, tagStack: &tagStack)
+            processCloseTag(raw: raw, name: name, result: &state.result, tagStack: &state.tagStack)
         case let .voidTag(raw, name):
-            guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { return }
-            result += raw
+            appendSafeVoidTag(raw: raw, name: name, result: &state.result, options: options)
         case .unsafeContent:
             break
         }
+    }
+
+    static func appendSafeRebuiltToken(
+        _ token: HTMLToken,
+        result: inout String,
+        options: HTMLTruncateOptions
+    ) {
+        switch token {
+        case let .text(value):
+            result += value
+        case let .entity(raw, _):
+            result += raw
+        case let .openTag(raw, name), let .closeTag(raw, name):
+            appendSafeTag(raw: raw, name: name, result: &result)
+        case let .voidTag(raw, name):
+            appendSafeVoidTag(raw: raw, name: name, result: &result, options: options)
+        case .unsafeContent:
+            break
+        }
+    }
+
+    static func appendSafeTag(raw: String, name: String, result: inout String) {
+        guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { return }
+        result += raw
+    }
+
+    static func appendSafeVoidTag(
+        raw: String,
+        name: String,
+        result: inout String,
+        options: HTMLTruncateOptions
+    ) {
+        guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { return }
+        guard options.keepImageTag || name.lowercased() != "img" else { return }
+        result += raw
     }
 
     static func processOpenTag(
@@ -168,7 +200,9 @@ private extension HTMLSafeTruncator {
         tagStack: inout [String]
     ) {
         guard !HTMLConstants.unsafeTags.contains(name.lowercased()) else { return }
-        if let idx = tagStack.lastIndex(of: name) {
+        if let idx = tagStack.lastIndex(where: {
+            $0.caseInsensitiveCompare(name) == .orderedSame
+        }) {
             tagStack.remove(at: idx)
         }
         result += raw
@@ -190,11 +224,26 @@ private extension HTMLSafeTruncator {
         var count = 0
         var endIndex = text.startIndex
         for idx in text.indices {
-            if count >= remaining { break }
+            if count >= remaining {
+                break
+            }
             endIndex = text.index(after: idx)
             count += 1
         }
         return (String(text[text.startIndex ..< endIndex]), count)
+    }
+
+    static func escapeHTMLText(_ text: String) -> String {
+        text.reduce(into: "") { escaped, character in
+            switch character {
+            case "&": escaped += "&amp;"
+            case "<": escaped += "&lt;"
+            case ">": escaped += "&gt;"
+            case "\"": escaped += "&quot;"
+            case "'": escaped += "&#39;"
+            default: escaped.append(character)
+            }
+        }
     }
 
     static func visibleTextLength(of tokens: [HTMLToken]) -> Int {
@@ -205,12 +254,5 @@ private extension HTMLSafeTruncator {
             default: return acc
             }
         }
-    }
-
-    static func stripImgTags(_ html: String) -> String {
-        guard let regex = try? Regex(#"<img\s[^>]*>"#).ignoresCase() else {
-            return html
-        }
-        return html.replacing(regex, with: "")
     }
 }
