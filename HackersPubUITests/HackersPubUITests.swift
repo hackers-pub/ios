@@ -1,41 +1,94 @@
-//
-//  HackersPubUITests.swift
-//  HackersPubUITests
-//
-//  Created by Jihyeok Seo on 9/26/25.
-//
-
 import XCTest
 
 final class HackersPubUITests: XCTestCase {
+    private let uiTimeout: TimeInterval = 5
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
+    func testGuestCanIndividuallyDeleteASeededRecentSearch() {
+        let app = makeGuestApp(seedingRecentSearch: true)
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        openSearch(in: app)
+        let recentSearch = app.buttons["search.recent.UI test recent search"]
+        XCTAssertTrue(recentSearch.waitForExistence(timeout: uiTimeout))
+        recentSearch.swipeLeft()
+        let deleteButton = app.buttons["search.recent.delete.UI test recent search"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: uiTimeout))
+        deleteButton.tap()
+
+        XCTAssertTrue(element("search.initial", in: app).waitForExistence(timeout: uiTimeout))
     }
 
     @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+    func testGuestKeyboardSearchSubmitRecordsAndClearsRecentSearches() {
+        let app = makeGuestApp()
+        app.launch()
+
+        openSearch(in: app)
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: uiTimeout))
+        searchField.tap()
+        searchField.typeText("ui test")
+        app.keyboards.buttons["Search"].tap()
+
+        let resolvedResult = element("search.result.resolved.ui-test-post", in: app)
+        XCTAssertTrue(resolvedResult.waitForExistence(timeout: uiTimeout))
+
+        searchField.tap()
+        let clearButton = searchField.buttons.firstMatch
+        XCTAssertTrue(clearButton.waitForExistence(timeout: uiTimeout))
+        clearButton.tap()
+
+        XCTAssertTrue(app.buttons["search.recent.ui test"].waitForExistence(timeout: uiTimeout))
+        app.buttons["search.recent.clear"].tap()
+        XCTAssertTrue(element("search.initial", in: app).waitForExistence(timeout: uiTimeout))
+    }
+
+    @MainActor
+    func testGuestLaunchSeedsRouterSearchBeforeSearchViewAppears() {
+        let app = makeGuestApp(seedingRouterSearch: true)
+        app.launch()
+
+        let resolvedResult = element("search.result.resolved.ui-test-post", in: app)
+        XCTAssertTrue(resolvedResult.waitForExistence(timeout: uiTimeout))
+    }
+
+    private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)[identifier]
+    }
+
+    @MainActor
+    private func makeGuestApp(
+        seedingRecentSearch: Bool = false,
+        seedingRouterSearch: Bool = false
+    ) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US",
+            "-com.hackerspub.ui-test.force-guest",
+            "-com.hackerspub.ui-test.reset-search-state",
+            "-com.hackerspub.ui-test.search-stub",
+            "-com.hackerspub.ui-test.no-live-root-network"
+        ]
+        if seedingRecentSearch {
+            app.launchArguments.append("-com.hackerspub.ui-test.seed-recent-search")
         }
+        if seedingRouterSearch {
+            app.launchArguments.append("-com.hackerspub.ui-test.seed-router-search")
+        }
+        return app
+    }
+
+    @MainActor
+    private func openSearch(in app: XCUIApplication) {
+        let searchTab = app.buttons["tab.search"]
+        XCTAssertTrue(searchTab.waitForExistence(timeout: uiTimeout))
+        searchTab.tap()
+        XCTAssertTrue(app.otherElements["search.screen"].waitForExistence(timeout: uiTimeout))
     }
 }
