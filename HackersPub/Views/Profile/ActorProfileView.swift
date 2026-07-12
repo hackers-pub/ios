@@ -1,6 +1,5 @@
 import Kingfisher
 import SwiftUI
-@preconcurrency import Apollo
 
 private struct ActorRelationshipTagsView: View {
     let followsViewer: Bool
@@ -72,7 +71,7 @@ private struct EditableProfileAccount: Identifiable {
     }
 }
 
-private enum ActorProfileTab: String, CaseIterable, Identifiable {
+enum ActorProfileTab: String, CaseIterable, Identifiable {
     case posts
     case notes
     case articles
@@ -104,16 +103,6 @@ private enum ActorProfileTab: String, CaseIterable, Identifiable {
     }
 }
 
-private struct ActorProfileTabPageState {
-    var hasLoaded = false
-    var isLoading = false
-    var hasPreviousPage = false
-    var hasNextPage = false
-    var startCursor: String?
-    var endCursor: String?
-    var errorMessage: String?
-}
-
 private struct ActorProfilePostListView<Post: PostProtocol & ReactionCapablePostProtocol>: View {
     let posts: [Post]
     let pageState: ActorProfileTabPageState
@@ -123,63 +112,61 @@ private struct ActorProfilePostListView<Post: PostProtocol & ReactionCapablePost
     let onLoadMore: () -> Void
 
     var body: some View {
-        Group {
-            if pageState.isLoading && posts.isEmpty {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding()
-            } else if let errorMessage = pageState.errorMessage, posts.isEmpty {
-                VStack(spacing: 12) {
-                    ContentUnavailableView(
-                        NSLocalizedString("common.error", comment: "Error title"),
-                        systemImage: "exclamationmark.triangle",
-                        description: Text(errorMessage)
-                    )
-
-                    Button(NSLocalizedString("common.retry", comment: "Retry button")) {
-                        onRetry()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
+        if pageState.isLoading && posts.isEmpty {
+            ProgressView()
+                .frame(maxWidth: .infinity)
                 .padding()
-            } else if pageState.hasLoaded && posts.isEmpty {
-                ContentUnavailableView(emptyTitle, systemImage: "doc.text")
+        } else if let errorMessage = pageState.errorMessage, posts.isEmpty {
+            VStack(spacing: 12) {
+                ContentUnavailableView(
+                    NSLocalizedString("common.error", comment: "Error title"),
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(errorMessage)
+                )
+
+                Button(NSLocalizedString("common.retry", comment: "Retry button")) {
+                    onRetry()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+        } else if pageState.hasLoaded && posts.isEmpty {
+            ContentUnavailableView(emptyTitle, systemImage: "doc.text")
+                .padding()
+        } else {
+            LazyVStack(spacing: 0) {
+                if pageState.hasPreviousPage && !posts.isEmpty {
+                    LoadNewerItemsRow(isLoading: pageState.isLoading) {
+                        onLoadNewer()
+                    }
+                    Divider()
+                }
+
+                ForEach(posts, id: \.id) { post in
+                    PostView(
+                        post: post,
+                        showAuthor: true,
+                        disableNavigation: false,
+                        enableSneakPeek: true,
+                        contentRenderMode: .lightweightText
+                    )
                     .padding()
-            } else {
-                LazyVStack(spacing: 0) {
-                    if pageState.hasPreviousPage && !posts.isEmpty {
-                        LoadNewerItemsRow(isLoading: pageState.isLoading) {
-                            onLoadNewer()
+                    .onAppear {
+                        if post.id == posts.last?.id && pageState.hasNextPage && !pageState.isLoading {
+                            onLoadMore()
                         }
-                        Divider()
                     }
 
-                    ForEach(posts, id: \.id) { post in
-                        PostView(
-                            post: post,
-                            showAuthor: true,
-                            disableNavigation: false,
-                            enableSneakPeek: true,
-                            contentRenderMode: .lightweightText
-                        )
-                            .padding()
-                            .onAppear {
-                                if post.id == posts.last?.id && pageState.hasNextPage && !pageState.isLoading {
-                                    onLoadMore()
-                                }
-                            }
+                    Divider()
+                }
 
-                        Divider()
+                if pageState.isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
                     }
-
-                    if pageState.isLoading {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .padding()
-                    }
+                    .padding()
                 }
             }
         }
@@ -191,17 +178,27 @@ struct ActorProfileView: View {
 
     @Environment(AuthManager.self) private var authManager
 
-    @State private var actorData: HackersPub.ActorByHandleQuery.Data.ActorByHandle
-    @State private var selectedTab: ActorProfileTab = .posts
-    @State private var posts: [HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node] = []
-    @State private var notes: [HackersPub.ActorNotesQuery.Data.ActorByHandle.Notes.Edge.Node] = []
-    @State private var articles: [HackersPub.ActorArticlesQuery.Data.ActorByHandle.Articles.Edge.Node] = []
-    @State private var postsPageState = ActorProfileTabPageState()
-    @State private var notesPageState = ActorProfileTabPageState()
-    @State private var articlesPageState = ActorProfileTabPageState()
-    @State private var isPerformingAction = false
+    @State var actorData: HackersPub.ActorByHandleQuery.Data.ActorByHandle
+    @State var selectedTab: ActorProfileTab = .posts
+    @State var posts: [HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node] = []
+    @State var notes: [HackersPub.ActorNotesQuery.Data.ActorByHandle.Notes.Edge.Node] = []
+    @State var articles: [HackersPub.ActorArticlesQuery.Data.ActorByHandle.Articles.Edge.Node] = []
+    @State var postsPageState = ActorProfileTabPageState()
+    @State var notesPageState = ActorProfileTabPageState()
+    @State var articlesPageState = ActorProfileTabPageState()
+    @State var profilePostsRequestCoordinator: ActorProfilePostRequestCoordinator
+    @State var notesRequestCoordinator: ActorProfileTabRequestCoordinator
+    @State var articlesRequestCoordinator: ActorProfileTabRequestCoordinator
+    @State private var notesLoadTask: Task<Void, Never>?
+    @State private var articlesLoadTask: Task<Void, Never>?
+    @State private var localRelationshipState: ActorRelationshipState?
+    @State private var relationshipActionCoordinator = ProfileRelationshipActionCoordinator()
+    @State private var relationshipActionTask: Task<Void, Never>?
+    @State private var relationshipRetryGeneration: UInt64 = 0
     @State private var relationshipActionErrorMessage: String?
+    @State private var failedRelationshipRetry: ActorProfileRelationshipRetry?
     @State private var editableProfileAccount: EditableProfileAccount?
+    @State private var postContentGeneration = 0
 
     init(actor: HackersPub.ActorByHandleQuery.Data.ActorByHandle) {
         self.actor = actor
@@ -216,10 +213,34 @@ struct ActorProfileView: View {
             endCursor: actor.posts.pageInfo.endCursor,
             errorMessage: nil
         ))
+        _profilePostsRequestCoordinator = State(initialValue: ActorProfilePostRequestCoordinator(
+            profileID: actor.id,
+            hasLoadedInitial: true
+        ))
+        _notesRequestCoordinator = State(initialValue: ActorProfileTabRequestCoordinator(actorID: actor.id))
+        _articlesRequestCoordinator = State(initialValue: ActorProfileTabRequestCoordinator(actorID: actor.id))
     }
 
     private var relationshipState: ActorRelationshipState {
-        ActorRelationshipState(actor: actorData)
+        if let localRelationshipState, localRelationshipState.actorId == actorData.id {
+            return localRelationshipState
+        }
+        return ActorRelationshipState(actor: actorData)
+    }
+
+    private var isPerformingAction: Bool {
+        relationshipActionCoordinator.isPerformingAction
+    }
+
+    private var failedRelationshipRetryAction: ActorRelationshipAction? {
+        failedRelationshipRetry?.actionIfCurrent(
+            actorID: actorData.id,
+            generation: relationshipRetryGeneration
+        )
+    }
+
+    private var selectedTabTaskID: String {
+        "\(actor.id)|\(selectedTab.rawValue)"
     }
 
     private var canShowRelationshipControls: Bool {
@@ -242,7 +263,7 @@ struct ActorProfileView: View {
                 emptyTitle: ActorProfileTab.posts.emptyTitle,
                 onRetry: {
                     Task {
-                        await fetchProfile(cachePolicy: .networkOnly)
+                        await refreshProfile()
                     }
                 },
                 onLoadNewer: {
@@ -262,17 +283,20 @@ struct ActorProfileView: View {
                 pageState: notesPageState,
                 emptyTitle: ActorProfileTab.notes.emptyTitle,
                 onRetry: {
-                    Task {
-                        await loadNotes(reset: true, cachePolicy: .networkOnly)
+                    notesLoadTask?.cancel()
+                    notesLoadTask = Task {
+                        await refreshNotes()
                     }
                 },
                 onLoadNewer: {
-                    Task {
+                    notesLoadTask?.cancel()
+                    notesLoadTask = Task {
                         await loadNewerNotes()
                     }
                 },
                 onLoadMore: {
-                    Task {
+                    notesLoadTask?.cancel()
+                    notesLoadTask = Task {
                         await loadMoreNotes()
                     }
                 }
@@ -283,17 +307,20 @@ struct ActorProfileView: View {
                 pageState: articlesPageState,
                 emptyTitle: ActorProfileTab.articles.emptyTitle,
                 onRetry: {
-                    Task {
-                        await loadArticles(reset: true, cachePolicy: .networkOnly)
+                    articlesLoadTask?.cancel()
+                    articlesLoadTask = Task {
+                        await refreshArticles()
                     }
                 },
                 onLoadNewer: {
-                    Task {
+                    articlesLoadTask?.cancel()
+                    articlesLoadTask = Task {
                         await loadNewerArticles()
                     }
                 },
                 onLoadMore: {
-                    Task {
+                    articlesLoadTask?.cancel()
+                    articlesLoadTask = Task {
                         await loadMoreArticles()
                     }
                 }
@@ -340,7 +367,7 @@ struct ActorProfileView: View {
                             Label(NSLocalizedString("profile.edit.title", comment: "Edit profile button"), systemImage: "pencil")
                         }
                         .buttonStyle(.borderedProminent)
-                    } else if canShowRelationshipControls {
+                    } else if canShowRelationshipControls && !relationshipState.viewerBlocks {
                         if relationshipState.viewerFollows {
                             Button {
                                 performRelationshipAction(.unfollow)
@@ -393,12 +420,15 @@ struct ActorProfileView: View {
                 profileTabContent
             }
         }
-        .task(id: selectedTab) {
+        .task(id: selectedTabTaskID) {
             await loadSelectedTabIfNeeded()
         }
         .onChange(of: selectedTab) {
             notesPageState.errorMessage = nil
             articlesPageState.errorMessage = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postContentDidChange)) { notification in
+            handlePostContentNotification(notification)
         }
         .toolbar {
             if canShowRelationshipControls {
@@ -414,16 +444,29 @@ struct ActorProfileView: View {
         .alert(
             NSLocalizedString("actorRelation.error.title", comment: "Actor relation action error title"),
             isPresented: Binding(
-                get: { relationshipActionErrorMessage != nil },
+                get: {
+                    relationshipActionErrorMessage != nil
+                        && failedRelationshipRetryAction != nil
+                },
                 set: { isPresented in
                     if !isPresented {
                         relationshipActionErrorMessage = nil
+                        failedRelationshipRetry = nil
                     }
                 }
             )
         ) {
+            if let failedRelationshipRetryAction {
+                Button(NSLocalizedString("common.retry", comment: "Retry button")) {
+                    let action = failedRelationshipRetryAction
+                    relationshipActionErrorMessage = nil
+                    failedRelationshipRetry = nil
+                    performRelationshipAction(action)
+                }
+            }
             Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
                 relationshipActionErrorMessage = nil
+                failedRelationshipRetry = nil
             }
         } message: {
             Text(relationshipActionErrorMessage ?? "")
@@ -432,7 +475,7 @@ struct ActorProfileView: View {
             NavigationStack {
                 EditProfileView(account: item.account) {
                     Task {
-                        await fetchProfile(cachePolicy: .networkOnly)
+                        await refreshProfile()
                     }
                 }
             }
@@ -440,30 +483,83 @@ struct ActorProfileView: View {
         .refreshable {
             await refreshProfile()
         }
-        .task {
-            await fetchProfile(cachePolicy: .networkFirst)
-        }
-        .onChange(of: actor.id) {
-            resetTabs(for: actor)
-            Task {
-                await fetchProfile(cachePolicy: .networkFirst)
-            }
+        .task(id: actor.id) {
+            activateProfileIfNeeded()
         }
         .toolbar(.hidden, for: .tabBar)
     }
 
+    @MainActor
+    private func handlePostContentNotification(_ notification: Notification) {
+        guard let event = PostContentEventCenter.event(from: notification) else { return }
+        let removedPostIDs: Set<String>
+        switch event {
+        case let .postDeleted(postID):
+            removedPostIDs = [postID]
+        case .replyCreated, .bookmarkChanged:
+            return
+        }
+        let rows = posts.map {
+            postListItemIdentity(rowID: $0.id, post: $0)
+        } + notes.map {
+            postListItemIdentity(rowID: $0.id, post: $0)
+        } + articles.map {
+            postListItemIdentity(rowID: $0.id, post: $0)
+        }
+        let action = PostContentListEventRouter.route(
+            event,
+            host: .actorProfile,
+            rows: rows,
+            eventGeneration: postContentGeneration,
+            activeGeneration: postContentGeneration
+        )
+        guard case .remove = action else { return }
+        postContentGeneration += 1
+        posts.removeAll { removedPostIDs.contains($0.id) || removedPostIDs.contains($0.sharedPost?.id ?? "") }
+        notes.removeAll { removedPostIDs.contains($0.id) || removedPostIDs.contains($0.sharedPost?.id ?? "") }
+        articles.removeAll { removedPostIDs.contains($0.id) || removedPostIDs.contains($0.sharedPost?.id ?? "") }
+    }
+
     private func performRelationshipAction(_ action: ActorRelationshipAction) {
         guard canShowRelationshipControls else { return }
-        guard !isPerformingAction else { return }
+        let request = relationshipActionCoordinator.begin(
+            action: action,
+            actorID: relationshipState.actorId
+        )
+        let retryGeneration = relationshipRetryGeneration
+        failedRelationshipRetry = nil
 
-        Task {
-            isPerformingAction = true
-            defer { isPerformingAction = false }
-
+        relationshipActionTask?.cancel()
+        relationshipActionTask = Task {
             do {
-                try await ActorRelationshipService.perform(action: action, actorId: relationshipState.actorId)
-                await fetchProfile(cachePolicy: .networkOnly)
+                try Task.checkCancellation()
+                let receipt = try await ActorRelationshipService.perform(
+                    action: action,
+                    actorId: request.actorID
+                )
+                try Task.checkCancellation()
+                guard let updatedRelationship = relationshipActionCoordinator.apply(
+                    receipt,
+                    for: request,
+                    to: relationshipState
+                ) else {
+                    return
+                }
+                localRelationshipState = updatedRelationship
+            } catch is CancellationError {
+                _ = relationshipActionCoordinator.finishFailure(for: request)
             } catch {
+                guard relationshipActionCoordinator.finishFailure(for: request),
+                      request.actorID == actorData.id,
+                      retryGeneration == relationshipRetryGeneration
+                else {
+                    return
+                }
+                failedRelationshipRetry = ActorProfileRelationshipRetry(
+                    action: action,
+                    actorID: request.actorID,
+                    generation: retryGeneration
+                )
                 relationshipActionErrorMessage = error.localizedDescription
             }
         }
@@ -479,7 +575,30 @@ struct ActorProfileView: View {
         }
     }
 
+    private func activateProfileIfNeeded() {
+        guard profilePostsRequestCoordinator.activate(
+            profileID: actor.id,
+            hasLoadedInitial: true
+        ) else {
+            return
+        }
+        resetTabs(for: actor)
+    }
+
     private func resetTabs(for actor: HackersPub.ActorByHandleQuery.Data.ActorByHandle) {
+        relationshipActionCoordinator.invalidate()
+        relationshipActionTask?.cancel()
+        relationshipActionTask = nil
+        relationshipRetryGeneration &+= 1
+        localRelationshipState = nil
+        failedRelationshipRetry = nil
+        relationshipActionErrorMessage = nil
+        notesLoadTask?.cancel()
+        notesLoadTask = nil
+        articlesLoadTask?.cancel()
+        articlesLoadTask = nil
+        notesRequestCoordinator.reset(actorID: actor.id)
+        articlesRequestCoordinator.reset(actorID: actor.id)
         actorData = actor
         selectedTab = .posts
         posts = actor.posts.edges.map { $0.node }
@@ -496,329 +615,5 @@ struct ActorProfileView: View {
         notesPageState = ActorProfileTabPageState()
         articles = []
         articlesPageState = ActorProfileTabPageState()
-    }
-
-    private func fetchProfile(cachePolicy: CachePolicy.Query.SingleResponse) async {
-        postsPageState.isLoading = selectedTab == .posts
-        defer {
-            postsPageState.isLoading = false
-        }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: nil, before: nil, first: 20, last: nil),
-                cachePolicy: cachePolicy
-            )
-            if let refreshedActor = response.data?.actorByHandle {
-                actorData = refreshedActor
-                posts = refreshedActor.posts.edges.map { $0.node }
-                postsPageState.hasLoaded = true
-                postsPageState.hasPreviousPage = refreshedActor.posts.pageInfo.hasPreviousPage
-                postsPageState.hasNextPage = refreshedActor.posts.pageInfo.hasNextPage
-                postsPageState.startCursor = refreshedActor.posts.pageInfo.startCursor
-                postsPageState.endCursor = refreshedActor.posts.pageInfo.endCursor
-                postsPageState.errorMessage = nil
-            }
-        } catch {
-            if posts.isEmpty {
-                postsPageState.errorMessage = error.localizedDescription
-            }
-            print("Error fetching actor profile: \(error)")
-        }
-    }
-
-    private func refreshProfile() async {
-        let shouldShowPostsLoading = selectedTab == .posts && posts.isEmpty
-        postsPageState.isLoading = shouldShowPostsLoading
-        defer {
-            postsPageState.isLoading = false
-        }
-
-        do {
-            if posts.isEmpty || postsPageState.startCursor == nil {
-                let response = try await apolloClient.fetch(
-                    query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: nil, before: nil, first: 20, last: nil),
-                    cachePolicy: .networkOnly
-                )
-                if let refreshedActor = response.data?.actorByHandle {
-                    actorData = refreshedActor
-                    posts = refreshedActor.posts.edges.map { $0.node }
-                    postsPageState.hasLoaded = true
-                    postsPageState.hasPreviousPage = refreshedActor.posts.pageInfo.hasPreviousPage
-                    postsPageState.hasNextPage = refreshedActor.posts.pageInfo.hasNextPage
-                    postsPageState.startCursor = refreshedActor.posts.pageInfo.startCursor
-                    postsPageState.endCursor = refreshedActor.posts.pageInfo.endCursor
-                    postsPageState.errorMessage = nil
-                }
-            } else {
-                try await fetchNewerPosts()
-            }
-        } catch {
-            if posts.isEmpty {
-                postsPageState.errorMessage = error.localizedDescription
-            }
-            print("Error refreshing actor profile: \(error)")
-        }
-
-        switch selectedTab {
-        case .posts:
-            break
-        case .notes:
-            await loadNotes(reset: true, cachePolicy: .networkOnly)
-        case .articles:
-            await loadArticles(reset: true, cachePolicy: .networkOnly)
-        }
-    }
-
-    private func loadSelectedTabIfNeeded() async {
-        switch selectedTab {
-        case .posts:
-            if !postsPageState.hasLoaded {
-                await fetchProfile(cachePolicy: .networkFirst)
-            }
-        case .notes:
-            if !notesPageState.hasLoaded {
-                await loadNotes(reset: true, cachePolicy: .networkFirst)
-            }
-        case .articles:
-            if !articlesPageState.hasLoaded {
-                await loadArticles(reset: true, cachePolicy: .networkFirst)
-            }
-        }
-    }
-
-    private func loadMorePosts() async {
-        guard let cursor = postsPageState.endCursor, postsPageState.hasNextPage, !postsPageState.isLoading else { return }
-
-        postsPageState.isLoading = true
-        defer { postsPageState.isLoading = false }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: .some(cursor), before: nil, first: 20, last: nil),
-                cachePolicy: .networkOnly
-            )
-            if let refreshedActor = response.data?.actorByHandle {
-                appendUniquePosts(refreshedActor.posts.edges.map { $0.node })
-                postsPageState.hasLoaded = true
-                postsPageState.hasNextPage = refreshedActor.posts.pageInfo.hasNextPage
-                postsPageState.endCursor = refreshedActor.posts.pageInfo.endCursor
-                postsPageState.errorMessage = nil
-            }
-        } catch {
-            postsPageState.errorMessage = error.localizedDescription
-            print("Error loading more actor posts: \(error)")
-        }
-    }
-
-    private func loadNewerPosts() async {
-        guard let _ = postsPageState.startCursor, !postsPageState.isLoading else { return }
-        postsPageState.isLoading = true
-        defer { postsPageState.isLoading = false }
-        do {
-            try await fetchNewerPosts()
-        } catch {
-            postsPageState.errorMessage = error.localizedDescription
-            print("Error loading newer actor posts: \(error)")
-        }
-    }
-
-    private func fetchNewerPosts() async throws {
-        guard let cursor = postsPageState.startCursor else { return }
-        let response = try await apolloClient.fetch(
-            query: HackersPub.ActorByHandleQuery(handle: actorData.handle, after: nil, before: .some(cursor), first: nil, last: 20),
-            cachePolicy: .networkOnly
-        )
-        if let refreshedActor = response.data?.actorByHandle {
-            actorData = refreshedActor
-            prependUniquePosts(refreshedActor.posts.edges.map { $0.node })
-            postsPageState.hasLoaded = true
-            postsPageState.hasPreviousPage = refreshedActor.posts.pageInfo.hasPreviousPage
-            if let newStartCursor = refreshedActor.posts.pageInfo.startCursor {
-                postsPageState.startCursor = newStartCursor
-            }
-            if postsPageState.endCursor == nil {
-                postsPageState.endCursor = refreshedActor.posts.pageInfo.endCursor
-            }
-            postsPageState.errorMessage = nil
-        }
-    }
-
-    private func prependUniquePosts(_ incoming: [HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node]) {
-        let existingIDs = Set(posts.map(\.id))
-        posts = incoming.filter { !existingIDs.contains($0.id) } + posts
-    }
-
-    private func appendUniquePosts(_ incoming: [HackersPub.ActorByHandleQuery.Data.ActorByHandle.Posts.Edge.Node]) {
-        let existingIDs = Set(posts.map(\.id))
-        posts.append(contentsOf: incoming.filter { !existingIDs.contains($0.id) })
-    }
-
-    private func loadNotes(reset: Bool, cachePolicy: CachePolicy.Query.SingleResponse) async {
-        guard !notesPageState.isLoading else { return }
-        if !reset {
-            guard notesPageState.hasNextPage, notesPageState.endCursor != nil else { return }
-        }
-
-        let shouldShowLoading = !reset || notes.isEmpty
-        if shouldShowLoading {
-            notesPageState.isLoading = true
-        }
-        defer {
-            if shouldShowLoading {
-                notesPageState.isLoading = false
-            }
-        }
-
-        let after: GraphQLNullable<String> = reset ? nil : notesPageState.endCursor.map { .some($0) } ?? nil
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ActorNotesQuery(handle: actorData.handle, after: after, before: nil, first: 20, last: nil),
-                cachePolicy: cachePolicy
-            )
-            if let notesConnection = response.data?.actorByHandle?.notes {
-                let nextNotes = notesConnection.edges.map { $0.node }
-                if reset {
-                    notes = nextNotes
-                } else {
-                    appendUniqueNotes(nextNotes)
-                }
-                notesPageState.hasLoaded = true
-                notesPageState.hasPreviousPage = notesConnection.pageInfo.hasPreviousPage
-                notesPageState.hasNextPage = notesConnection.pageInfo.hasNextPage
-                notesPageState.startCursor = notesConnection.pageInfo.startCursor
-                notesPageState.endCursor = notesConnection.pageInfo.endCursor
-                notesPageState.errorMessage = nil
-            }
-        } catch {
-            if notes.isEmpty {
-                notesPageState.errorMessage = error.localizedDescription
-            }
-            print("Error loading actor notes: \(error)")
-        }
-    }
-
-    private func loadMoreNotes() async {
-        guard notesPageState.hasNextPage, notesPageState.endCursor != nil else { return }
-        await loadNotes(reset: false, cachePolicy: .networkFirst)
-    }
-
-    private func loadNewerNotes() async {
-        guard let cursor = notesPageState.startCursor, !notesPageState.isLoading else { return }
-        notesPageState.isLoading = true
-        defer { notesPageState.isLoading = false }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ActorNotesQuery(handle: actorData.handle, after: nil, before: .some(cursor), first: nil, last: 20),
-                cachePolicy: .networkOnly
-            )
-            if let notesConnection = response.data?.actorByHandle?.notes {
-                prependUniqueNotes(notesConnection.edges.map { $0.node })
-                notesPageState.hasPreviousPage = notesConnection.pageInfo.hasPreviousPage
-                if let newStartCursor = notesConnection.pageInfo.startCursor {
-                    notesPageState.startCursor = newStartCursor
-                }
-                notesPageState.errorMessage = nil
-            }
-        } catch {
-            notesPageState.errorMessage = error.localizedDescription
-            print("Error loading newer actor notes: \(error)")
-        }
-    }
-
-    private func prependUniqueNotes(_ incoming: [HackersPub.ActorNotesQuery.Data.ActorByHandle.Notes.Edge.Node]) {
-        let existingIDs = Set(notes.map(\.id))
-        notes = incoming.filter { !existingIDs.contains($0.id) } + notes
-    }
-
-    private func appendUniqueNotes(_ incoming: [HackersPub.ActorNotesQuery.Data.ActorByHandle.Notes.Edge.Node]) {
-        let existingIDs = Set(notes.map(\.id))
-        notes.append(contentsOf: incoming.filter { !existingIDs.contains($0.id) })
-    }
-
-    private func loadArticles(reset: Bool, cachePolicy: CachePolicy.Query.SingleResponse) async {
-        guard !articlesPageState.isLoading else { return }
-        if !reset {
-            guard articlesPageState.hasNextPage, articlesPageState.endCursor != nil else { return }
-        }
-
-        let shouldShowLoading = !reset || articles.isEmpty
-        if shouldShowLoading {
-            articlesPageState.isLoading = true
-        }
-        defer {
-            if shouldShowLoading {
-                articlesPageState.isLoading = false
-            }
-        }
-
-        let after: GraphQLNullable<String> = reset ? nil : articlesPageState.endCursor.map { .some($0) } ?? nil
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ActorArticlesQuery(handle: actorData.handle, after: after, before: nil, first: 20, last: nil),
-                cachePolicy: cachePolicy
-            )
-            if let articlesConnection = response.data?.actorByHandle?.articles {
-                let nextArticles = articlesConnection.edges.map { $0.node }
-                if reset {
-                    articles = nextArticles
-                } else {
-                    appendUniqueArticles(nextArticles)
-                }
-                articlesPageState.hasLoaded = true
-                articlesPageState.hasPreviousPage = articlesConnection.pageInfo.hasPreviousPage
-                articlesPageState.hasNextPage = articlesConnection.pageInfo.hasNextPage
-                articlesPageState.startCursor = articlesConnection.pageInfo.startCursor
-                articlesPageState.endCursor = articlesConnection.pageInfo.endCursor
-                articlesPageState.errorMessage = nil
-            }
-        } catch {
-            if articles.isEmpty {
-                articlesPageState.errorMessage = error.localizedDescription
-            }
-            print("Error loading actor articles: \(error)")
-        }
-    }
-
-    private func loadMoreArticles() async {
-        guard articlesPageState.hasNextPage, articlesPageState.endCursor != nil else { return }
-        await loadArticles(reset: false, cachePolicy: .networkFirst)
-    }
-
-    private func loadNewerArticles() async {
-        guard let cursor = articlesPageState.startCursor, !articlesPageState.isLoading else { return }
-        articlesPageState.isLoading = true
-        defer { articlesPageState.isLoading = false }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ActorArticlesQuery(handle: actorData.handle, after: nil, before: .some(cursor), first: nil, last: 20),
-                cachePolicy: .networkOnly
-            )
-            if let articlesConnection = response.data?.actorByHandle?.articles {
-                prependUniqueArticles(articlesConnection.edges.map { $0.node })
-                articlesPageState.hasPreviousPage = articlesConnection.pageInfo.hasPreviousPage
-                if let newStartCursor = articlesConnection.pageInfo.startCursor {
-                    articlesPageState.startCursor = newStartCursor
-                }
-                articlesPageState.errorMessage = nil
-            }
-        } catch {
-            articlesPageState.errorMessage = error.localizedDescription
-            print("Error loading newer actor articles: \(error)")
-        }
-    }
-
-    private func prependUniqueArticles(_ incoming: [HackersPub.ActorArticlesQuery.Data.ActorByHandle.Articles.Edge.Node]) {
-        let existingIDs = Set(articles.map(\.id))
-        articles = incoming.filter { !existingIDs.contains($0.id) } + articles
-    }
-
-    private func appendUniqueArticles(_ incoming: [HackersPub.ActorArticlesQuery.Data.ActorByHandle.Articles.Edge.Node]) {
-        let existingIDs = Set(articles.map(\.id))
-        articles.append(contentsOf: incoming.filter { !existingIDs.contains($0.id) })
     }
 }
