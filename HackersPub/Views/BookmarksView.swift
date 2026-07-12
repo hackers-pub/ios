@@ -1,35 +1,5 @@
-import SwiftUI
 @preconcurrency import Apollo
-
-private enum BookmarkFilter: String, CaseIterable, Identifiable {
-    case all
-    case articles
-    case notes
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .all:
-            return NSLocalizedString("bookmarks.filter.all", comment: "All bookmarks filter")
-        case .articles:
-            return NSLocalizedString("bookmarks.filter.articles", comment: "Article bookmarks filter")
-        case .notes:
-            return NSLocalizedString("bookmarks.filter.notes", comment: "Note bookmarks filter")
-        }
-    }
-
-    var postType: GraphQLNullable<GraphQLEnum<HackersPub.PostType>> {
-        switch self {
-        case .all:
-            return nil
-        case .articles:
-            return .some(.case(.article))
-        case .notes:
-            return .some(.case(.note))
-        }
-    }
-}
+import SwiftUI
 
 struct BookmarksView: View {
     @Binding var showingComposeView: Bool
@@ -43,14 +13,21 @@ struct BookmarksView: View {
     @State private var startCursor: String?
     @State private var endCursor: String?
     @State private var pendingNewerCursor: String?
-    @State private var fetchGeneration = 0
+    @State private var requestCoordinator = BookmarkFilterRequestCoordinator(filterID: BookmarkFilter.all.id)
+    @State private var listRequestTask: Task<Void, Never>?
+    @State private var listRequestToken: BookmarkFilterRequestToken?
+    @State private var newerRequestTask: Task<Void, Never>?
+    @State private var newerRequestToken: BookmarkFilterRequestToken?
+    @State private var scrollViewport = FeedViewportSnapshot<String>()
+    @State private var scrollAnchorPolicy = FeedScrollAnchorPolicy<String>()
+    @State private var scrollRestoreRequest: FeedScrollAnchorPolicy<String>.Restoration?
     @State private var showingSettings = false
     @State private var showingArticleEditor = false
     @State private var showingArticleDrafts = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
-        self._showingComposeView = showingComposeView
+        _showingComposeView = showingComposeView
     }
 
     var body: some View {
@@ -66,9 +43,7 @@ struct BookmarksView: View {
                     )
 
                     Button(NSLocalizedString("common.retry", comment: "Retry button")) {
-                        Task {
-                            await fetchBookmarks(reset: true, cachePolicy: .networkOnly)
-                        }
+                        startListRequest(reset: true, cachePolicy: .networkOnly)
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -77,93 +52,35 @@ struct BookmarksView: View {
                 ContentUnavailableView(
                     NSLocalizedString("bookmarks.empty.title", comment: "No bookmarks title"),
                     systemImage: "bookmark",
-                    description: Text(NSLocalizedString("bookmarks.empty.description", comment: "No bookmarks description"))
+                    description: Text(NSLocalizedString("bookmarks.empty.description", comment: "Bookmarks empty"))
                 )
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        if hasPreviousPage && !edges.isEmpty {
-                            LoadNewerItemsRow(isLoading: isLoading) {
-                                Task {
-                                    await loadNewerBookmarks()
-                                }
-                            }
-                            Divider()
-                        }
-
-                        ForEach(edges, id: \.cursor) { edge in
-                            bookmarkRow(edge)
-
-                            Divider()
-                        }
-
-                        if isLoading && !edges.isEmpty {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                Spacer()
-                            }
-                            .padding()
-                        }
-
-                        if let errorMessage, !edges.isEmpty {
-                            InlineLoadFailureView(message: errorMessage) {
-                                Task {
-                                    await loadMore()
-                                }
-                            }
-                        }
-                    }
-                }
-                .refreshable {
-                    await refreshBookmarks()
-                }
+                BookmarkFeedContent(
+                    edges: edges,
+                    isLoading: isLoading,
+                    hasPreviousPage: hasPreviousPage,
+                    errorMessage: errorMessage,
+                    loadNewer: loadNewerBookmarks,
+                    loadMore: loadMore,
+                    refresh: refreshBookmarks,
+                    retry: loadMore,
+                    onBookmarkChanged: handleBookmarkChange,
+                    shouldLoadMore: { shouldLoadMore(afterAppearing: $0) },
+                    scrollViewport: $scrollViewport,
+                    scrollRestoreRequest: $scrollRestoreRequest
+                )
             }
         }
         .navigationTitle(NSLocalizedString("bookmarks.title", comment: "Bookmarks navigation title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarLeading) {
-                ViewerProfileButton()
-
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
-                }
-            }
-
-            ToolbarItem(placement: .principal) {
-                Picker(NSLocalizedString("bookmarks.filter", comment: "Bookmarks filter picker"), selection: $selectedFilter) {
-                    ForEach(BookmarkFilter.allCases) { filter in
-                        Text(filter.title).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 320)
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        showingComposeView = true
-                    } label: {
-                        Label(NSLocalizedString("common.newPost", comment: "New note button"), systemImage: "square.and.pencil")
-                    }
-                    Button {
-                        showingArticleEditor = true
-                    } label: {
-                        Label(NSLocalizedString("article.new", comment: "New article"), systemImage: "doc.badge.plus")
-                    }
-                    Button {
-                        showingArticleDrafts = true
-                    } label: {
-                        Label(NSLocalizedString("article.drafts", comment: "Article drafts"), systemImage: "tray.full")
-                    }
-                } label: {
-                    Label(NSLocalizedString("common.compose", comment: "Compose menu"), systemImage: "plus")
-                }
-            }
+            BookmarkNavigationToolbar(
+                showingComposeView: $showingComposeView,
+                selectedFilter: $selectedFilter,
+                showingSettings: $showingSettings,
+                showingArticleEditor: $showingArticleEditor,
+                showingArticleDrafts: $showingArticleDrafts
+            )
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
@@ -171,9 +88,7 @@ struct BookmarksView: View {
         .sheet(isPresented: $showingArticleEditor) {
             ArticleEditorView {
                 showingArticleEditor = false
-                Task {
-                    await fetchBookmarks(reset: true, cachePolicy: .networkOnly)
-                }
+                startListRequest(reset: true, cachePolicy: .networkOnly)
             }
         }
         .sheet(isPresented: $showingArticleDrafts) {
@@ -181,29 +96,38 @@ struct BookmarksView: View {
         }
         .navigationDestination(for: NavigationDestination.self) { destination in
             switch destination {
-            case .profile(let handle):
+            case let .profile(handle):
                 ActorProfileViewWrapper(handle: handle)
-            case .post(let id):
+            case let .post(id):
                 PostDetailView(postId: id)
-            case .newsStory(let id):
+            case let .newsStory(id):
                 NewsStoryDetailView(storyId: id)
             }
         }
         .task {
             guard !hasLoadedInitial else { return }
-            await fetchBookmarks(reset: true, cachePolicy: .networkFirst)
+            startListRequest(reset: true, cachePolicy: .networkFirst)
         }
         .onChange(of: selectedFilter) {
-            reset()
-            Task {
-                await fetchBookmarks(reset: true, cachePolicy: .networkOnly)
-            }
+            handleFilterChange()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postContentDidChange)) { notification in
+            handlePostContentNotification(notification)
         }
     }
+}
 
-    private func reset() {
-        fetchGeneration += 1
+private extension BookmarksView {
+    func reset() {
+        listRequestTask?.cancel()
+        newerRequestTask?.cancel()
+        listRequestTask = nil
+        listRequestToken = nil
+        newerRequestTask = nil
+        newerRequestToken = nil
+        requestCoordinator.select(filterID: selectedFilter.id)
         edges = []
+        isLoading = false
         hasLoadedInitial = false
         hasPreviousPage = false
         hasNextPage = false
@@ -211,84 +135,126 @@ struct BookmarksView: View {
         endCursor = nil
         pendingNewerCursor = nil
         errorMessage = nil
+        scrollViewport = FeedViewportSnapshot()
+        scrollRestoreRequest = nil
+        scrollAnchorPolicy.reset()
+    }
+
+    private func handleFilterChange() {
+        reset()
+        startListRequest(reset: true, cachePolicy: .networkOnly)
     }
 
     private func loadMore() async {
         guard hasNextPage, endCursor != nil else { return }
-        await fetchBookmarks(reset: false, cachePolicy: .networkFirst)
+        await startListRequest(reset: false, cachePolicy: .networkFirst).value
     }
 
     private func refreshBookmarks() async {
         guard !isLoading else { return }
         if edges.isEmpty || startCursor == nil {
-            await fetchBookmarks(reset: true, cachePolicy: .networkOnly)
+            await startListRequest(reset: true, cachePolicy: .networkOnly).value
             return
         }
-
-        let shouldShowLoading = edges.isEmpty
-        if shouldShowLoading {
-            isLoading = true
-        }
-        errorMessage = nil
-        defer {
-            if shouldShowLoading {
-                isLoading = false
-            }
-        }
-
-        do {
-            try await fetchNewerBookmarks()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    @ViewBuilder
-    private func bookmarkRow(_ edge: HackersPub.BookmarksQuery.Data.Bookmarks.Edge) -> some View {
-        PostView(
-            post: edge.node,
-            showAuthor: true,
-            disableNavigation: false,
-            enableSneakPeek: true,
-            contentRenderMode: .lightweightText,
-            onBookmarkChanged: handleBookmarkChange
-        )
-        .padding()
-        .onAppear {
-            guard shouldLoadMore(afterAppearing: edge) else { return }
-
-            Task {
-                await loadMore()
-            }
+        if let task = startNewerRequest() {
+            await task.value
         }
     }
 
     private func handleBookmarkChange(postID: String, isBookmarked: Bool) {
-        guard !isBookmarked else { return }
+        applyPostContentAction(
+            BookmarkFeedIntegration.action(postID: postID, isBookmarked: isBookmarked, edges: edges)
+        )
+    }
 
-        edges.removeAll { edge in
-            edge.node.id == postID || edge.node.sharedPost?.id == postID
+    private func applyPostContentAction(_ action: BookmarkFeedPostContentAction) {
+        switch action {
+        case .none:
+            return
+        case .authoritativeRefresh:
+            invalidateActiveRequests()
+            startListRequest(reset: true, cachePolicy: .networkOnly)
+        case let .remove(nodeIDs):
+            guard !nodeIDs.isEmpty else { return }
+            invalidateActiveRequests()
+            edges.removeAll { nodeIDs.contains($0.node.id) }
         }
+    }
+
+    private func invalidateActiveRequests() {
+        requestCoordinator.invalidateActiveRequests()
+        listRequestTask?.cancel()
+        newerRequestTask?.cancel()
+        listRequestTask = nil
+        listRequestToken = nil
+        newerRequestTask = nil
+        newerRequestToken = nil
+        isLoading = false
+    }
+
+    @MainActor
+    private func handlePostContentNotification(_ notification: Notification) {
+        guard let event = PostContentEventCenter.event(from: notification) else { return }
+        applyPostContentAction(
+            BookmarkFeedIntegration.action(
+                for: event,
+                edges: edges,
+                eventGeneration: requestCoordinator.epoch,
+                activeGeneration: requestCoordinator.epoch
+            )
+        )
     }
 
     private func shouldLoadMore(afterAppearing edge: HackersPub.BookmarksQuery.Data.Bookmarks.Edge) -> Bool {
         guard hasNextPage, !isLoading else { return false }
-        return edge.cursor == edges.last?.cursor
+        return edge.node.id == edges.last?.node.id
     }
 
-    private func fetchBookmarks(reset: Bool, cachePolicy: CachePolicy.Query.SingleResponse) async {
-        guard reset || !isLoading else { return }
-        if reset {
-            fetchGeneration += 1
-        }
-        let generation = fetchGeneration
-
+    @discardableResult
+    private func startListRequest(
+        reset: Bool,
+        cachePolicy: CachePolicy.Query.SingleResponse
+    ) -> Task<Void, Never> {
+        listRequestTask?.cancel()
+        newerRequestTask?.cancel()
+        let filter = selectedFilter
+        let kind: BookmarkFilterRequestKind = reset
+            ? (hasLoadedInitial ? .refresh : .initial)
+            : .older
+        let token = requestCoordinator.begin(kind)
+        listRequestToken = token
+        newerRequestToken = nil
         isLoading = true
         errorMessage = nil
+
+        let task = Task { @MainActor in
+            await performListRequest(
+                reset: reset,
+                cachePolicy: cachePolicy,
+                filter: filter,
+                token: token
+            )
+        }
+        listRequestTask = task
+        return task
+    }
+
+    private func performListRequest(
+        reset: Bool,
+        cachePolicy: CachePolicy.Query.SingleResponse,
+        filter: BookmarkFilter,
+        token: BookmarkFilterRequestToken
+    ) async {
+        guard requestCoordinator.isCurrent(token) else { return }
+        var wasCancelled = false
         defer {
-            if generation == fetchGeneration {
+            if listRequestToken == token, requestCoordinator.finish(token) {
                 isLoading = false
-                hasLoadedInitial = true
+                listRequestTask = nil
+                listRequestToken = nil
+                if !wasCancelled {
+                    hasLoadedInitial = true
+                }
             }
         }
 
@@ -301,81 +267,114 @@ struct BookmarksView: View {
                     before: nil,
                     first: 20,
                     last: nil,
-                    postType: selectedFilter.postType
+                    postType: filter.postType
                 ),
                 cachePolicy: cachePolicy
             )
 
             let connection = response.data?.bookmarks
             let incoming = connection?.edges ?? []
-            guard generation == fetchGeneration else { return }
+            guard requestCoordinator.isCurrent(token), !Task.isCancelled else {
+                wasCancelled = true
+                return
+            }
 
             if reset {
-                edges = incoming
+                edges = BookmarkFeedIntegration.normalizedPage(incoming)
                 hasPreviousPage = false
                 pendingNewerCursor = nil
             } else {
-                appendUnique(incoming)
+                BookmarkFeedIntegration.append(incoming, to: &edges)
                 hasPreviousPage = false
             }
 
             hasNextPage = connection?.pageInfo.hasNextPage ?? false
             startCursor = connection?.pageInfo.startCursor
             endCursor = connection?.pageInfo.endCursor
+        } catch is CancellationError {
+            wasCancelled = true
         } catch {
-            guard generation == fetchGeneration else { return }
+            guard requestCoordinator.isCurrent(token), !Task.isCancelled else {
+                wasCancelled = true
+                return
+            }
             errorMessage = error.localizedDescription
         }
     }
 
     private func loadNewerBookmarks() async {
         guard !isLoading else { return }
+        if let task = startNewerRequest() {
+            await task.value
+        }
+    }
+
+    private func startNewerRequest() -> Task<Void, Never>? {
+        guard let cursor = pendingNewerCursor ?? startCursor else { return nil }
+        listRequestTask?.cancel()
+        newerRequestTask?.cancel()
+        let filter = selectedFilter
+        let token = requestCoordinator.begin(.newer)
+        listRequestToken = nil
+        newerRequestToken = token
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+
+        let task = Task { @MainActor in
+            await performNewerRequest(cursor: cursor, filter: filter, token: token)
+        }
+        newerRequestTask = task
+        return task
+    }
+
+    private func performNewerRequest(
+        cursor: String,
+        filter: BookmarkFilter,
+        token: BookmarkFilterRequestToken
+    ) async {
+        guard requestCoordinator.isCurrent(token) else { return }
+        defer {
+            if newerRequestToken == token, requestCoordinator.finish(token) {
+                isLoading = false
+                newerRequestTask = nil
+                newerRequestToken = nil
+            }
+        }
 
         do {
-            try await fetchNewerBookmarks()
+            let response = try await apolloClient.fetch(
+                query: HackersPub.BookmarksQuery(
+                    after: nil,
+                    before: .some(cursor),
+                    first: nil,
+                    last: 20,
+                    postType: filter.postType
+                ),
+                cachePolicy: .networkOnly
+            )
+            guard requestCoordinator.isCurrent(token), !Task.isCancelled else {
+                return
+            }
+            guard let connection = response.data?.bookmarks else { return }
+            mergeNewerPage(
+                connection.edges,
+                nextCursor: connection.pageInfo.startCursor,
+                hasNextPage: connection.pageInfo.hasPreviousPage
+            )
+            if let newStartCursor = edges.first?.cursor {
+                startCursor = newStartCursor
+            }
+            if endCursor == nil {
+                endCursor = connection.pageInfo.endCursor
+            }
+        } catch is CancellationError {
+            return
         } catch {
+            guard requestCoordinator.isCurrent(token), !Task.isCancelled else {
+                return
+            }
             errorMessage = error.localizedDescription
         }
-    }
-
-    private func fetchNewerBookmarks() async throws {
-        guard let cursor = pendingNewerCursor ?? startCursor else { return }
-
-        let response = try await apolloClient.fetch(
-            query: HackersPub.BookmarksQuery(
-                after: nil,
-                before: .some(cursor),
-                first: nil,
-                last: 20,
-                postType: selectedFilter.postType
-            ),
-            cachePolicy: .networkOnly
-        )
-        guard let connection = response.data?.bookmarks else { return }
-        mergeNewerPage(
-            connection.edges,
-            nextCursor: connection.pageInfo.startCursor,
-            hasNextPage: connection.pageInfo.hasPreviousPage
-        )
-        if let newStartCursor = edges.first?.cursor {
-            startCursor = newStartCursor
-        }
-        if endCursor == nil {
-            endCursor = connection.pageInfo.endCursor
-        }
-    }
-
-    private func prependUnique(_ incoming: [HackersPub.BookmarksQuery.Data.Bookmarks.Edge]) {
-        let existingIDs = Set(edges.map { $0.node.id })
-        edges = incoming.filter { !existingIDs.contains($0.node.id) } + edges
-    }
-
-    private func appendUnique(_ incoming: [HackersPub.BookmarksQuery.Data.Bookmarks.Edge]) {
-        let existingIDs = Set(edges.map { $0.node.id })
-        edges.append(contentsOf: incoming.filter { !existingIDs.contains($0.node.id) })
     }
 
     private func mergeNewerPage(
@@ -383,14 +382,18 @@ struct BookmarksView: View {
         nextCursor: String?,
         hasNextPage: Bool
     ) {
-        guard !incoming.isEmpty else {
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            return
-        }
-
-        prependUnique(incoming)
-        pendingNewerCursor = hasNextPage ? nextCursor : nil
-        hasPreviousPage = hasNextPage && nextCursor != nil
+        let merge = BookmarkFeedIntegration.mergingNewerPage(
+            incoming,
+            into: edges,
+            nextCursor: nextCursor,
+            hasNextPage: hasNextPage
+        )
+        BookmarkFeedIntegration.applyScrollAnchorAction(
+            for: merge, policy: &scrollAnchorPolicy, restoration: &scrollRestoreRequest,
+            viewport: scrollViewport, existing: edges
+        )
+        edges = merge.edges
+        pendingNewerCursor = merge.pendingNewerCursor
+        hasPreviousPage = merge.hasPreviousPage
     }
 }
