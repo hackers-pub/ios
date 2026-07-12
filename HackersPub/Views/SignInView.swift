@@ -7,6 +7,7 @@ struct SignInView: View {
     @State private var loginToken: String?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var passkeySignInTaskOwner = PasskeyTaskOwner()
 
     private enum LoginState {
         case enterUsername
@@ -49,12 +50,10 @@ struct SignInView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(username.isEmpty || isLoading)
+                        .disabled(!SignInFlowPolicy.canRequestSignInLink(username: username) || isLoading)
 
                         Button {
-                            Task {
-                                await signInWithPasskey()
-                            }
+                            startPasskeySignIn()
                         } label: {
                             Label(
                                 NSLocalizedString("signIn.passkey", comment: "Sign in with passkey button"),
@@ -97,6 +96,7 @@ struct SignInView: View {
                             loginState = .enterUsername
                             verificationCode = ""
                             loginToken = nil
+                            errorMessage = nil
                         }
                         .foregroundStyle(.secondary)
                     }
@@ -111,10 +111,29 @@ struct SignInView: View {
             }
             .padding()
             .navigationTitle(NSLocalizedString("nav.signIn", comment: "Sign in navigation title"))
+            .onChange(of: username) { _, _ in
+                errorMessage = nil
+            }
+            .onDisappear {
+                cancelPasskeySignIn()
+            }
         }
     }
 
+    private func startPasskeySignIn() {
+        passkeySignInTaskOwner.start {
+            await signInWithPasskey()
+        }
+    }
+
+    private func cancelPasskeySignIn() {
+        passkeySignInTaskOwner.cancel()
+    }
+
     private func sendSignInLink() async {
+        let username = SignInFlowPolicy.trimmedUsername(username)
+        guard !username.isEmpty else { return }
+
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -133,14 +152,17 @@ struct SignInView: View {
             errorMessage = error.localizedDescription
         } catch {
             #if DEBUG
-            NSLog("SignIn sendSignInLink unexpected error: \(String(describing: error))")
+                NSLog("SignIn sendSignInLink unexpected error: \(String(describing: error))")
             #endif
             errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
         }
     }
 
     private func verifyCode() async {
-        guard let token = loginToken else { return }
+        guard case let .verify(token) = SignInFlowPolicy.verificationAction(loginToken: loginToken) else {
+            recoverFromMissingVerificationSession()
+            return
+        }
 
         isLoading = true
         errorMessage = nil
@@ -153,10 +175,20 @@ struct SignInView: View {
             errorMessage = error.localizedDescription
         } catch {
             #if DEBUG
-            NSLog("SignIn verifyCode unexpected error: \(String(describing: error))")
+                NSLog("SignIn verifyCode unexpected error: \(String(describing: error))")
             #endif
             errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
         }
+    }
+
+    private func recoverFromMissingVerificationSession() {
+        loginState = .enterUsername
+        loginToken = nil
+        verificationCode = ""
+        errorMessage = NSLocalizedString(
+            "signIn.error.missingVerificationSession",
+            comment: "Missing sign-in verification session error"
+        )
     }
 
     private func signInWithPasskey() async {
@@ -169,10 +201,15 @@ struct SignInView: View {
             try await authManager.signInWithPasskey()
         } catch let error as AuthError {
             errorMessage = error.localizedDescription
-        } catch let error as PasskeyServiceError {
-            errorMessage = error.localizedDescription
         } catch {
-            errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
+            guard !Task.isCancelled,
+                  PasskeyAuthorizationErrorPolicy.shouldPresent(error)
+            else { return }
+            if let error = error as? PasskeyServiceError {
+                errorMessage = error.localizedDescription
+            } else {
+                errorMessage = NSLocalizedString("signIn.unexpectedError", comment: "Unexpected error message")
+            }
         }
     }
 }

@@ -1,11 +1,11 @@
 import Foundation
 import Photos
-import UniformTypeIdentifiers
-import UIKit
 
-enum ImageDownloadServiceError: LocalizedError {
+enum ImageDownloadServiceError: LocalizedError, Equatable {
     case invalidURL
     case invalidImageData
+    case invalidResponse
+    case httpStatus(Int)
     case permissionDenied
 
     var errorDescription: String? {
@@ -14,28 +14,37 @@ enum ImageDownloadServiceError: LocalizedError {
             return NSLocalizedString("image.download.error.invalidURL", comment: "Invalid image URL")
         case .invalidImageData:
             return NSLocalizedString("image.download.error.invalidData", comment: "Invalid image data")
+        case .invalidResponse:
+            return NSLocalizedString("image.download.error.invalidResponse", comment: "Invalid image response")
+        case let .httpStatus(statusCode):
+            let format = NSLocalizedString("image.download.error.httpStatus", comment: "Image download HTTP status")
+            return String(format: format, statusCode)
         case .permissionDenied:
             return NSLocalizedString("image.download.error.permissionDenied", comment: "Photo access denied")
         }
     }
 }
 
-enum ImageDownloadService {
-    private struct PhotoResource {
-        let data: Data
-        let uniformTypeIdentifier: String
+enum ImageDownloadResponsePolicy {
+    static func validate(_ response: URLResponse) throws {
+        guard let response = response as? HTTPURLResponse else {
+            throw ImageDownloadServiceError.invalidResponse
+        }
+        guard (200 ..< 300).contains(response.statusCode) else {
+            throw ImageDownloadServiceError.httpStatus(response.statusCode)
+        }
     }
+}
 
+enum ImageDownloadService {
     static func downloadToPhotoLibrary(from urlString: String) async throws {
         guard let url = URL(string: urlString) else {
             throw ImageDownloadServiceError.invalidURL
         }
 
-        let (data, _) = try await URLSession.shared.data(from: url)
-        guard let image = UIImage(data: data) else {
-            throw ImageDownloadServiceError.invalidImageData
-        }
-        let resource = try makePhotoResource(from: image)
+        let (data, response) = try await URLSession.shared.data(from: url)
+        try ImageDownloadResponsePolicy.validate(response)
+        let resource = try photoResource(from: data)
 
         let isAuthorized = await requestPhotoLibraryPermissionIfNeeded()
         guard isAuthorized else {
@@ -64,26 +73,11 @@ enum ImageDownloadService {
         }
     }
 
-    private static func makePhotoResource(from image: UIImage) throws -> PhotoResource {
-        if imageHasAlpha(image), let pngData = image.pngData() {
-            return PhotoResource(data: pngData, uniformTypeIdentifier: UTType.png.identifier)
-        }
-
-        if let jpegData = image.jpegData(compressionQuality: 1.0) {
-            return PhotoResource(data: jpegData, uniformTypeIdentifier: UTType.jpeg.identifier)
-        }
-
-        throw ImageDownloadServiceError.invalidImageData
-    }
-
-    private static func imageHasAlpha(_ image: UIImage) -> Bool {
-        guard let alphaInfo = image.cgImage?.alphaInfo else { return false }
-
-        switch alphaInfo {
-        case .first, .last, .premultipliedFirst, .premultipliedLast:
-            return true
-        default:
-            return false
+    static func photoResource(from data: Data) throws -> ImagePayload {
+        do {
+            return try ImagePayloadPolicy.payload(from: data)
+        } catch {
+            throw ImageDownloadServiceError.invalidImageData
         }
     }
 }

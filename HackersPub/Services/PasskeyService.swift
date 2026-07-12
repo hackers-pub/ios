@@ -1,15 +1,19 @@
+import ApolloAPI
 import AuthenticationServices
 import Foundation
 import UIKit
-import ApolloAPI
 
-enum PasskeyServiceError: LocalizedError {
+enum PasskeyServiceError: LocalizedError, Equatable {
     case invalidOptions
     case invalidChallenge
     case invalidUserID
     case unsupportedCredential
     case authorizationUnavailable
     case authorizationFailed
+    case timedOut
+    case cancelled
+    case requestInProgress
+    case presentationAnchorUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -20,12 +24,98 @@ enum PasskeyServiceError: LocalizedError {
         case .invalidUserID:
             return NSLocalizedString("passkey.error.invalidUserID", comment: "Invalid passkey user ID error")
         case .unsupportedCredential:
-            return NSLocalizedString("passkey.error.unsupportedCredential", comment: "Unsupported passkey credential error")
+            return NSLocalizedString(
+                "passkey.error.unsupportedCredential",
+                comment: "Unsupported passkey credential error"
+            )
         case .authorizationUnavailable:
-            return NSLocalizedString("passkey.error.authorizationUnavailable", comment: "Passkey authorization unavailable error")
+            return NSLocalizedString(
+                "passkey.error.authorizationUnavailable",
+                comment: "Passkey authorization unavailable error"
+            )
         case .authorizationFailed:
             return NSLocalizedString("passkey.error.authorizationFailed", comment: "Passkey authorization failed error")
+        case .timedOut:
+            return NSLocalizedString("passkey.error.timedOut", comment: "Passkey authorization timed out error")
+        case .cancelled:
+            return nil
+        case .requestInProgress:
+            return NSLocalizedString(
+                "passkey.error.requestInProgress",
+                comment: "Passkey request already in progress error"
+            )
+        case .presentationAnchorUnavailable:
+            return NSLocalizedString(
+                "passkey.error.presentationAnchorUnavailable",
+                comment: "Passkey presentation anchor unavailable error"
+            )
         }
+    }
+}
+
+enum PasskeyAuthorizationErrorPolicy {
+    static func serviceError(for code: ASAuthorizationError.Code) -> PasskeyServiceError {
+        switch code {
+        case .canceled:
+            return .cancelled
+        case .failed:
+            return .authorizationUnavailable
+        default:
+            return .authorizationFailed
+        }
+    }
+
+    static func shouldPresent(_ error: PasskeyServiceError) -> Bool {
+        error != .cancelled
+    }
+
+    static func shouldPresent(_ error: any Error) -> Bool {
+        if error is CancellationError {
+            return false
+        }
+        if let serviceError = error as? PasskeyServiceError {
+            return shouldPresent(serviceError)
+        }
+        return true
+    }
+}
+
+enum PasskeyWebAuthnPayload {
+    static func userHandleJSONValue(from userHandle: Data?) -> any ApolloAPI.JSONEncodable {
+        guard let userHandle, !userHandle.isEmpty else {
+            return NSNull()
+        }
+        return userHandle.base64URLEncodedString()
+    }
+}
+
+struct PasskeyRequestSlot {
+    private(set) var isReserved = false
+
+    mutating func reserve(presentationAnchorAvailable: Bool) throws {
+        guard !isReserved else {
+            throw PasskeyServiceError.requestInProgress
+        }
+        guard presentationAnchorAvailable else {
+            throw PasskeyServiceError.presentationAnchorUnavailable
+        }
+        isReserved = true
+    }
+
+    mutating func release() {
+        isReserved = false
+    }
+}
+
+struct PasskeyRequestCompletionGate {
+    private var hasFinished = false
+
+    mutating func finish() -> Bool {
+        guard !hasFinished else {
+            return false
+        }
+        hasFinished = true
+        return true
     }
 }
 
@@ -34,7 +124,8 @@ struct PasskeyCredentialDescriptor {
 
     init?(json: ApolloAPI.JSONObject) {
         guard let idString = json["id"] as? String,
-              let id = Data(base64URLEncoded: idString)
+              let id = Data(base64URLEncoded: idString),
+              !id.isEmpty
         else {
             return nil
         }
@@ -73,12 +164,17 @@ struct PasskeyAuthenticationOptions {
             throw PasskeyServiceError.invalidOptions
         }
         guard let challengeString = object["challenge"] as? String,
-              let challenge = Data(base64URLEncoded: challengeString)
+              let challenge = Data(base64URLEncoded: challengeString),
+              !challenge.isEmpty
         else {
             throw PasskeyServiceError.invalidChallenge
         }
 
-        guard let relyingPartyID = object["rpId"] as? String else {
+        guard let relyingPartyValue = object["rpId"] as? String else {
+            throw PasskeyServiceError.invalidOptions
+        }
+        let relyingPartyID = relyingPartyValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !relyingPartyID.isEmpty else {
             throw PasskeyServiceError.invalidOptions
         }
         let userVerificationPreference = Self.userVerificationPreference(from: object["userVerification"])
@@ -87,7 +183,7 @@ struct PasskeyAuthenticationOptions {
         self.challenge = challenge
         self.relyingPartyID = relyingPartyID
         self.userVerificationPreference = userVerificationPreference
-        self.allowedCredentials = credentials
+        allowedCredentials = credentials
     }
 
     private static func userVerificationPreference(
@@ -117,23 +213,32 @@ struct PasskeyRegistrationOptions {
             throw PasskeyServiceError.invalidOptions
         }
         guard let challengeString = object["challenge"] as? String,
-              let challenge = Data(base64URLEncoded: challengeString)
+              let challenge = Data(base64URLEncoded: challengeString),
+              !challenge.isEmpty
         else {
             throw PasskeyServiceError.invalidChallenge
         }
         guard let user = object["user"] as? ApolloAPI.JSONObject,
               let userIDString = user["id"] as? String,
-              let userID = Data(base64URLEncoded: userIDString)
+              let userID = Data(base64URLEncoded: userIDString),
+              !userID.isEmpty
         else {
             throw PasskeyServiceError.invalidUserID
         }
 
         guard let relyingParty = object["rp"] as? ApolloAPI.JSONObject,
-              let relyingPartyID = relyingParty["id"] as? String
+              let relyingPartyID = relyingParty["id"] as? String,
+              !relyingPartyID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
             throw PasskeyServiceError.invalidOptions
         }
-        let name = (user["name"] as? String) ?? (user["displayName"] as? String) ?? "Hackers' Pub"
+        guard let userName = (user["name"] as? String) ?? (user["displayName"] as? String) else {
+            throw PasskeyServiceError.invalidOptions
+        }
+        let name = userName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else {
+            throw PasskeyServiceError.invalidOptions
+        }
         let authenticatorSelection = object["authenticatorSelection"] as? ApolloAPI.JSONObject
         let userVerificationPreference = Self.userVerificationPreference(
             from: authenticatorSelection?["userVerification"]
@@ -145,7 +250,7 @@ struct PasskeyRegistrationOptions {
         self.name = name
         self.userID = userID
         self.userVerificationPreference = userVerificationPreference
-        self.excludedCredentials = credentials
+        excludedCredentials = credentials
     }
 
     private static func userVerificationPreference(
@@ -163,24 +268,41 @@ struct PasskeyRegistrationOptions {
 }
 
 @MainActor
-final class PasskeyService: NSObject {
+final class PasskeyService: NSObject, PasskeyAuthorizing {
     static let shared = PasskeyService()
 
-    private var continuation: CheckedContinuation<ASAuthorization, Error>?
-    private var authorizationController: ASAuthorizationController?
-    private var presentationAnchor: ASPresentationAnchor?
+    private let presentationAnchorProvider: @MainActor () -> ASPresentationAnchor?
+    private let requestFactory: any PasskeyAuthorizationRequestMaking
+    private var activeRequest: PasskeyAuthorizationRequest?
+    private var activeRequestID: UUID?
+    private var requestSlot = PasskeyRequestSlot()
 
-    private override init() {}
+    override private init() {
+        presentationAnchorProvider = { PasskeyService.currentPresentationAnchor() }
+        requestFactory = SystemPasskeyAuthorizationRequestFactory()
+        super.init()
+    }
+
+    init(
+        presentationAnchorProvider: @escaping @MainActor () -> ASPresentationAnchor?,
+        requestFactory: any PasskeyAuthorizationRequestMaking
+    ) {
+        self.presentationAnchorProvider = presentationAnchorProvider
+        self.requestFactory = requestFactory
+        super.init()
+    }
 
     func authenticate(options: PasskeyAuthenticationOptions) async throws -> HackersPub.JSON {
-        let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: options.relyingPartyID)
+        let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(
+            relyingPartyIdentifier: options.relyingPartyID
+        )
         let request = provider.createCredentialAssertionRequest(challenge: options.challenge)
         request.userVerificationPreference = options.userVerificationPreference
         request.allowedCredentials = options.allowedCredentials.map {
             ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: $0.id)
         }
 
-        let authorization = try await perform(request)
+        let authorization = try await authorize(request)
         guard let credential = authorization.credential as? ASAuthorizationPlatformPublicKeyCredentialAssertion else {
             throw PasskeyServiceError.unsupportedCredential
         }
@@ -189,7 +311,9 @@ final class PasskeyService: NSObject {
             "authenticatorData": credential.rawAuthenticatorData.base64URLEncodedString(),
             "clientDataJSON": credential.rawClientDataJSON.base64URLEncodedString(),
             "signature": credential.signature.base64URLEncodedString(),
-            "userHandle": (credential.userID as Data?)?.base64URLEncodedString() ?? NSNull()
+            "userHandle": PasskeyWebAuthnPayload.userHandleJSONValue(
+                from: credential.userID as Data?
+            )
         ]
         let value: ApolloAPI.JSONEncodableDictionary = [
             "id": credential.credentialID.base64URLEncodedString(),
@@ -202,7 +326,9 @@ final class PasskeyService: NSObject {
     }
 
     func register(options: PasskeyRegistrationOptions) async throws -> HackersPub.JSON {
-        let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: options.relyingPartyID)
+        let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(
+            relyingPartyIdentifier: options.relyingPartyID
+        )
         let request = provider.createCredentialRegistrationRequest(
             challenge: options.challenge,
             name: options.name,
@@ -213,7 +339,7 @@ final class PasskeyService: NSObject {
             ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: $0.id)
         }
 
-        let authorization = try await perform(request)
+        let authorization = try await authorize(request)
         guard let credential = authorization.credential as? ASAuthorizationPlatformPublicKeyCredentialRegistration,
               let attestationObject = credential.rawAttestationObject
         else {
@@ -234,23 +360,30 @@ final class PasskeyService: NSObject {
         return HackersPub.JSON(encodableDictionary: value)
     }
 
-    private func perform(_ request: ASAuthorizationRequest) async throws -> ASAuthorization {
-        guard continuation == nil else {
-            throw PasskeyServiceError.authorizationFailed
-        }
-        guard let presentationAnchor = Self.currentPresentationAnchor() else {
-            throw PasskeyServiceError.authorizationFailed
+    func authorize(_ request: ASAuthorizationRequest) async throws -> ASAuthorization {
+        let presentationAnchor = presentationAnchorProvider()
+        try requestSlot.reserve(presentationAnchorAvailable: presentationAnchor != nil)
+        guard let presentationAnchor else {
+            throw PasskeyServiceError.presentationAnchorUnavailable
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
-            self.presentationAnchor = presentationAnchor
-            let controller = ASAuthorizationController(authorizationRequests: [request])
-            controller.delegate = self
-            controller.presentationContextProvider = self
-            self.authorizationController = controller
-            controller.performRequests()
+        let requestID = UUID()
+        let activeRequest = requestFactory.makeRequest(
+            request: request,
+            presentationAnchor: presentationAnchor
+        ) { [weak self] in
+            self?.finishRequest(id: requestID)
         }
+        activeRequestID = requestID
+        self.activeRequest = activeRequest
+        return try await activeRequest.perform()
+    }
+
+    private func finishRequest(id: UUID) {
+        guard activeRequestID == id else { return }
+        activeRequestID = nil
+        activeRequest = nil
+        requestSlot.release()
     }
 
     private static func currentPresentationAnchor() -> ASPresentationAnchor? {
@@ -261,58 +394,5 @@ final class PasskeyService: NSObject {
             return keyWindow
         }
         return windowScenes.flatMap(\.windows).first
-    }
-}
-
-extension PasskeyService: ASAuthorizationControllerDelegate {
-    nonisolated func authorizationController(controller _: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        Task { @MainActor in
-            continuation?.resume(returning: authorization)
-            continuation = nil
-            authorizationController = nil
-            presentationAnchor = nil
-        }
-    }
-
-    nonisolated func authorizationController(controller _: ASAuthorizationController, didCompleteWithError error: Error) {
-        Task { @MainActor in
-            let serviceError: PasskeyServiceError
-            if let authorizationError = error as? ASAuthorizationError,
-               authorizationError.code == .failed {
-                serviceError = .authorizationUnavailable
-            } else {
-                serviceError = .authorizationFailed
-            }
-            continuation?.resume(throwing: serviceError)
-            continuation = nil
-            authorizationController = nil
-            presentationAnchor = nil
-        }
-    }
-}
-
-extension PasskeyService: ASAuthorizationControllerPresentationContextProviding {
-    func presentationAnchor(for _: ASAuthorizationController) -> ASPresentationAnchor {
-        presentationAnchor ?? Self.currentPresentationAnchor()!
-    }
-}
-
-private extension Data {
-    init?(base64URLEncoded string: String) {
-        var base64 = string
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        let padding = base64.count % 4
-        if padding > 0 {
-            base64.append(String(repeating: "=", count: 4 - padding))
-        }
-        self.init(base64Encoded: base64)
-    }
-
-    func base64URLEncodedString() -> String {
-        base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
     }
 }

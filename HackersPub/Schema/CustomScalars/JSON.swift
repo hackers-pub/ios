@@ -51,42 +51,7 @@ public extension HackersPub {
     }
 
     private static func canonicalString(from value: JSONValue) -> String {
-      let object = foundationObject(from: value)
-      if JSONSerialization.isValidJSONObject(object),
-         let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
-         let string = String(data: data, encoding: .utf8) {
-        return string
-      }
-      return String(describing: value)
-    }
-
-    private static func foundationObject(from value: JSONValue) -> Any {
-      foundationObject(fromAny: value)
-    }
-
-    private static func foundationObject(fromAny value: Any) -> Any {
-      if let object = value as? JSONObject {
-        return object.mapValues { foundationObject(fromAny: $0) }
-      }
-      if let object = value as? [AnyHashable: Any] {
-        let pairs = object.map { key, value in
-          (String(describing: key.base), foundationObject(fromAny: value))
-        }
-        return Dictionary(uniqueKeysWithValues: pairs)
-      }
-      if let object = value as? [String: Any] {
-        return object.mapValues { foundationObject(fromAny: $0) }
-      }
-      if let array = value as? [Any] {
-        return array.map { foundationObject(fromAny: $0) }
-      }
-      if let hashable = value as? AnyHashable {
-        return hashable.base
-      }
-      if value is NSNull {
-        return NSNull()
-      }
-      return value
+      JSONCanonicalizationPolicy.canonicalString(fromAny: value)
     }
 
     private static func object(from value: JSONValue) -> JSONObject? {
@@ -94,4 +59,119 @@ public extension HackersPub {
     }
   }
 
+}
+
+enum JSONDictionaryKeyValidation: Equatable {
+  case valid
+  case stringifiedKeyCollision
+}
+
+enum JSONCanonicalizationPolicy {
+  static func canonicalString(fromAny value: Any) -> String {
+    if let object = foundationObject(fromAny: value),
+       let data = try? JSONSerialization.data(
+         withJSONObject: object,
+         options: [.fragmentsAllowed, .sortedKeys]
+       ),
+       let string = String(data: data, encoding: .utf8) {
+      return string
+    }
+
+    return "invalid-json:" + fallbackCanonicalString(fromAny: value)
+  }
+
+  static func dictionaryKeyValidation(
+    for object: [AnyHashable: Any]
+  ) -> JSONDictionaryKeyValidation {
+    let keys = object.map { String(describing: $0.key.base) }
+    return Set(keys).count == keys.count ? .valid : .stringifiedKeyCollision
+  }
+
+  private static func foundationObject(fromAny value: Any) -> Any? {
+    if let object = value as? JSONObject {
+      return foundationDictionary(from: object)
+    }
+    if let object = value as? [String: Any] {
+      return foundationDictionary(from: object)
+    }
+    if let object = value as? [AnyHashable: Any] {
+      guard dictionaryKeyValidation(for: object) == .valid else {
+        return nil
+      }
+
+      var result: [String: Any] = [:]
+      for (key, value) in object {
+        guard let convertedValue = foundationObject(fromAny: value) else {
+          return nil
+        }
+        result[String(describing: key.base)] = convertedValue
+      }
+      return result
+    }
+    if let array = value as? [Any] {
+      let values = array.map { foundationObject(fromAny: $0) }
+      guard values.allSatisfy({ $0 != nil }) else {
+        return nil
+      }
+      return values.compactMap { $0 }
+    }
+    if value is NSNull {
+      return NSNull()
+    }
+    if let hashable = value as? AnyHashable {
+      return hashable.base
+    }
+    return nil
+  }
+
+  private static func foundationDictionary<T>(from object: [String: T]) -> [String: Any]? {
+    var result: [String: Any] = [:]
+    for (key, value) in object {
+      guard let convertedValue = foundationObject(fromAny: value) else {
+        return nil
+      }
+      result[key] = convertedValue
+    }
+    return result
+  }
+
+  private static func fallbackCanonicalString(fromAny value: Any) -> String {
+    if let object = value as? JSONObject {
+      return fallbackDictionary(from: object)
+    }
+    if let object = value as? [String: Any] {
+      return fallbackDictionary(from: object)
+    }
+    if let object = value as? [AnyHashable: Any] {
+      let entries = object.map { key, value in
+        let keyType = String(reflecting: type(of: key.base))
+        let keyValue = String(reflecting: key.base)
+        let entry = lengthPrefixed(keyType) + lengthPrefixed(keyValue) +
+          lengthPrefixed(fallbackCanonicalString(fromAny: value))
+        return entry
+      }
+      return "map[" + entries.sorted().joined() + "]"
+    }
+    if let array = value as? [Any] {
+      return "array[" + array.map { lengthPrefixed(fallbackCanonicalString(fromAny: $0)) }.joined() + "]"
+    }
+    if value is NSNull {
+      return "null"
+    }
+
+    let valueType = String(reflecting: type(of: value))
+    let description = String(reflecting: value)
+    return "value(" + lengthPrefixed(valueType) + lengthPrefixed(description) + ")"
+  }
+
+  private static func fallbackDictionary<T>(from object: [String: T]) -> String {
+    let entries = object.map { key, value in
+      lengthPrefixed(key) + lengthPrefixed(fallbackCanonicalString(fromAny: value))
+    }
+    return "object[" + entries.sorted().joined() + "]"
+  }
+
+  private static func lengthPrefixed(_ value: String) -> String {
+    "\(value.utf8.count):\(value)"
+  }
 }

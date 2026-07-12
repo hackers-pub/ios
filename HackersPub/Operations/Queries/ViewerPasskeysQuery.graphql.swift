@@ -9,10 +9,24 @@ public extension HackersPub {
     public static let operationName: String = "ViewerPasskeysQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query ViewerPasskeysQuery { viewer { __typename id passkeys(first: 50) { __typename edges { __typename node { __typename id name created lastUsed } } } } }"#
+        #"query ViewerPasskeysQuery($after: String, $first: Int!) { viewer { __typename id passkeys(first: $first, after: $after) { __typename edges { __typename cursor node { __typename id name created lastUsed } } pageInfo { __typename hasNextPage endCursor } } } }"#
       ))
 
-    public init() {}
+    public var after: GraphQLNullable<String>
+    public var first: Int32
+
+    public init(
+      after: GraphQLNullable<String>,
+      first: Int32
+    ) {
+      self.after = after
+      self.first = first
+    }
+
+    @_spi(Unsafe) public var __variables: Variables? { [
+      "after": after,
+      "first": first
+    ] }
 
     public struct Data: HackersPub.SelectionSet {
       @_spi(Unsafe) public let __data: DataDict
@@ -40,7 +54,10 @@ public extension HackersPub {
         @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
           .field("__typename", String.self),
           .field("id", HackersPub.ID.self),
-          .field("passkeys", Passkeys.self, arguments: ["first": 50]),
+          .field("passkeys", Passkeys.self, arguments: [
+            "first": .variable("first"),
+            "after": .variable("after")
+          ]),
         ] }
         @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
           ViewerPasskeysQuery.Data.Viewer.self
@@ -60,12 +77,14 @@ public extension HackersPub {
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
             .field("__typename", String.self),
             .field("edges", [Edge].self),
+            .field("pageInfo", PageInfo.self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
             ViewerPasskeysQuery.Data.Viewer.Passkeys.self
           ] }
 
           public var edges: [Edge] { __data["edges"] }
+          public var pageInfo: PageInfo { __data["pageInfo"] }
 
           /// Viewer.Passkeys.Edge
           ///
@@ -77,12 +96,14 @@ public extension HackersPub {
             @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.AccountPasskeysConnectionEdge }
             @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
               .field("__typename", String.self),
+              .field("cursor", String.self),
               .field("node", Node.self),
             ] }
             @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
               ViewerPasskeysQuery.Data.Viewer.Passkeys.Edge.self
             ] }
 
+            public var cursor: String { __data["cursor"] }
             public var node: Node { __data["node"] }
 
             /// Viewer.Passkeys.Edge.Node
@@ -111,6 +132,27 @@ public extension HackersPub {
               /// `null` if this passkey has never been used to authenticate.
               public var lastUsed: HackersPub.DateTime? { __data["lastUsed"] }
             }
+          }
+
+          /// Viewer.Passkeys.PageInfo
+          ///
+          /// Parent Type: `PageInfo`
+          public struct PageInfo: HackersPub.SelectionSet {
+            @_spi(Unsafe) public let __data: DataDict
+            @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+            @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PageInfo }
+            @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+              .field("__typename", String.self),
+              .field("hasNextPage", Bool.self),
+              .field("endCursor", String?.self),
+            ] }
+            @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+              ViewerPasskeysQuery.Data.Viewer.Passkeys.PageInfo.self
+            ] }
+
+            public var hasNextPage: Bool { __data["hasNextPage"] }
+            public var endCursor: String? { __data["endCursor"] }
           }
         }
       }
