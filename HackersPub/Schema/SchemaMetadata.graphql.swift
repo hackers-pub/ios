@@ -50,6 +50,7 @@ public extension HackersPub {
       case "ArticleContent": return HackersPub.Objects.ArticleContent
       case "ArticleDraft": return HackersPub.Objects.ArticleDraft
       case "AttachArticleDraftMediumPayload": return HackersPub.Objects.AttachArticleDraftMediumPayload
+      case "AttachArticleSourceMediumPayload": return HackersPub.Objects.AttachArticleSourceMediumPayload
       case "BlockActorPayload": return HackersPub.Objects.BlockActorPayload
       case "BookmarkPostPayload": return HackersPub.Objects.BookmarkPostPayload
       case "CreateNotePayload": return HackersPub.Objects.CreateNotePayload

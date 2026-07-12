@@ -9,10 +9,24 @@ public extension HackersPub {
     public static let operationName: String = "ArticleDraftsQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query ArticleDraftsQuery { viewer { __typename id articleDrafts(first: 50) { __typename edges { __typename node { __typename id uuid title content contentHtml tags created updated } } } } }"#
+        #"query ArticleDraftsQuery($after: String, $first: Int!) { viewer { __typename id articleDrafts(after: $after, first: $first) { __typename edges { __typename cursor node { __typename id uuid title content contentHtml tags created updated } } pageInfo { __typename hasNextPage endCursor } } } }"#
       ))
 
-    public init() {}
+    public var after: GraphQLNullable<String>
+    public var first: Int32
+
+    public init(
+      after: GraphQLNullable<String>,
+      first: Int32
+    ) {
+      self.after = after
+      self.first = first
+    }
+
+    @_spi(Unsafe) public var __variables: Variables? { [
+      "after": after,
+      "first": first
+    ] }
 
     public struct Data: HackersPub.SelectionSet {
       @_spi(Unsafe) public let __data: DataDict
@@ -40,7 +54,10 @@ public extension HackersPub {
         @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
           .field("__typename", String.self),
           .field("id", HackersPub.ID.self),
-          .field("articleDrafts", ArticleDrafts.self, arguments: ["first": 50]),
+          .field("articleDrafts", ArticleDrafts.self, arguments: [
+            "after": .variable("after"),
+            "first": .variable("first")
+          ]),
         ] }
         @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
           ArticleDraftsQuery.Data.Viewer.self
@@ -61,12 +78,14 @@ public extension HackersPub {
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
             .field("__typename", String.self),
             .field("edges", [Edge].self),
+            .field("pageInfo", PageInfo.self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
             ArticleDraftsQuery.Data.Viewer.ArticleDrafts.self
           ] }
 
           public var edges: [Edge] { __data["edges"] }
+          public var pageInfo: PageInfo { __data["pageInfo"] }
 
           /// Viewer.ArticleDrafts.Edge
           ///
@@ -78,12 +97,14 @@ public extension HackersPub {
             @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.AccountArticleDraftsConnectionEdge }
             @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
               .field("__typename", String.self),
+              .field("cursor", String.self),
               .field("node", Node.self),
             ] }
             @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
               ArticleDraftsQuery.Data.Viewer.ArticleDrafts.Edge.self
             ] }
 
+            public var cursor: String { __data["cursor"] }
             public var node: Node { __data["node"] }
 
             /// Viewer.ArticleDrafts.Edge.Node
@@ -119,6 +140,27 @@ public extension HackersPub {
               public var created: HackersPub.DateTime { __data["created"] }
               public var updated: HackersPub.DateTime { __data["updated"] }
             }
+          }
+
+          /// Viewer.ArticleDrafts.PageInfo
+          ///
+          /// Parent Type: `PageInfo`
+          public struct PageInfo: HackersPub.SelectionSet {
+            @_spi(Unsafe) public let __data: DataDict
+            @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+            @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PageInfo }
+            @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+              .field("__typename", String.self),
+              .field("hasNextPage", Bool.self),
+              .field("endCursor", String?.self),
+            ] }
+            @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+              ArticleDraftsQuery.Data.Viewer.ArticleDrafts.PageInfo.self
+            ] }
+
+            public var hasNextPage: Bool { __data["hasNextPage"] }
+            public var endCursor: String? { __data["endCursor"] }
           }
         }
       }

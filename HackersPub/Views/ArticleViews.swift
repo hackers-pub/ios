@@ -1,6 +1,6 @@
+@preconcurrency import Apollo
 import Foundation
 import SwiftUI
-@preconcurrency import Apollo
 
 struct ArticleTOCItem: Identifiable, Hashable {
     let id: String
@@ -19,7 +19,8 @@ enum ArticleTOCParser {
 
     static func parse(_ json: String) -> [ArticleTOCItem] {
         guard let data = json.data(using: .utf8),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+              let root = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        else {
             return []
         }
         return root.compactMap(parseItem)
@@ -33,7 +34,7 @@ enum ArticleTOCParser {
             let pairs: [(String, Any)] = dictionary.map { key, value in
                 (String(describing: key.base), normalize(value))
             }
-            return Dictionary<String, Any>(uniqueKeysWithValues: pairs)
+            return [String: Any](uniqueKeysWithValues: pairs)
         }
         if let array = value as? [Any] {
             return array.map(normalize)
@@ -43,226 +44,13 @@ enum ArticleTOCParser {
 
     private static func parseItem(_ value: [String: Any]) -> ArticleTOCItem? {
         guard let id = value["id"] as? String,
-              let title = value["title"] as? String else {
+              let title = value["title"] as? String
+        else {
             return nil
         }
         let level = value["level"] as? Int ?? 1
         let children = (value["children"] as? [[String: Any]] ?? []).compactMap(parseItem)
         return ArticleTOCItem(id: id, title: title, level: level, children: children)
-    }
-}
-
-func htmlToMarkdownish(_ html: String) -> String {
-    do {
-        return try HTMLToMarkdownConverter.convert(html)
-    } catch {
-        return html
-    }
-}
-
-private enum HTMLToMarkdownConverter {
-    private struct ListContext {
-        enum Kind {
-            case unordered
-            case ordered(next: Int)
-        }
-
-        var kind: Kind
-    }
-
-    private struct LinkContext {
-        let destination: String
-        let startIndex: String.Index
-    }
-
-    static func convert(_ html: String) throws -> String {
-        let tokens = try HTMLTokenizer.tokenize(html)
-        var output = ""
-        var listStack: [ListContext] = []
-        var linkStack: [LinkContext] = []
-        var inlineMarkers: [String: [String]] = [:]
-        var isInsidePre = false
-
-        for token in tokens {
-            switch token {
-            case let .text(value):
-                appendText(value, to: &output, preservingWhitespace: isInsidePre)
-            case let .entity(_, decoded):
-                appendText(decoded, to: &output, preservingWhitespace: isInsidePre)
-            case let .openTag(raw, name):
-                let tag = name.lowercased()
-                switch tag {
-                case "h1", "h2", "h3", "h4", "h5", "h6":
-                    ensureBlankLine(in: &output)
-                    output += String(repeating: "#", count: headingLevel(for: tag)) + " "
-                case "p", "div", "section", "article":
-                    ensureBlankLine(in: &output)
-                case "br":
-                    output += "  \n"
-                case "ul":
-                    ensureBlankLine(in: &output)
-                    listStack.append(ListContext(kind: .unordered))
-                case "ol":
-                    ensureBlankLine(in: &output)
-                    listStack.append(ListContext(kind: .ordered(next: startValue(from: raw))))
-                case "li":
-                    ensureLineStart(in: &output)
-                    let indent = String(repeating: "  ", count: max(0, listStack.count - 1))
-                    output += indent + marker(for: &listStack)
-                case "blockquote":
-                    ensureBlankLine(in: &output)
-                    output += "> "
-                case "pre":
-                    ensureBlankLine(in: &output)
-                    output += "```\n"
-                    isInsidePre = true
-                case "code":
-                    if !isInsidePre { pushInline("`", tag: tag, stack: &inlineMarkers, output: &output) }
-                case "strong", "b":
-                    pushInline("**", tag: tag, stack: &inlineMarkers, output: &output)
-                case "em", "i":
-                    pushInline("*", tag: tag, stack: &inlineMarkers, output: &output)
-                case "a":
-                    linkStack.append(LinkContext(destination: attribute("href", in: raw) ?? "", startIndex: output.endIndex))
-                case "img":
-                    appendImage(raw, to: &output)
-                default:
-                    break
-                }
-            case let .closeTag(_, name):
-                let tag = name.lowercased()
-                switch tag {
-                case "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "section", "article":
-                    ensureBlankLine(in: &output)
-                case "li":
-                    ensureLineStart(in: &output)
-                case "ul", "ol":
-                    if !listStack.isEmpty { listStack.removeLast() }
-                    ensureBlankLine(in: &output)
-                case "blockquote":
-                    ensureBlankLine(in: &output)
-                case "pre":
-                    if !output.hasSuffix("\n") { output += "\n" }
-                    output += "```\n\n"
-                    isInsidePre = false
-                case "code":
-                    if !isInsidePre { popInline(tag: tag, stack: &inlineMarkers, output: &output) }
-                case "strong", "b", "em", "i":
-                    popInline(tag: tag, stack: &inlineMarkers, output: &output)
-                case "a":
-                    closeLink(stack: &linkStack, output: &output)
-                default:
-                    break
-                }
-            case let .voidTag(raw, name):
-                let tag = name.lowercased()
-                if tag == "br" {
-                    output += "  \n"
-                } else if tag == "img" {
-                    appendImage(raw, to: &output)
-                }
-            case .unsafeContent:
-                break
-            }
-        }
-
-        return normalizeMarkdown(output)
-    }
-
-    private static func appendText(_ text: String, to output: inout String, preservingWhitespace: Bool) {
-        if preservingWhitespace {
-            output += text
-            return
-        }
-        let normalized = text
-            .replacingOccurrences(of: "\u{00A0}", with: " ")
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        if output.last?.isWhitespace == false, normalized.first?.isWhitespace == false {
-            output += " "
-        }
-        output += normalized
-    }
-
-    private static func headingLevel(for tag: String) -> Int {
-        Int(tag.dropFirst()) ?? 1
-    }
-
-    private static func marker(for listStack: inout [ListContext]) -> String {
-        guard let last = listStack.indices.last else { return "- " }
-        switch listStack[last].kind {
-        case .unordered:
-            return "- "
-        case .ordered(let next):
-            listStack[last].kind = .ordered(next: next + 1)
-            return "\(next). "
-        }
-    }
-
-    private static func startValue(from raw: String) -> Int {
-        guard let value = attribute("start", in: raw), let parsed = Int(value) else { return 1 }
-        return max(1, parsed)
-    }
-
-    private static func pushInline(
-        _ marker: String,
-        tag: String,
-        stack: inout [String: [String]],
-        output: inout String
-    ) {
-        output += marker
-        stack[tag, default: []].append(marker)
-    }
-
-    private static func popInline(tag: String, stack: inout [String: [String]], output: inout String) {
-        guard var markers = stack[tag], let marker = markers.popLast() else { return }
-        stack[tag] = markers
-        output += marker
-    }
-
-    private static func closeLink(stack: inout [LinkContext], output: inout String) {
-        guard let link = stack.popLast(), !link.destination.isEmpty else { return }
-        let label = output[link.startIndex..<output.endIndex]
-        guard !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        output.insert("[", at: link.startIndex)
-        output += "](\(link.destination))"
-    }
-
-    private static func appendImage(_ raw: String, to output: inout String) {
-        guard let src = attribute("src", in: raw), !src.isEmpty else { return }
-        let alt = attribute("alt", in: raw) ?? ""
-        output += "![\(alt)](\(src))"
-    }
-
-    private static func attribute(_ name: String, in raw: String) -> String? {
-        let pattern = #"\b"# + NSRegularExpression.escapedPattern(for: name) + #"\s*=\s*(['"])(.*?)\1"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) else {
-            return nil
-        }
-        let range = NSRange(raw.startIndex..<raw.endIndex, in: raw)
-        guard let match = regex.firstMatch(in: raw, range: range),
-              let valueRange = Range(match.range(at: 2), in: raw) else {
-            return nil
-        }
-        return String(raw[valueRange])
-    }
-
-    private static func ensureLineStart(in output: inout String) {
-        if output.isEmpty || output.hasSuffix("\n") { return }
-        output += "\n"
-    }
-
-    private static func ensureBlankLine(in output: inout String) {
-        let trimmedEnd = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        output = trimmedEnd
-        if !output.isEmpty { output += "\n\n" }
-    }
-
-    private static func normalizeMarkdown(_ markdown: String) -> String {
-        markdown
-            .replacingOccurrences(of: #" *\n"#, with: "\n", options: .regularExpression)
-            .replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -385,6 +173,69 @@ struct ArticleHTMLSection: Identifiable {
     let html: String
 }
 
+enum ArticleDraftListFailureRoute: Equatable {
+    case initialLoad
+    case retainedList
+
+    static func resolve(hasLoadedDrafts: Bool) -> Self {
+        hasLoadedDrafts ? .retainedList : .initialLoad
+    }
+}
+
+enum ArticleDraftDeleteOutcome: Equatable {
+    case deleted
+    case failed
+
+    static func resolve(hasResponseErrors: Bool, hasDeletePayload: Bool) -> Self {
+        hasResponseErrors || !hasDeletePayload ? .failed : .deleted
+    }
+}
+
+struct ArticleDraftListItem: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let tags: [String]
+    let updated: String
+}
+
+enum ArticleDraftListLoadIntent: Equatable {
+    case automatic
+    case explicitRefresh
+}
+
+enum ArticleDraftListLoadResponse: Equatable {
+    case success([ArticleDraftListItem])
+    case failed
+}
+
+enum ArticleDraftListDeleteResponse: Equatable {
+    case deleted
+    case failed
+}
+
+enum ArticleEditorTarget: Identifiable, Equatable {
+    case new
+    case draft(String)
+
+    var id: String {
+        switch self {
+        case .new:
+            "new"
+        case let .draft(draftID):
+            "draft-\(draftID)"
+        }
+    }
+
+    var draftID: String? {
+        switch self {
+        case .new:
+            nil
+        case let .draft(draftID):
+            draftID
+        }
+    }
+}
+
 enum ArticleHTMLSectioner {
     private static let topID = "article-top"
 
@@ -399,11 +250,12 @@ enum ArticleHTMLSectioner {
             return [ArticleHTMLSection(id: topID, html: html)]
         }
 
-        let fullRange = NSRange(html.startIndex..<html.endIndex, in: html)
+        let fullRange = NSRange(html.startIndex ..< html.endIndex, in: html)
         let matches = regex.matches(in: html, range: fullRange).compactMap { match -> (id: String, range: Range<String.Index>)? in
             guard match.numberOfRanges >= 3,
                   let idRange = Range(match.range(at: 2), in: html),
-                  let headingRange = Range(match.range(at: 0), in: html) else {
+                  let headingRange = Range(match.range(at: 0), in: html)
+            else {
                 return nil
             }
             let id = String(html[idRange])
@@ -417,7 +269,9 @@ enum ArticleHTMLSectioner {
         var sections: [ArticleHTMLSection] = []
         let firstHeadingStart = matches[0].range.lowerBound
         if html.startIndex < firstHeadingStart {
-            let preamble = String(html[html.startIndex..<firstHeadingStart]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let preamble = String(
+                html[html.startIndex ..< firstHeadingStart]
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
             if !preamble.isEmpty {
                 sections.append(ArticleHTMLSection(id: topID, html: preamble))
             }
@@ -426,7 +280,7 @@ enum ArticleHTMLSectioner {
         for (index, match) in matches.enumerated() {
             let sectionStart = match.range.lowerBound
             let sectionEnd = index + 1 < matches.count ? matches[index + 1].range.lowerBound : html.endIndex
-            let sectionHTML = String(html[sectionStart..<sectionEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let sectionHTML = String(html[sectionStart ..< sectionEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
             if !sectionHTML.isEmpty {
                 sections.append(ArticleHTMLSection(id: match.id, html: sectionHTML))
             }
@@ -440,21 +294,351 @@ enum ArticleHTMLSectioner {
     }
 }
 
+enum ArticleDraftListActionFailure: Identifiable, Equatable {
+    case reload
+    case delete(id: String)
+
+    var id: String {
+        switch self {
+        case .reload:
+            "reload"
+        case let .delete(id):
+            "delete-\(id)"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .reload:
+            NSLocalizedString("article.drafts.loadFailed", comment: "Article drafts load failed")
+        case .delete:
+            NSLocalizedString("article.draft.deleteFailed", comment: "Article draft delete failed")
+        }
+    }
+}
+
+struct ArticleDraftPage<Item> {
+    let items: [Item]
+    let hasNextPage: Bool
+    let endCursor: String?
+}
+
+typealias ArticleDraftPageLoader<Item> = @MainActor (String?) async throws -> ArticleDraftPage<Item>
+
+struct ArticleDraftPaginationState<Item> {
+    private let nodeID: (Item) -> String
+    private(set) var items: [Item] = []
+    private(set) var hasNextPage = false
+    private(set) var endCursor: String?
+    private(set) var isLoadingMore = false
+    private(set) var loadMoreErrorMessage: String?
+
+    init(nodeID: @escaping (Item) -> String) {
+        self.nodeID = nodeID
+    }
+
+    mutating func replace(with page: ArticleDraftPage<Item>) {
+        items = deduplicated(page.items)
+        hasNextPage = page.hasNextPage
+        endCursor = page.endCursor
+        isLoadingMore = false
+        loadMoreErrorMessage = nil
+    }
+
+    mutating func beginLoadingMore() -> String? {
+        guard hasNextPage, let endCursor, !isLoadingMore else { return nil }
+        isLoadingMore = true
+        loadMoreErrorMessage = nil
+        return endCursor
+    }
+
+    mutating func append(_ page: ArticleDraftPage<Item>) {
+        items = deduplicated(items + page.items)
+        hasNextPage = page.hasNextPage
+        endCursor = page.endCursor
+        isLoadingMore = false
+        loadMoreErrorMessage = nil
+    }
+
+    mutating func recordLoadMoreFailure(_ message: String) {
+        isLoadingMore = false
+        loadMoreErrorMessage = message
+    }
+
+    mutating func cancelLoadingMore() {
+        isLoadingMore = false
+        loadMoreErrorMessage = nil
+    }
+
+    mutating func remove(id: String) {
+        items.removeAll { nodeID($0) == id }
+    }
+
+    private func deduplicated(_ candidates: [Item]) -> [Item] {
+        var seen = Set<String>()
+        return candidates.filter { seen.insert(nodeID($0)).inserted }
+    }
+}
+
+private enum ArticleDraftListError: LocalizedError {
+    case graphQL(String)
+    case missingConnection
+
+    var errorDescription: String? {
+        switch self {
+        case let .graphQL(message):
+            message
+        case .missingConnection:
+            NSLocalizedString("error.loadFailed.title", comment: "Article drafts load failure")
+        }
+    }
+}
+
+private enum ArticleDraftListRequestError: LocalizedError {
+    case failed
+
+    var errorDescription: String? {
+        NSLocalizedString("article.drafts.loadFailed", comment: "Article drafts load failed")
+    }
+}
+
+@Observable
+@MainActor
+final class ArticleDraftListLoader<Item> {
+    private let nodeID: (Item) -> String
+    private let pageLoader: ArticleDraftPageLoader<Item>?
+    private var pagination: ArticleDraftPaginationState<Item>
+    private var requestGeneration = 0
+
+    @ObservationIgnored
+    private var refreshTask: Task<ArticleDraftPage<Item>, Error>?
+    @ObservationIgnored
+    private var deletionTombstones: Set<String> = []
+
+    private(set) var isLoading = true
+    private(set) var errorMessage: String?
+    private(set) var initialLoadError: String?
+    private(set) var actionFailure: ArticleDraftListActionFailure?
+    private(set) var deletingDraftIDs: Set<String> = []
+
+    var items: [Item] {
+        pagination.items
+    }
+
+    var drafts: [Item] {
+        pagination.items
+    }
+
+    var hasNextPage: Bool {
+        pagination.hasNextPage
+    }
+
+    var endCursor: String? {
+        pagination.endCursor
+    }
+
+    var isLoadingMore: Bool {
+        pagination.isLoadingMore
+    }
+
+    var loadMoreErrorMessage: String? {
+        pagination.loadMoreErrorMessage
+    }
+
+    init(
+        nodeID: @escaping (Item) -> String,
+        pageLoader: ArticleDraftPageLoader<Item>? = nil
+    ) {
+        self.nodeID = nodeID
+        self.pageLoader = pageLoader
+        pagination = ArticleDraftPaginationState(nodeID: nodeID)
+    }
+
+    func refresh(intent: ArticleDraftListLoadIntent = .automatic) async {
+        guard let pageLoader else { return }
+        let task: Task<ArticleDraftPage<Item>, Error> = Task {
+            try await pageLoader(nil)
+        }
+        await performRefresh(intent: intent, task: task)
+    }
+
+    func loadMore() async {
+        guard let pageLoader, let cursor = pagination.beginLoadingMore() else { return }
+        let generation = requestGeneration
+
+        do {
+            let page = try await pageLoader(cursor)
+            guard generation == requestGeneration, !Task.isCancelled else { return }
+            pagination.append(filtered(page))
+        } catch is CancellationError {
+            guard generation == requestGeneration else { return }
+            pagination.cancelLoadingMore()
+        } catch {
+            guard generation == requestGeneration, !Task.isCancelled else { return }
+            pagination.recordLoadMoreFailure(error.localizedDescription)
+        }
+    }
+
+    func remove(id: String) {
+        deletionTombstones.insert(id)
+        pagination.remove(id: id)
+    }
+
+    func hasDeletionTombstone(for id: String) -> Bool {
+        deletionTombstones.contains(id)
+    }
+
+    func isDeleting(id: String) -> Bool {
+        deletingDraftIDs.contains(id)
+    }
+
+    func dismissActionFailure() {
+        actionFailure = nil
+    }
+
+    func delete(
+        id: String,
+        request: @escaping @MainActor () async -> ArticleDraftListDeleteResponse
+    ) async {
+        guard !deletingDraftIDs.contains(id) else { return }
+        deletingDraftIDs.insert(id)
+
+        let task = Task { await request() }
+        let response = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+
+        deletingDraftIDs.remove(id)
+        guard !Task.isCancelled else { return }
+
+        switch response {
+        case .deleted:
+            remove(id: id)
+            actionFailure = nil
+        case .failed:
+            actionFailure = .delete(id: id)
+        }
+    }
+
+    private func performRefresh(
+        intent: ArticleDraftListLoadIntent,
+        task: Task<ArticleDraftPage<Item>, Error>
+    ) async {
+        let failureRoute = ArticleDraftListFailureRoute.resolve(hasLoadedDrafts: !items.isEmpty)
+        requestGeneration &+= 1
+        let generation = requestGeneration
+        refreshTask?.cancel()
+        refreshTask = task
+
+        if items.isEmpty {
+            isLoading = true
+        }
+        errorMessage = nil
+        if failureRoute == .initialLoad {
+            initialLoadError = nil
+        }
+        pagination.cancelLoadingMore()
+
+        do {
+            let page = try await withTaskCancellationHandler {
+                try await task.value
+            } onCancel: {
+                task.cancel()
+            }
+            guard generation == requestGeneration, !Task.isCancelled else { return }
+
+            refreshTask = nil
+            isLoading = false
+            if intent == .explicitRefresh {
+                deletionTombstones.formIntersection(Set(page.items.map(nodeID)))
+            }
+            pagination.replace(with: filtered(page))
+            initialLoadError = nil
+            actionFailure = nil
+            errorMessage = nil
+        } catch is CancellationError {
+            guard generation == requestGeneration else { return }
+            refreshTask = nil
+            isLoading = false
+        } catch {
+            guard generation == requestGeneration, !Task.isCancelled else { return }
+            refreshTask = nil
+            isLoading = false
+            errorMessage = error.localizedDescription
+            recordLoadFailure(for: failureRoute)
+        }
+    }
+
+    private func filtered(_ page: ArticleDraftPage<Item>) -> ArticleDraftPage<Item> {
+        ArticleDraftPage(
+            items: page.items.filter { !deletionTombstones.contains(nodeID($0)) },
+            hasNextPage: page.hasNextPage,
+            endCursor: page.endCursor
+        )
+    }
+
+    private func recordLoadFailure(for route: ArticleDraftListFailureRoute) {
+        switch route {
+        case .initialLoad:
+            initialLoadError = NSLocalizedString("article.drafts.loadFailed", comment: "Article drafts load failed")
+        case .retainedList:
+            actionFailure = .reload
+        }
+    }
+}
+
+extension ArticleDraftListLoader where Item == ArticleDraftListItem {
+    func load(
+        intent: ArticleDraftListLoadIntent,
+        request: @escaping @MainActor () async -> ArticleDraftListLoadResponse
+    ) async {
+        let task: Task<ArticleDraftPage<ArticleDraftListItem>, Error> = Task {
+            switch await request() {
+            case let .success(items):
+                ArticleDraftPage(items: items, hasNextPage: false, endCursor: nil)
+            case .failed:
+                throw ArticleDraftListRequestError.failed
+            }
+        }
+        await performRefresh(intent: intent, task: task)
+    }
+}
+
 struct ArticleDraftListView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var drafts: [HackersPub.ArticleDraftsQuery.Data.Viewer.ArticleDrafts.Edge.Node] = []
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    @State private var draftToDelete: HackersPub.ArticleDraftsQuery.Data.Viewer.ArticleDrafts.Edge.Node?
-    @State private var editingDraftId: String?
+    @State private var loader: ArticleDraftListLoader<ArticleDraftListItem>
+    @State private var draftToDelete: ArticleDraftListItem?
+    @State private var editorTarget: ArticleEditorTarget?
+
+    init() {
+        _loader = State(initialValue: ArticleDraftListLoader(nodeID: \.id) { cursor in
+            try await Self.fetchDraftPage(after: cursor)
+        })
+    }
+
+    private var drafts: [ArticleDraftListItem] {
+        loader.items
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if isLoading {
+                if loader.isLoading && drafts.isEmpty {
                     ProgressView()
-                } else if let errorMessage {
-                    ContentUnavailableView(errorMessage, systemImage: "exclamationmark.triangle")
+                } else if drafts.isEmpty, let initialLoadError = loader.initialLoadError {
+                    VStack(spacing: 16) {
+                        ContentUnavailableView(initialLoadError, systemImage: "exclamationmark.triangle")
+
+                        Button(NSLocalizedString("common.retry", comment: "Retry")) {
+                            Task {
+                                await loadDrafts(intent: .automatic)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding()
                 } else if drafts.isEmpty {
                     ContentUnavailableView(
                         NSLocalizedString("article.drafts.empty", comment: "No article drafts"),
@@ -462,9 +646,9 @@ struct ArticleDraftListView: View {
                     )
                 } else {
                     List {
-                        ForEach(drafts, id: \.id) { draft in
+                        ForEach(drafts) { draft in
                             Button {
-                                editingDraftId = draft.id
+                                editorTarget = .draft(draft.id)
                             } label: {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(draft.title.nilIfBlank ?? NSLocalizedString("article.untitled", comment: "Untitled article"))
@@ -487,6 +671,31 @@ struct ArticleDraftListView: View {
                                     Label(NSLocalizedString("delete.confirm.action", comment: "Delete"), systemImage: "trash")
                                 }
                             }
+                            .disabled(loader.isDeleting(id: draft.id))
+                            .onAppear {
+                                guard shouldLoadMore(afterAppearing: draft) else { return }
+                                Task {
+                                    await loadMoreDrafts()
+                                }
+                            }
+                        }
+
+                        if loader.isLoadingMore {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                            .listRowSeparator(.hidden)
+                        }
+
+                        if let loadMoreErrorMessage = loader.loadMoreErrorMessage {
+                            InlineLoadFailureView(message: loadMoreErrorMessage) {
+                                Task {
+                                    await loadMoreDrafts()
+                                }
+                            }
+                            .listRowSeparator(.hidden)
                         }
                     }
                 }
@@ -498,23 +707,27 @@ struct ArticleDraftListView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        editingDraftId = ""
+                        editorTarget = .new
                     } label: {
                         Label(NSLocalizedString("article.new", comment: "New article"), systemImage: "plus")
                     }
                 }
             }
             .task {
-                await loadDrafts()
+                await loadDrafts(intent: .automatic)
             }
             .refreshable {
-                await loadDrafts()
+                await loadDrafts(intent: .explicitRefresh)
             }
             .alert(
                 NSLocalizedString("article.draft.delete.title", comment: "Delete draft title"),
                 isPresented: Binding(
                     get: { draftToDelete != nil },
-                    set: { if !$0 { draftToDelete = nil } }
+                    set: {
+                        if !$0 {
+                            draftToDelete = nil
+                        }
+                    }
                 )
             ) {
                 Button(NSLocalizedString("delete.confirm.action", comment: "Delete"), role: .destructive) {
@@ -528,48 +741,121 @@ struct ArticleDraftListView: View {
             } message: {
                 Text(NSLocalizedString("article.draft.delete.message", comment: "Delete draft confirmation"))
             }
-            .sheet(item: Binding(
-                get: { editingDraftId.map(ArticleDraftEditorTarget.init(id:)) },
-                set: { editingDraftId = $0?.id }
-            )) { target in
-                ArticleEditorView(draftId: target.id.isEmpty ? nil : target.id) {
-                    editingDraftId = nil
+            .alert(
+                NSLocalizedString("compose.error.title", comment: "Error"),
+                isPresented: Binding(
+                    get: { loader.actionFailure != nil },
+                    set: {
+                        if !$0 {
+                            loader.dismissActionFailure()
+                        }
+                    }
+                )
+            ) {
+                if let actionFailure = loader.actionFailure {
+                    Button(NSLocalizedString("common.retry", comment: "Retry")) {
+                        retry(actionFailure)
+                    }
+                }
+                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
+            } message: {
+                Text(loader.actionFailure?.message ?? "")
+            }
+            .sheet(item: $editorTarget) { target in
+                ArticleEditorView(draftId: target.draftID) {
+                    editorTarget = nil
                     Task {
-                        await loadDrafts()
+                        await loadDrafts(intent: .automatic)
                     }
                 }
             }
         }
     }
 
-    private func loadDrafts() async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+    private static let draftPageSize: Int32 = 50
 
-        do {
-            let response = try await apolloClient.fetch(query: HackersPub.ArticleDraftsQuery(), cachePolicy: .networkOnly)
-            drafts = response.data?.viewer?.articleDrafts.edges.map { $0.node } ?? []
-        } catch {
-            errorMessage = error.localizedDescription
+    private func shouldLoadMore(afterAppearing draft: ArticleDraftListItem) -> Bool {
+        guard loader.hasNextPage,
+              !loader.isLoadingMore,
+              loader.loadMoreErrorMessage == nil
+        else {
+            return false
         }
+        return draft.id == drafts.last?.id
+    }
+
+    private func loadDrafts(intent: ArticleDraftListLoadIntent) async {
+        await loader.refresh(intent: intent)
+    }
+
+    private func loadMoreDrafts() async {
+        await loader.loadMore()
+    }
+
+    private static func fetchDraftPage(after cursor: String?) async throws -> ArticleDraftPage<ArticleDraftListItem> {
+        let response = try await apolloClient.fetch(
+            query: HackersPub.ArticleDraftsQuery(
+                after: cursor.map(GraphQLNullable.some) ?? .none,
+                first: Self.draftPageSize
+            ),
+            cachePolicy: .networkOnly
+        )
+        if let error = response.errors?.first {
+            throw ArticleDraftListError.graphQL(
+                error.message ?? NSLocalizedString("error.loadFailed.title", comment: "Article drafts load failure")
+            )
+        }
+        guard let connection = response.data?.viewer?.articleDrafts else {
+            throw ArticleDraftListError.missingConnection
+        }
+
+        return ArticleDraftPage(
+            items: connection.edges.map {
+                ArticleDraftListItem(
+                    id: $0.node.id,
+                    title: $0.node.title,
+                    tags: $0.node.tags,
+                    updated: $0.node.updated
+                )
+            },
+            hasNextPage: connection.pageInfo.hasNextPage,
+            endCursor: connection.pageInfo.endCursor
+        )
     }
 
     private func deleteDraft(id: String) async {
-        do {
-            let response = try await apolloClient.perform(mutation: HackersPub.DeleteArticleDraftMutation(id: id))
-            if response.data?.deleteArticleDraft.asDeleteArticleDraftPayload != nil {
-                drafts.removeAll { $0.id == id }
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        draftToDelete = nil
-    }
-}
+        defer { draftToDelete = nil }
 
-private struct ArticleDraftEditorTarget: Identifiable {
-    let id: String
+        await loader.delete(id: id) {
+            do {
+                let response = try await apolloClient.perform(
+                    mutation: HackersPub.DeleteArticleDraftMutation(id: id)
+                )
+                switch ArticleDraftDeleteOutcome.resolve(
+                    hasResponseErrors: response.errors?.isEmpty == false,
+                    hasDeletePayload: response.data?.deleteArticleDraft.asDeleteArticleDraftPayload != nil
+                ) {
+                case .deleted:
+                    return .deleted
+                case .failed:
+                    return .failed
+                }
+            } catch {
+                return .failed
+            }
+        }
+    }
+
+    private func retry(_ failure: ArticleDraftListActionFailure) {
+        Task {
+            switch failure {
+            case .reload:
+                await loadDrafts(intent: .automatic)
+            case let .delete(id):
+                await deleteDraft(id: id)
+            }
+        }
+    }
 }
 
 extension String {

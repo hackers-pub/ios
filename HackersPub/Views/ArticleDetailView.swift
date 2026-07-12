@@ -1,5 +1,5 @@
-import SwiftUI
 import Kingfisher
+import SwiftUI
 
 struct ArticleDetailView<P: PostProtocol>: View {
     let post: P
@@ -67,7 +67,7 @@ struct ArticleDetailView<P: PostProtocol>: View {
             }
             .padding(.vertical)
         }
-        .navigationTitle("Article")
+        .navigationTitle(NSLocalizedString("article.detail.title", comment: "Article detail title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
     }

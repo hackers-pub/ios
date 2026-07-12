@@ -1,18 +1,317 @@
+@preconcurrency import Apollo
 import Markdown
 import NaturalLanguage
 import PhotosUI
 import SwiftUI
 import UIKit
-@preconcurrency import Apollo
+
+struct PublishedArticleEditTarget: Equatable {
+    let articleId: String
+    let articleSourceId: String
+}
+
+struct ArticleSourceMediumAttachment: Equatable {
+    let articleSourceId: String
+    let mediumId: String
+    let key: String
+
+    var mutation: HackersPub.AttachArticleSourceMediumMutation {
+        HackersPub.AttachArticleSourceMediumMutation(
+            articleSourceId: articleSourceId,
+            mediumId: mediumId,
+            key: .some(key)
+        )
+    }
+}
+
+typealias ArticleSourceMediumMutationPerformer = @MainActor (
+    HackersPub.AttachArticleSourceMediumMutation
+) async throws -> String
+
+final class ArticleSourceMediumDispatcher {
+    static let live = ArticleSourceMediumDispatcher { mutation in
+        let response = try await apolloClient.perform(mutation: mutation)
+        if let error = response.errors?.first {
+            throw MediumUploadError.server(error.localizedDescription)
+        }
+
+        let result = response.data?.attachArticleSourceMedium
+        if let payload = result?.asAttachArticleSourceMediumPayload {
+            return payload.key
+        }
+        if let invalid = result?.asInvalidInputError {
+            throw MediumUploadError.invalidInput(invalid.inputPath)
+        }
+        if result?.asNotAuthenticatedError != nil {
+            throw MediumUploadError.notAuthenticated
+        }
+        if let notAuthorized = result?.asNotAuthorizedError {
+            throw MediumUploadError.server(notAuthorized.notAuthorized)
+        }
+        throw MediumUploadError.missingPayload("attach")
+    }
+
+    private let perform: ArticleSourceMediumMutationPerformer
+
+    init(perform: @escaping ArticleSourceMediumMutationPerformer) {
+        self.perform = perform
+    }
+
+    @MainActor
+    func attach(_ request: ArticleSourceMediumAttachment) async throws -> String {
+        try await perform(request.mutation)
+    }
+}
+
+@MainActor
+func attachPublishedArticleMedium(
+    target: PublishedArticleEditTarget,
+    mediumId: String,
+    key: String,
+    attach: (ArticleSourceMediumAttachment) async throws -> String,
+    insertMarkdown: (String) -> Void
+) async throws {
+    let attachedKey = try await attach(
+        ArticleSourceMediumAttachment(
+            articleSourceId: target.articleSourceId,
+            mediumId: mediumId,
+            key: key
+        )
+    )
+    insertMarkdown(attachedKey)
+}
 
 struct ArticleEditSeed: Identifiable {
     let id = UUID()
     let title: String
     let content: String
     let tags: [String]
-    let sourceArticleId: String?
+    let articleId: String
+    let articleSourceId: String
     let language: String?
     let allowLlmTranslation: Bool?
+
+    var publishedArticleTarget: PublishedArticleEditTarget {
+        PublishedArticleEditTarget(articleId: articleId, articleSourceId: articleSourceId)
+    }
+}
+
+struct ArticlePendingPhotoSnapshot: Equatable {
+    let id: UUID
+    let alt: String
+}
+
+struct ArticleEditorSnapshot: Equatable {
+    let title: String
+    let content: String
+    let tags: [String]
+    let slug: String
+    let language: String
+    let allowLlmTranslation: Bool
+    let pendingPhotos: [ArticlePendingPhotoSnapshot]
+    let publishedMediumIDs: [String]
+}
+
+struct ArticleSavedDraft: Equatable {
+    let id: String
+    let uuid: String
+}
+
+enum ArticleMutationResponse<Value> {
+    case success(Value)
+    case failure(String)
+}
+
+enum ArticlePublishWorkflowResponse {
+    case published(ArticleSavedDraft)
+    case failed(String)
+    case staleAfterSave(ArticleSavedDraft)
+}
+
+@MainActor
+final class ArticleEditorMutationCoordinator {
+    private let gate = RevisionedSingleFlightCoordinator<ArticleEditorSnapshot>()
+
+    func save(
+        snapshot: ArticleEditorSnapshot,
+        currentSnapshot: @escaping @MainActor () -> ArticleEditorSnapshot,
+        operation: @escaping @MainActor () async -> ArticleMutationResponse<ArticleSavedDraft>
+    ) async -> RevisionedOperationResult<ArticleMutationResponse<ArticleSavedDraft>> {
+        await gate.run(revision: snapshot, currentRevision: currentSnapshot) { _ in
+            await operation()
+        }
+    }
+
+    func publish(
+        snapshot: ArticleEditorSnapshot,
+        currentSnapshot: @escaping @MainActor () -> ArticleEditorSnapshot,
+        saveDraft: @escaping @MainActor () async -> ArticleMutationResponse<ArticleSavedDraft>,
+        publishDraft: @escaping @MainActor (String) async -> ArticleMutationResponse<Void>
+    ) async -> RevisionedOperationResult<ArticlePublishWorkflowResponse> {
+        await gate.run(revision: snapshot, currentRevision: currentSnapshot) { isCurrent in
+            switch await saveDraft() {
+            case let .failure(message):
+                return .failed(message)
+            case let .success(savedDraft):
+                guard isCurrent() else {
+                    return .staleAfterSave(savedDraft)
+                }
+                switch await publishDraft(savedDraft.id) {
+                case .success:
+                    return .published(savedDraft)
+                case let .failure(message):
+                    return .failed(message)
+                }
+            }
+        }
+    }
+
+    func update(
+        snapshot: ArticleEditorSnapshot,
+        currentSnapshot: @escaping @MainActor () -> ArticleEditorSnapshot,
+        operation: @escaping @MainActor () async -> ArticleMutationResponse<Void>
+    ) async -> RevisionedOperationResult<ArticleMutationResponse<Void>> {
+        await gate.run(revision: snapshot, currentRevision: currentSnapshot) { _ in
+            await operation()
+        }
+    }
+}
+
+struct ArticleEditorChangeTracker {
+    private(set) var baseline: ArticleEditorSnapshot?
+
+    mutating func recordBaseline(_ snapshot: ArticleEditorSnapshot) {
+        baseline = snapshot
+    }
+
+    func hasChanges(comparedTo snapshot: ArticleEditorSnapshot) -> Bool {
+        baseline.map { $0 != snapshot } ?? false
+    }
+}
+
+struct ArticlePhotoUploadQueue {
+    private var pendingAttachmentIDs: Set<UUID>
+
+    init(attachmentIDs: [UUID]) {
+        pendingAttachmentIDs = Set(attachmentIDs)
+    }
+
+    mutating func markSucceeded(_ attachmentID: UUID) {
+        pendingAttachmentIDs.remove(attachmentID)
+    }
+
+    func isPending(_ attachmentID: UUID) -> Bool {
+        pendingAttachmentIDs.contains(attachmentID)
+    }
+}
+
+enum ArticlePhotoUploadRunResult<Value> {
+    case blocked
+    case completed(Value)
+}
+
+@MainActor
+final class ArticlePhotoUploadCoordinator {
+    private var isRunning = false
+
+    func requestAttachmentMutation() -> Bool {
+        !isRunning
+    }
+
+    func run<Value>(
+        operation: @escaping @MainActor () async -> Value
+    ) async -> ArticlePhotoUploadRunResult<Value> {
+        guard !isRunning else { return .blocked }
+        isRunning = true
+        defer { isRunning = false }
+        return .completed(await operation())
+    }
+}
+
+enum ArticleDraftLoadOutcome: Equatable {
+    case loaded
+    case notFound
+    case failed
+
+    static func resolve(hasResponseErrors: Bool, hasDraft: Bool) -> Self {
+        if hasResponseErrors {
+            return .failed
+        }
+        return hasDraft ? .loaded : .notFound
+    }
+}
+
+enum ArticleDraftSaveResult: Equatable {
+    case saved(String)
+    case blocked
+    case stale
+    case failed
+}
+
+enum ArticleMediaDraftPreparation: Equatable {
+    case titleRequired
+    case ready(title: String, content: String)
+
+    static func prepare(title: String, content: String) -> Self {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return .titleRequired
+        }
+        return .ready(title: title, content: content)
+    }
+}
+
+struct ArticleEditorOperationGate {
+    let hasValidTitle: Bool
+    let isBusy: Bool
+
+    var canStartSaveDraft: Bool {
+        hasValidTitle && !isBusy
+    }
+
+    var canStartPublish: Bool {
+        hasValidTitle && !isBusy
+    }
+}
+
+enum ArticleInvalidInputMessage {
+    static func localizationKey(for inputPath: String) -> String {
+        let components = inputPath
+            .lowercased()
+            .split { !$0.isLetter && !$0.isNumber }
+            .map(String.init)
+
+        if components.contains("title") {
+            return "article.error.invalidTitle"
+        }
+        if components.contains("content") {
+            return "article.error.invalidContent"
+        }
+        if components.contains("tags") {
+            return "article.error.invalidTags"
+        }
+        if components.contains("slug") {
+            return "article.error.invalidSlug"
+        }
+        if components.contains("language") {
+            return "article.error.invalidLanguage"
+        }
+        return "article.error.invalidInput"
+    }
+
+    static func localizedMessage(for inputPath: String) -> String {
+        NSLocalizedString(localizationKey(for: inputPath), comment: "Article invalid input")
+    }
+}
+
+enum ArticlePhotoAttachErrorMessage {
+    static func localizedMessage(for inputPath: String) -> String {
+        ArticleInvalidInputMessage.localizedMessage(for: inputPath)
+    }
+}
+
+private enum ArticleDraftLoadFailure {
+    case notFound
+    case failed
 }
 
 struct ArticleEditorView: View {
@@ -20,6 +319,7 @@ struct ArticleEditorView: View {
     let draftId: String?
     let seed: ArticleEditSeed?
     let onComplete: () -> Void
+    private let articleSourceMediumDispatcher: ArticleSourceMediumDispatcher
 
     @State private var title = ""
     @State private var content = ""
@@ -40,13 +340,23 @@ struct ArticleEditorView: View {
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var photoAttachments: [ArticlePhotoAttachment] = []
     @State private var editingPhotoAttachment: ArticlePhotoAttachmentEditorTarget?
-    @State private var publishedArticleMedia: [HackersPub.UpdateArticleMediumInput] = []
     @State private var showPreview = false
     @State private var errorMessage: String?
+    @State private var changeTracker = ArticleEditorChangeTracker()
+    @State private var mutationCoordinator = ArticleEditorMutationCoordinator()
+    @State private var photoUploadCoordinator = ArticlePhotoUploadCoordinator()
+    @State private var showDiscardConfirmation = false
+    @State private var draftLoadFailure: ArticleDraftLoadFailure?
 
-    init(draftId: String? = nil, seed: ArticleEditSeed? = nil, onComplete: @escaping () -> Void = {}) {
+    init(
+        draftId: String? = nil,
+        seed: ArticleEditSeed? = nil,
+        articleSourceMediumDispatcher: ArticleSourceMediumDispatcher = .live,
+        onComplete: @escaping () -> Void = {}
+    ) {
         self.draftId = draftId
         self.seed = seed
+        self.articleSourceMediumDispatcher = articleSourceMediumDispatcher
         self.onComplete = onComplete
     }
 
@@ -57,17 +367,51 @@ struct ArticleEditorView: View {
         )
     }
 
-    private var hasTitleForPublish: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving && !isPublishing
-            && !isUploadingPhotoAttachments
+    private var isBusy: Bool {
+        isLoading || isSaving || isPublishing || isLoadingPhotoAttachments || isUploadingPhotoAttachments
     }
 
-    private var canSave: Bool {
-        hasTitleForPublish
+    private var hasValidTitle: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var operationGate: ArticleEditorOperationGate {
+        ArticleEditorOperationGate(hasValidTitle: hasValidTitle, isBusy: isBusy)
+    }
+
+    private var currentSnapshot: ArticleEditorSnapshot {
+        ArticleEditorSnapshot(
+            title: title,
+            content: content,
+            tags: ArticleTagNormalizer.merged(existing: tags, input: tagInput),
+            slug: slug,
+            language: language,
+            allowLlmTranslation: allowLlmTranslation,
+            pendingPhotos: photoAttachments.map {
+                ArticlePendingPhotoSnapshot(id: $0.id, alt: $0.alt)
+            },
+            publishedMediumIDs: []
+        )
+    }
+
+    private var hasChanges: Bool {
+        changeTracker.hasChanges(comparedTo: currentSnapshot)
+    }
+
+    private var canSaveDraft: Bool {
+        operationGate.canStartSaveDraft
+    }
+
+    private var canOpenPublishOptions: Bool {
+        operationGate.canStartPublish
+    }
+
+    private var canAttachMedia: Bool {
+        hasValidTitle && !isBusy
     }
 
     private var isEditingPublishedArticle: Bool {
-        seed?.sourceArticleId != nil
+        seed != nil
     }
 
     private var selectedLanguage: Binding<String> {
@@ -106,7 +450,7 @@ struct ArticleEditorView: View {
     ]
 
     private var navigationTitle: String {
-        if seed?.sourceArticleId != nil {
+        if seed != nil {
             return NSLocalizedString("article.edit", comment: "Edit article")
         }
         if draftId != nil {
@@ -120,6 +464,8 @@ struct ArticleEditorView: View {
             Group {
                 if isLoading {
                     ProgressView()
+                } else if let draftLoadFailure {
+                    draftLoadFailureView(for: draftLoadFailure)
                 } else if showPublishOptions {
                     PublishArticleOptionsView(
                         slug: $slug,
@@ -131,6 +477,7 @@ struct ArticleEditorView: View {
                             ? NSLocalizedString("article.update", comment: "Update article")
                             : NSLocalizedString("article.publish", comment: "Publish"),
                         isPublishing: isPublishing,
+                        isDisabled: isBusy,
                         onCancel: {
                             withAnimation(.snappy(duration: 0.28)) {
                                 showPublishOptions = false
@@ -181,11 +528,15 @@ struct ArticleEditorView: View {
                                         attachments: $photoAttachments,
                                         isLoading: isLoadingPhotoAttachments,
                                         isUploading: isUploadingPhotoAttachments,
+                                        canAttachMedia: canAttachMedia,
+                                        requiresTitle: !hasValidTitle,
                                         selectedItems: $selectedPhotoItems,
                                         onRemove: { id in
+                                            guard photoUploadCoordinator.requestAttachmentMutation() else { return }
                                             photoAttachments.removeAll { $0.id == id }
                                         },
                                         onEdit: { id in
+                                            guard photoUploadCoordinator.requestAttachmentMutation() else { return }
                                             editingPhotoAttachment = ArticlePhotoAttachmentEditorTarget(id: id)
                                         },
                                         onUpload: {
@@ -220,6 +571,7 @@ struct ArticleEditorView: View {
                         insertion: .move(edge: .leading).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
                     ))
+                    .disabled(isBusy)
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -234,12 +586,13 @@ struct ArticleEditorView: View {
                                 showPublishOptions = false
                             }
                         } else {
-                            dismiss()
+                            requestClose()
                         }
                     } label: {
                         Image(systemName: showPublishOptions ? "chevron.left" : "xmark")
                     }
                     .accessibilityLabel(NSLocalizedString("common.cancel", comment: "Cancel"))
+                    .disabled(isBusy)
                 }
                 if !showPublishOptions {
                     ToolbarItemGroup(placement: .topBarTrailing) {
@@ -256,7 +609,7 @@ struct ArticleEditorView: View {
                                 }
                             }
                             .accessibilityLabel(NSLocalizedString("article.saveDraft", comment: "Save draft"))
-                            .disabled(!canSave)
+                            .disabled(!canSaveDraft)
                         }
 
                         Button {
@@ -267,7 +620,7 @@ struct ArticleEditorView: View {
                                 }
                             } else if savedDraftId == nil {
                                 Task {
-                                    if await saveDraft() != nil {
+                                    if case .saved = await saveDraft() {
                                         withAnimation(.snappy(duration: 0.28)) {
                                             showPublishOptions = true
                                         }
@@ -286,7 +639,7 @@ struct ArticleEditorView: View {
                                 ? NSLocalizedString("article.update", comment: "Update article")
                                 : NSLocalizedString("article.publish", comment: "Publish")
                         )
-                        .disabled(!canSave)
+                        .disabled(!canOpenPublishOptions)
                     }
                 }
             }
@@ -295,6 +648,14 @@ struct ArticleEditorView: View {
             }
             .onChange(of: selectedPhotoItems) { _, newItems in
                 guard !newItems.isEmpty else { return }
+                guard hasValidTitle else {
+                    selectedPhotoItems = []
+                    errorMessage = NSLocalizedString(
+                        "article.photos.titleRequired",
+                        comment: "Article title required before adding photos"
+                    )
+                    return
+                }
                 Task {
                     await loadPhotoAttachments(from: newItems)
                     selectedPhotoItems = []
@@ -309,13 +670,54 @@ struct ArticleEditorView: View {
                 NSLocalizedString("compose.error.title", comment: "Error"),
                 isPresented: Binding(
                     get: { errorMessage != nil },
-                    set: { if !$0 { errorMessage = nil } }
+                    set: {
+                        if !$0 {
+                            errorMessage = nil
+                        }
+                    }
                 )
             ) {
                 Button(NSLocalizedString("compose.error.ok", comment: "OK"), role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "")
             }
+            .confirmationDialog(
+                NSLocalizedString("article.discard.title", comment: "Discard article changes title"),
+                isPresented: $showDiscardConfirmation,
+                titleVisibility: .visible
+            ) {
+                if !isEditingPublishedArticle && canSaveDraft && photoAttachments.isEmpty {
+                    Button(NSLocalizedString("article.discard.saveAndClose", comment: "Save draft and close")) {
+                        Task {
+                            if case .saved = await saveDraft() {
+                                onComplete()
+                                dismiss()
+                            }
+                        }
+                    }
+                }
+                if !isEditingPublishedArticle && !photoAttachments.isEmpty {
+                    Button(NSLocalizedString(
+                        "article.discard.pendingPhotosAction",
+                        comment: "Keep editing to upload pending photos"
+                    )) {}
+                }
+                Button(
+                    NSLocalizedString("article.discard.action", comment: "Discard article changes"),
+                    role: .destructive
+                ) {
+                    dismiss()
+                }
+                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
+            } message: {
+                Text(NSLocalizedString(
+                    photoAttachments.isEmpty
+                        ? "article.discard.message"
+                        : "article.discard.pendingPhotosMessage",
+                    comment: "Unsaved article changes message"
+                ))
+            }
+            .interactiveDismissDisabled(hasChanges || isBusy)
         }
     }
 
@@ -325,33 +727,72 @@ struct ArticleEditorView: View {
             : NSLocalizedString("article.publishOptions", comment: "Publish article options")
     }
 
+    private func draftLoadFailureView(for failure: ArticleDraftLoadFailure) -> some View {
+        VStack(spacing: 16) {
+            ContentUnavailableView(
+                draftLoadFailureMessage(for: failure),
+                systemImage: "exclamationmark.triangle"
+            )
+
+            HStack(spacing: 12) {
+                Button(NSLocalizedString("common.retry", comment: "Retry")) {
+                    Task {
+                        await initialize()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button(NSLocalizedString("common.close", comment: "Close")) {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding()
+    }
+
+    private func draftLoadFailureMessage(for failure: ArticleDraftLoadFailure) -> String {
+        switch failure {
+        case .notFound:
+            NSLocalizedString("article.draft.notFound", comment: "Article draft not found")
+        case .failed:
+            NSLocalizedString("article.draft.loadFailed", comment: "Article draft load failed")
+        }
+    }
+
     private func initialize() async {
+        draftLoadFailure = nil
         if let seed {
-            title = seed.title
-            content = seed.content
-            tags = seed.tags
-            savedDraftId = nil
-            savedDraftUUID = nil
-            slug = Self.generateSlug(seed.title)
-            if let seedLanguage = seed.language, !seedLanguage.isEmpty {
-                language = seedLanguage
-                didSelectLanguageManually = true
-            } else {
-                detectLanguageFromCurrentDraft()
-            }
-            if let seedAllowLlmTranslation = seed.allowLlmTranslation {
-                allowLlmTranslation = seedAllowLlmTranslation
-            }
+            initialize(with: seed)
             return
         }
 
-        guard let draftId else { return }
+        guard let draftId else {
+            recordCurrentBaseline()
+            return
+        }
         isLoading = true
         defer { isLoading = false }
 
         do {
             let response = try await apolloClient.fetch(query: HackersPub.ArticleDraftQuery(id: draftId), cachePolicy: .networkOnly)
-            guard let draft = response.data?.articleDraft else { return }
+            switch ArticleDraftLoadOutcome.resolve(
+                hasResponseErrors: response.errors?.isEmpty == false,
+                hasDraft: response.data?.articleDraft != nil
+            ) {
+            case .failed:
+                draftLoadFailure = .failed
+                return
+            case .notFound:
+                draftLoadFailure = .notFound
+                return
+            case .loaded:
+                break
+            }
+            guard let draft = response.data?.articleDraft else {
+                draftLoadFailure = .failed
+                return
+            }
             title = draft.title
             content = draft.content
             tags = draft.tags
@@ -359,150 +800,314 @@ struct ArticleEditorView: View {
             savedDraftUUID = draft.uuid
             slug = Self.generateSlug(draft.title)
             detectLanguageFromCurrentDraft()
+            recordCurrentBaseline()
         } catch {
-            errorMessage = error.localizedDescription
+            draftLoadFailure = .failed
         }
     }
 
+    private func initialize(with seed: ArticleEditSeed) {
+        title = seed.title
+        content = seed.content
+        tags = seed.tags
+        savedDraftId = nil
+        savedDraftUUID = nil
+        slug = Self.generateSlug(seed.title)
+        if let seedLanguage = seed.language, !seedLanguage.isEmpty {
+            language = seedLanguage
+            didSelectLanguageManually = true
+        } else {
+            detectLanguageFromCurrentDraft()
+        }
+        if let seedAllowLlmTranslation = seed.allowLlmTranslation {
+            allowLlmTranslation = seedAllowLlmTranslation
+        }
+        recordCurrentBaseline()
+    }
+
     @discardableResult
-    private func saveDraft() async -> String? {
-        guard hasTitleForPublish else { return savedDraftId }
-        return await saveDraft(
-            title: title,
-            content: content,
-            tags: commitPendingTags()
+    private func saveDraft() async -> ArticleDraftSaveResult {
+        guard operationGate.canStartSaveDraft else { return .blocked }
+        let submittedSnapshot = currentSnapshot
+        let submittedDraftID = savedDraftId
+        let outcome = await mutationCoordinator.save(
+            snapshot: submittedSnapshot,
+            currentSnapshot: { self.currentSnapshot },
+            operation: {
+                isSaving = true
+                defer { isSaving = false }
+                return await requestSaveDraft(snapshot: submittedSnapshot, draftID: submittedDraftID)
+            }
         )
-    }
-
-    @discardableResult
-    private func saveDraft(title draftTitle: String, content draftContent: String, tags draftTags: [String]) async -> String? {
-        isSaving = true
-        defer { isSaving = false }
-
-        do {
-            let response = try await apolloClient.perform(
-                mutation: HackersPub.SaveArticleDraftMutation(
-                    title: draftTitle,
-                    content: draftContent,
-                    tags: draftTags,
-                    id: savedDraftId.map(GraphQLNullable.some) ?? .none
-                )
-            )
-
-            if let payload = response.data?.saveArticleDraft.asSaveArticleDraftPayload {
-                savedDraftId = payload.draft.id
-                savedDraftUUID = payload.draft.uuid
-                return payload.draft.id
-            }
-
-            if let invalid = response.data?.saveArticleDraft.asInvalidInputError {
-                errorMessage = "Invalid input: \(invalid.inputPath)"
-            } else {
-                errorMessage = NSLocalizedString("article.saveFailed", comment: "Article save failed")
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        return nil
+        return applySaveOutcome(outcome, snapshot: submittedSnapshot)
     }
 
     @discardableResult
     private func ensureDraftForMedia() async -> String? {
+        guard case .ready = ArticleMediaDraftPreparation.prepare(
+            title: title,
+            content: content
+        ) else {
+            errorMessage = NSLocalizedString(
+                "article.photos.titleRequired",
+                comment: "Article title required before adding photos"
+            )
+            return nil
+        }
         if let savedDraftUUID {
             return savedDraftUUID
         }
-        let fallbackTitle = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? NSLocalizedString("article.untitled", comment: "Untitled article")
-            : title
-        let fallbackContent = content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? " "
-            : content
-        guard await saveDraft(
-            title: fallbackTitle,
-            content: fallbackContent,
-            tags: ArticleTagNormalizer.merged(existing: tags, input: tagInput)
-        ) != nil else {
+        guard case .saved = await saveDraft() else {
             return nil
         }
         return savedDraftUUID
     }
 
     private func publish() async {
-        guard !isPublishing else { return }
+        guard operationGate.canStartPublish else { return }
         if isEditingPublishedArticle {
             await updatePublishedArticle()
             return
         }
-        let draftId = await saveDraft()
-        guard let draftId else { return }
+        let submittedSnapshot = currentSnapshot
+        let submittedDraftID = savedDraftId
+        let outcome = await mutationCoordinator.publish(
+            snapshot: submittedSnapshot,
+            currentSnapshot: { self.currentSnapshot },
+            saveDraft: {
+                isPublishing = true
+                return await requestSaveDraft(snapshot: submittedSnapshot, draftID: submittedDraftID)
+            },
+            publishDraft: { draftID in
+                defer { isPublishing = false }
+                return await requestPublishDraft(id: draftID, snapshot: submittedSnapshot)
+            }
+        )
 
-        isPublishing = true
-        defer { isPublishing = false }
-
-        do {
-            let response = try await apolloClient.perform(
-                mutation: HackersPub.PublishArticleDraftMutation(
-                    id: draftId,
-                    slug: slug,
-                    language: language,
-                    allowLlmTranslation: .some(allowLlmTranslation)
-                )
+        switch outcome {
+        case .blocked:
+            return
+        case let .stale(response):
+            isPublishing = false
+            applySavedDraftIdentity(from: response)
+            errorMessage = NSLocalizedString(
+                "article.error.changedDuringOperation",
+                comment: "Article changed during operation"
             )
-
-            if response.data?.publishArticleDraft.asPublishArticleDraftPayload?.article != nil {
+        case let .current(response):
+            isPublishing = false
+            switch response {
+            case let .published(savedDraft):
+                applySavedDraftIdentity(savedDraft)
                 NotificationCenter.default.post(name: Notification.Name("RefreshTimeline"), object: nil)
                 onComplete()
                 dismiss()
-            } else if let invalid = response.data?.publishArticleDraft.asInvalidInputError {
-                errorMessage = "Invalid input: \(invalid.inputPath)"
-            } else {
-                errorMessage = NSLocalizedString("article.publishFailed", comment: "Article publish failed")
+            case let .failed(message):
+                errorMessage = message
+            case let .staleAfterSave(savedDraft):
+                applySavedDraftIdentity(savedDraft)
+                errorMessage = NSLocalizedString(
+                    "article.error.changedDuringOperation",
+                    comment: "Article changed during operation"
+                )
             }
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 
     private func updatePublishedArticle() async {
-        guard let articleId = seed?.sourceArticleId else { return }
-        let updatedTags = commitPendingTags()
-        isPublishing = true
-        defer { isPublishing = false }
-
-        do {
-            let response = try await apolloClient.perform(
-                mutation: HackersPub.UpdateArticleMutation(
-                    articleId: articleId,
-                    title: title,
-                    content: content,
-                    tags: updatedTags,
-                    language: language,
-                    allowLlmTranslation: allowLlmTranslation,
-                    media: publishedArticleMedia.isEmpty ? .none : .some(publishedArticleMedia)
+        guard let target = seed?.publishedArticleTarget else { return }
+        let submittedSnapshot = currentSnapshot
+        let outcome = await mutationCoordinator.update(
+            snapshot: submittedSnapshot,
+            currentSnapshot: { self.currentSnapshot },
+            operation: {
+                isPublishing = true
+                defer { isPublishing = false }
+                return await requestUpdateArticle(
+                    id: target.articleId,
+                    snapshot: submittedSnapshot
                 )
-            )
+            }
+        )
 
-            if response.data?.updateArticle.asUpdateArticlePayload?.article != nil {
+        switch outcome {
+        case .blocked:
+            return
+        case .stale:
+            errorMessage = NSLocalizedString(
+                "article.error.changedDuringOperation",
+                comment: "Article changed during operation"
+            )
+        case let .current(response):
+            switch response {
+            case .success:
                 NotificationCenter.default.post(name: Notification.Name("RefreshTimeline"), object: nil)
                 onComplete()
                 dismiss()
-            } else if let invalid = response.data?.updateArticle.asInvalidInputError {
-                errorMessage = invalid.inputPath == "language"
-                    ? NSLocalizedString("article.updateLanguageFailed", comment: "Article language update failed")
-                    : "Invalid input: \(invalid.inputPath)"
-            } else {
-                errorMessage = NSLocalizedString("article.updateFailed", comment: "Article update failed")
+            case let .failure(message):
+                errorMessage = message
             }
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 
-    private func commitPendingTags() -> [String] {
-        let updatedTags = ArticleTagNormalizer.merged(existing: tags, input: tagInput)
-        tags = updatedTags
-        tagInput = ""
-        return updatedTags
+    private func requestSaveDraft(
+        snapshot: ArticleEditorSnapshot,
+        draftID: String?
+    ) async -> ArticleMutationResponse<ArticleSavedDraft> {
+        do {
+            let response = try await apolloClient.perform(
+                mutation: HackersPub.SaveArticleDraftMutation(
+                    title: snapshot.title,
+                    content: snapshot.content,
+                    tags: snapshot.tags,
+                    id: draftID.map(GraphQLNullable.some) ?? .none
+                )
+            )
+            if let error = response.errors?.first {
+                return .failure(error.localizedDescription)
+            }
+            if let payload = response.data?.saveArticleDraft.asSaveArticleDraftPayload {
+                return .success(ArticleSavedDraft(id: payload.draft.id, uuid: payload.draft.uuid))
+            }
+            if let invalid = response.data?.saveArticleDraft.asInvalidInputError {
+                return .failure(ArticleInvalidInputMessage.localizedMessage(for: invalid.inputPath))
+            }
+            return .failure(NSLocalizedString("article.saveFailed", comment: "Article save failed"))
+        } catch {
+            return .failure(error.localizedDescription)
+        }
+    }
+
+    private func requestPublishDraft(
+        id: String,
+        snapshot: ArticleEditorSnapshot
+    ) async -> ArticleMutationResponse<Void> {
+        do {
+            let response = try await apolloClient.perform(
+                mutation: HackersPub.PublishArticleDraftMutation(
+                    id: id,
+                    slug: snapshot.slug,
+                    language: snapshot.language,
+                    allowLlmTranslation: .some(snapshot.allowLlmTranslation)
+                )
+            )
+            if let error = response.errors?.first {
+                return .failure(error.localizedDescription)
+            }
+            if response.data?.publishArticleDraft.asPublishArticleDraftPayload?.article != nil {
+                return .success(())
+            }
+            if let invalid = response.data?.publishArticleDraft.asInvalidInputError {
+                return .failure(ArticleInvalidInputMessage.localizedMessage(for: invalid.inputPath))
+            }
+            return .failure(NSLocalizedString("article.publishFailed", comment: "Article publish failed"))
+        } catch {
+            return .failure(error.localizedDescription)
+        }
+    }
+
+    private func requestUpdateArticle(
+        id: String,
+        snapshot: ArticleEditorSnapshot
+    ) async -> ArticleMutationResponse<Void> {
+        do {
+            let response = try await apolloClient.perform(
+                mutation: HackersPub.UpdateArticleMutation(
+                    articleId: id,
+                    title: snapshot.title,
+                    content: snapshot.content,
+                    tags: snapshot.tags,
+                    language: snapshot.language,
+                    allowLlmTranslation: snapshot.allowLlmTranslation,
+                    media: .none
+                )
+            )
+            if let error = response.errors?.first {
+                return .failure(error.localizedDescription)
+            }
+            if response.data?.updateArticle.asUpdateArticlePayload?.article != nil {
+                return .success(())
+            }
+            if let invalid = response.data?.updateArticle.asInvalidInputError {
+                return .failure(ArticleInvalidInputMessage.localizedMessage(for: invalid.inputPath))
+            }
+            return .failure(NSLocalizedString("article.updateFailed", comment: "Article update failed"))
+        } catch {
+            return .failure(error.localizedDescription)
+        }
+    }
+
+    private func applySaveOutcome(
+        _ outcome: RevisionedOperationResult<ArticleMutationResponse<ArticleSavedDraft>>,
+        snapshot: ArticleEditorSnapshot
+    ) -> ArticleDraftSaveResult {
+        switch outcome {
+        case .blocked:
+            return .blocked
+        case let .stale(response):
+            if case let .success(savedDraft) = response {
+                applySavedDraftIdentity(savedDraft)
+            }
+            errorMessage = NSLocalizedString(
+                "article.error.changedDuringOperation",
+                comment: "Article changed during operation"
+            )
+            return .stale
+        case let .current(response):
+            switch response {
+            case let .success(savedDraft):
+                applySavedDraftIdentity(savedDraft)
+                tags = snapshot.tags
+                tagInput = ""
+                recordPersistedDraftBaseline(snapshot)
+                return .saved(savedDraft.id)
+            case let .failure(message):
+                errorMessage = message
+                return .failed
+            }
+        }
+    }
+
+    private func applySavedDraftIdentity(_ savedDraft: ArticleSavedDraft) {
+        savedDraftId = savedDraft.id
+        savedDraftUUID = savedDraft.uuid
+    }
+
+    private func applySavedDraftIdentity(from response: ArticlePublishWorkflowResponse) {
+        switch response {
+        case let .published(savedDraft), let .staleAfterSave(savedDraft):
+            applySavedDraftIdentity(savedDraft)
+        case .failed:
+            break
+        }
+    }
+
+    private func recordCurrentBaseline() {
+        changeTracker.recordBaseline(currentSnapshot)
+    }
+
+    private func recordPersistedDraftBaseline(_ snapshot: ArticleEditorSnapshot) {
+        changeTracker.recordBaseline(
+            ArticleEditorSnapshot(
+                title: snapshot.title,
+                content: snapshot.content,
+                tags: snapshot.tags,
+                slug: snapshot.slug,
+                language: snapshot.language,
+                allowLlmTranslation: snapshot.allowLlmTranslation,
+                pendingPhotos: [],
+                publishedMediumIDs: []
+            )
+        )
+    }
+
+    private func requestClose() {
+        guard !isBusy else { return }
+        if hasChanges {
+            showDiscardConfirmation = true
+        } else {
+            dismiss()
+        }
     }
 
     private func handleTitleChange(_ newValue: String) {
@@ -530,6 +1135,14 @@ struct ArticleEditorView: View {
     }
 
     private func loadPhotoAttachments(from items: [PhotosPickerItem]) async {
+        guard photoUploadCoordinator.requestAttachmentMutation() else { return }
+        guard hasValidTitle else {
+            errorMessage = NSLocalizedString(
+                "article.photos.titleRequired",
+                comment: "Article title required before adding photos"
+            )
+            return
+        }
         isLoadingPhotoAttachments = true
         defer { isLoadingPhotoAttachments = false }
 
@@ -548,8 +1161,17 @@ struct ArticleEditorView: View {
     }
 
     private func uploadPhotoAttachments() async {
-        guard !photoAttachments.isEmpty, !isUploadingPhotoAttachments else { return }
+        guard !photoAttachments.isEmpty else { return }
 
+        _ = await photoUploadCoordinator.run {
+            isUploadingPhotoAttachments = true
+            defer { isUploadingPhotoAttachments = false }
+            await performPhotoUploadAttachments()
+        }
+    }
+
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    private func performPhotoUploadAttachments() async {
         let draftId: String?
         if isEditingPublishedArticle {
             draftId = nil
@@ -558,16 +1180,16 @@ struct ArticleEditorView: View {
             guard draftId != nil else { return }
         }
 
-        isUploadingPhotoAttachments = true
-        defer { isUploadingPhotoAttachments = false }
-
         do {
-            var uploadedAttachmentIDs: Set<ArticlePhotoAttachment.ID> = []
-            for attachment in photoAttachments {
+            let attachmentsToUpload = photoAttachments
+            var uploadQueue = ArticlePhotoUploadQueue(
+                attachmentIDs: attachmentsToUpload.map(\.id)
+            )
+            for attachment in attachmentsToUpload {
                 let uploaded = try await MediumUploadService.shared.uploadImageData(attachment.data)
                 let key = uploaded.id
-                let attachedKey: String
                 if let draftId {
+                    let attachedKey: String
                     let response = try await apolloClient.perform(
                         mutation: HackersPub.AttachArticleDraftMediumMutation(
                             draftId: draftId,
@@ -578,8 +1200,7 @@ struct ArticleEditorView: View {
                     if let error = response.errors?.first {
                         throw MediumUploadError.server(error.localizedDescription)
                     }
-                    if let payload = response.data?.attachArticleDraftMedium.asAttachArticleDraftMediumPayload {
-                        _ = payload
+                    if response.data?.attachArticleDraftMedium.asAttachArticleDraftMediumPayload != nil {
                         attachedKey = key
                     } else if let invalid = response.data?.attachArticleDraftMedium.asInvalidInputError {
                         throw MediumUploadError.invalidInput(invalid.inputPath)
@@ -588,20 +1209,26 @@ struct ArticleEditorView: View {
                     } else {
                         throw MediumUploadError.missingPayload("attach")
                     }
+                    insertMarkdownImage(alt: attachment.alt, key: attachedKey)
                 } else {
-                    publishedArticleMedia.append(
-                        HackersPub.UpdateArticleMediumInput(
-                            key: .some(key),
-                            mediumId: uploaded.id
-                        )
+                    guard let target = seed?.publishedArticleTarget else {
+                        throw MediumUploadError.missingPayload("article source")
+                    }
+                    try await attachPublishedArticleMedium(
+                        target: target,
+                        mediumId: uploaded.id,
+                        key: key,
+                        attach: articleSourceMediumDispatcher.attach,
+                        insertMarkdown: { attachedKey in
+                            insertMarkdownImage(alt: attachment.alt, key: attachedKey)
+                        }
                     )
-                    attachedKey = key
                 }
-
-                insertMarkdownImage(alt: attachment.alt, key: attachedKey)
-                uploadedAttachmentIDs.insert(attachment.id)
+                uploadQueue.markSucceeded(attachment.id)
+                photoAttachments.removeAll { !uploadQueue.isPending($0.id) }
             }
-            photoAttachments.removeAll { uploadedAttachmentIDs.contains($0.id) }
+        } catch let MediumUploadError.invalidInput(inputPath) {
+            errorMessage = ArticlePhotoAttachErrorMessage.localizedMessage(for: inputPath)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -672,6 +1299,8 @@ private struct ArticlePhotoAttachmentEditor: View {
     @Binding var attachments: [ArticlePhotoAttachment]
     let isLoading: Bool
     let isUploading: Bool
+    let canAttachMedia: Bool
+    let requiresTitle: Bool
     @Binding var selectedItems: [PhotosPickerItem]
     let onRemove: (ArticlePhotoAttachment.ID) -> Void
     let onEdit: (ArticlePhotoAttachment.ID) -> Void
@@ -695,7 +1324,13 @@ private struct ArticlePhotoAttachmentEditor: View {
                     Image(systemName: "photo.badge.plus")
                 }
                 .accessibilityLabel(NSLocalizedString("article.photos.add", comment: "Add article photos button"))
-                .disabled(isLoading || isUploading)
+                .disabled(!canAttachMedia || isLoading || isUploading)
+            }
+
+            if requiresTitle {
+                Text(NSLocalizedString("article.photos.titleRequired", comment: "Article title required before adding photos"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             if !attachments.isEmpty {
@@ -726,7 +1361,7 @@ private struct ArticlePhotoAttachmentEditor: View {
                     }
                 }
                 .buttonStyle(.bordered)
-                .disabled(isLoading || isUploading)
+                .disabled(!canAttachMedia || isLoading || isUploading)
             }
         }
         .padding(16)
@@ -811,7 +1446,7 @@ private struct ArticlePhotoDetailsSheet: View {
                         text: $attachment.alt,
                         axis: .vertical
                     )
-                    .lineLimit(3...6)
+                    .lineLimit(3 ... 6)
                 } footer: {
                     Text(NSLocalizedString("compose.photos.alt.footer", comment: "Alt text guidance"))
                 }
@@ -942,6 +1577,7 @@ private struct PublishArticleOptionsView: View {
     let showsSlug: Bool
     let actionTitle: String
     let isPublishing: Bool
+    let isDisabled: Bool
     let onCancel: () -> Void
     let onPublish: () -> Void
 
@@ -1027,19 +1663,14 @@ private struct PublishArticleOptionsView: View {
             .padding()
             .background(.regularMaterial)
         }
+        .disabled(isDisabled)
     }
 }
 
 private struct ArticlePublishField<Content: View>: View {
     let title: String
     let subtitle: String
-    let content: Content
-
-    init(title: String, subtitle: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.subtitle = subtitle
-        self.content = content()
-    }
+    @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
