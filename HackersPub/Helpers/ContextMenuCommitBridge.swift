@@ -1,12 +1,26 @@
 import SwiftUI
 import UIKit
 
+enum ContextMenuWidthResolver {
+    static func resolve(
+        proposedWidth: CGFloat?,
+        localWidth: CGFloat,
+        parentWidth: CGFloat?,
+        windowWidth: CGFloat?
+    ) -> CGFloat {
+        [proposedWidth, localWidth, parentWidth, windowWidth]
+            .compactMap { $0 }
+            .first { $0.isFinite && $0 > 0 }
+            ?? 1
+    }
+}
+
 struct ContextMenuContainer<Content: View>: UIViewControllerRepresentable {
     let content: Content
     let makeConfiguration: () -> UIContextMenuConfiguration?
     let onCommit: (() -> Void)?
 
-    func makeUIViewController(context: Context) -> HostingController<Content> {
+    func makeUIViewController(context _: Context) -> HostingController<Content> {
         HostingController(
             rootView: content,
             makeConfiguration: makeConfiguration,
@@ -66,7 +80,7 @@ final class HostingController<Content: View>: UIViewController, UIContextMenuInt
             hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         hostingController.didMove(toParent: self)
         if #available(iOS 16.0, *) {
@@ -87,9 +101,14 @@ final class HostingController<Content: View>: UIViewController, UIContextMenuInt
     }
 
     func preferredSize(for proposal: ProposedViewSize) -> CGSize {
-        let fallbackWidth = max(view.bounds.width, UIScreen.main.bounds.width)
+        let targetWidth = ContextMenuWidthResolver.resolve(
+            proposedWidth: proposal.width,
+            localWidth: view.bounds.width,
+            parentWidth: view.superview?.bounds.width ?? parent?.view.bounds.width,
+            windowWidth: view.window?.bounds.width
+        )
         let targetSize = CGSize(
-            width: max(proposal.width ?? fallbackWidth, 1),
+            width: targetWidth,
             height: proposal.height ?? CGFloat.greatestFiniteMagnitude
         )
         return hostingController.sizeThatFits(in: targetSize)

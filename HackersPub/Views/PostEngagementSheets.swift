@@ -10,16 +10,10 @@ struct ShareActorInfo: Identifiable, Hashable {
 
 struct SharesListSheetView: View {
     let title: String
-    let actors: [ShareActorInfo]
-    let isLoading: Bool
-    let isLoadingMore: Bool
-    let errorMessage: String?
+    private let presentation: EngagementListSheetPresentation<ShareActorInfo>
     let emptyTitle: String
     let emptyDescription: String?
-    let hasMore: Bool
     let loadMoreTitle: String
-    let onRetry: (() -> Void)?
-    let onLoadMore: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
@@ -30,50 +24,64 @@ struct SharesListSheetView: View {
         isLoading: Bool = false,
         isLoadingMore: Bool = false,
         errorMessage: String? = nil,
-        emptyTitle: String = "No shares yet",
+        emptyTitle: String = PostEngagementSheetL10n.sharesEmpty,
         emptyDescription: String? = nil,
         hasMore: Bool = false,
-        loadMoreTitle: String = "Load more",
+        loadMoreTitle: String = PostEngagementSheetL10n.sharesLoadMore,
         onRetry: (() -> Void)? = nil,
         onLoadMore: (() -> Void)? = nil
     ) {
         self.title = title
-        self.actors = actors
-        self.isLoading = isLoading
-        self.isLoadingMore = isLoadingMore
-        self.errorMessage = errorMessage
+        presentation = EngagementListSheetPresentation(
+            items: actors,
+            isLoading: isLoading,
+            errorMessage: errorMessage,
+            hasMore: hasMore,
+            isLoadingMore: isLoadingMore,
+            onRetry: onRetry,
+            onLoadMore: onLoadMore
+        )
         self.emptyTitle = emptyTitle
         self.emptyDescription = emptyDescription
-        self.hasMore = hasMore
         self.loadMoreTitle = loadMoreTitle
-        self.onRetry = onRetry
-        self.onLoadMore = onLoadMore
+    }
+
+    init(
+        title: String,
+        state: EngagementListSheetState<ShareActorInfo>,
+        emptyTitle: String = PostEngagementSheetL10n.sharesEmpty,
+        emptyDescription: String? = nil,
+        loadMoreTitle: String = PostEngagementSheetL10n.sharesLoadMore
+    ) {
+        self.title = title
+        presentation = EngagementListSheetPresentation(state: state)
+        self.emptyTitle = emptyTitle
+        self.emptyDescription = emptyDescription
+        self.loadMoreTitle = loadMoreTitle
     }
 
     var body: some View {
         NavigationStack {
             List {
-                if isLoading {
+                if presentation.isLoadingInitial && presentation.items.isEmpty {
                     HStack {
                         Spacer()
                         ProgressView()
                         Spacer()
                     }
                     .listRowSeparator(.hidden)
-                } else if let errorMessage {
+                } else if let errorMessage = presentation.initialErrorMessage, presentation.items.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.title2)
                             .foregroundStyle(.secondary)
-
                         Text(errorMessage)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
-
-                        if let onRetry {
-                            Button("Retry") {
-                                onRetry()
+                        if presentation.canRetryInitial {
+                            Button(PostEngagementSheetL10n.retry) {
+                                presentation.retryInitial()
                             }
                             .buttonStyle(.borderedProminent)
                         }
@@ -81,7 +89,7 @@ struct SharesListSheetView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
                     .listRowSeparator(.hidden)
-                } else if actors.isEmpty {
+                } else if presentation.items.isEmpty {
                     ContentUnavailableView(
                         emptyTitle,
                         systemImage: "person.2.slash",
@@ -89,7 +97,7 @@ struct SharesListSheetView: View {
                     )
                     .listRowSeparator(.hidden)
                 } else {
-                    ForEach(actors) { actor in
+                    ForEach(presentation.items) { actor in
                         Button {
                             dismiss()
                             navigationCoordinator.navigateToProfile(handle: actor.handle)
@@ -103,7 +111,6 @@ struct SharesListSheetView: View {
                                     .scaledToFill()
                                     .frame(width: 40, height: 40)
                                     .clipShape(Circle())
-
                                 VStack(alignment: .leading, spacing: 2) {
                                     if let name = actor.name {
                                         HTMLTextView(html: name, font: .subheadline)
@@ -118,16 +125,22 @@ struct SharesListSheetView: View {
                         .buttonStyle(.plain)
                     }
 
-                    if isLoadingMore {
+                    if presentation.isLoadingMore {
                         HStack {
                             Spacer()
                             ProgressView()
                             Spacer()
                         }
                         .listRowSeparator(.hidden)
-                    } else if hasMore, let onLoadMore {
+                    } else if let errorMessage = presentation.paginationErrorMessage {
+                        EngagementPaginationErrorFooter(
+                            message: errorMessage,
+                            onRetry: presentation.retryVisibleError
+                        )
+                        .listRowSeparator(.hidden)
+                    } else if presentation.hasMore {
                         Button(loadMoreTitle) {
-                            onLoadMore()
+                            presentation.loadMore()
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowSeparator(.hidden)
@@ -148,20 +161,17 @@ struct SharesListSheetView: View {
                 }
             }
         }
+        .onDisappear {
+            presentation.cancelPendingLoads()
+        }
     }
 }
 
 struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View {
-    let items: [P]
-    let isLoading: Bool
-    let errorMessage: String?
+    private let presentation: EngagementListSheetPresentation<P>
     let emptyTitle: String
     let emptyDescription: String?
-    let hasMore: Bool
-    let isLoadingMore: Bool
     let loadMoreTitle: String
-    let onRetry: (() -> Void)?
-    let onLoadMore: (() -> Void)?
     let onPostSelected: ((String) -> Void)?
     let loadingView: (() -> AnyView)?
     let loadingMoreView: (() -> AnyView)?
@@ -170,27 +180,47 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
         items: [P],
         isLoading: Bool = false,
         errorMessage: String? = nil,
-        emptyTitle: String = "No quotes yet",
+        emptyTitle: String = PostEngagementSheetL10n.quotesEmpty,
         emptyDescription: String? = nil,
         hasMore: Bool = false,
         isLoadingMore: Bool = false,
-        loadMoreTitle: String = "Load more",
+        loadMoreTitle: String = PostEngagementSheetL10n.quotesLoadMore,
         onRetry: (() -> Void)? = nil,
         onLoadMore: (() -> Void)? = nil,
         onPostSelected: ((String) -> Void)? = nil,
         loadingView: (() -> AnyView)? = nil,
         loadingMoreView: (() -> AnyView)? = nil
     ) {
-        self.items = items
-        self.isLoading = isLoading
-        self.errorMessage = errorMessage
+        presentation = EngagementListSheetPresentation(
+            items: items,
+            isLoading: isLoading,
+            errorMessage: errorMessage,
+            hasMore: hasMore,
+            isLoadingMore: isLoadingMore,
+            onRetry: onRetry,
+            onLoadMore: onLoadMore
+        )
         self.emptyTitle = emptyTitle
         self.emptyDescription = emptyDescription
-        self.hasMore = hasMore
-        self.isLoadingMore = isLoadingMore
         self.loadMoreTitle = loadMoreTitle
-        self.onRetry = onRetry
-        self.onLoadMore = onLoadMore
+        self.onPostSelected = onPostSelected
+        self.loadingView = loadingView
+        self.loadingMoreView = loadingMoreView
+    }
+
+    init(
+        state: EngagementListSheetState<P>,
+        emptyTitle: String = PostEngagementSheetL10n.quotesEmpty,
+        emptyDescription: String? = nil,
+        loadMoreTitle: String = PostEngagementSheetL10n.quotesLoadMore,
+        onPostSelected: ((String) -> Void)? = nil,
+        loadingView: (() -> AnyView)? = nil,
+        loadingMoreView: (() -> AnyView)? = nil
+    ) {
+        presentation = EngagementListSheetPresentation(state: state)
+        self.emptyTitle = emptyTitle
+        self.emptyDescription = emptyDescription
+        self.loadMoreTitle = loadMoreTitle
         self.onPostSelected = onPostSelected
         self.loadingView = loadingView
         self.loadingMoreView = loadingMoreView
@@ -199,7 +229,7 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                if isLoading && items.isEmpty {
+                if presentation.isLoadingInitial && presentation.items.isEmpty {
                     if let loadingView {
                         loadingView()
                             .frame(maxWidth: .infinity)
@@ -212,20 +242,18 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
                         }
                         .padding()
                     }
-                } else if let errorMessage, items.isEmpty {
+                } else if let errorMessage = presentation.initialErrorMessage, presentation.items.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.title2)
                             .foregroundStyle(.secondary)
-
                         Text(errorMessage)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
-
-                        if let onRetry {
-                            Button("Retry") {
-                                onRetry()
+                        if presentation.canRetryInitial {
+                            Button(PostEngagementSheetL10n.retry) {
+                                presentation.retryInitial()
                             }
                             .buttonStyle(.borderedProminent)
                         }
@@ -233,7 +261,7 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal)
                     .padding(.vertical, 20)
-                } else if items.isEmpty {
+                } else if presentation.items.isEmpty {
                     ContentUnavailableView(
                         emptyTitle,
                         systemImage: "quote.bubble",
@@ -241,30 +269,29 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
                     )
                     .padding()
                 } else {
-                    ForEach(items, id: \.id) { item in
+                    ForEach(presentation.items, id: \.id) { item in
                         PostView(
                             post: item,
                             showAuthor: true,
                             disableNavigation: true,
                             contentRenderMode: .lightweightText
                         )
-                            .allowsHitTesting(false)
-                            .padding(.horizontal)
-                            .padding(.vertical, 12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .overlay {
-                                Color.clear
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        onPostSelected?(item.id)
-                                    }
-                            }
-
+                        .allowsHitTesting(false)
+                        .padding(.horizontal)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .overlay {
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    onPostSelected?(item.id)
+                                }
+                        }
                         Divider()
                             .padding(.horizontal)
                     }
 
-                    if isLoadingMore {
+                    if presentation.isLoadingMore {
                         if let loadingMoreView {
                             loadingMoreView()
                                 .frame(maxWidth: .infinity)
@@ -277,9 +304,14 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
                             }
                             .padding()
                         }
-                    } else if hasMore, let onLoadMore {
+                    } else if let errorMessage = presentation.paginationErrorMessage {
+                        EngagementPaginationErrorFooter(
+                            message: errorMessage,
+                            onRetry: presentation.retryVisibleError
+                        )
+                    } else if presentation.hasMore {
                         Button(loadMoreTitle) {
-                            onLoadMore()
+                            presentation.loadMore()
                         }
                         .padding(.vertical, 12)
                     }
@@ -288,5 +320,32 @@ struct QuotesListSheetView<P: PostProtocol & ReactionCapablePostProtocol>: View 
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
         }
+        .onDisappear {
+            presentation.cancelPendingLoads()
+        }
+    }
+}
+
+private struct EngagementPaginationErrorFooter: View {
+    let message: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(PostEngagementSheetL10n.paginationFailure)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button(PostEngagementSheetL10n.retry) {
+                onRetry()
+            }
+            .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal)
+        .padding(.vertical, 12)
     }
 }

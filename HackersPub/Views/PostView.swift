@@ -103,8 +103,8 @@ struct PostSneakPeekModifier: ViewModifier {
     @State private var relationship: ActorRelationshipState?
     @State private var relationshipActionErrorMessage: String?
     @State private var isApplyingRelationshipAction = false
+    @State private var relationshipStateUpdateGate = ActorRelationshipStateUpdateGate()
 
-    @ViewBuilder
     func body(content: Content) -> some View {
         if let postId {
             content
@@ -133,37 +133,59 @@ struct PostSneakPeekModifier: ViewModifier {
                 } message: {
                     Text(relationshipActionErrorMessage ?? "")
                 }
+                .onChange(of: actorHandle) {
+                    relationshipStateUpdateGate.invalidate()
+                    relationship = nil
+                    relationshipActionErrorMessage = nil
+                }
         } else {
             content
         }
     }
 
+    @MainActor
     private func loadRelationship(cachePolicy: CachePolicy.Query.SingleResponse = .networkFirst) async {
         guard let actorHandle else {
+            relationshipStateUpdateGate.invalidate()
             relationship = nil
             return
         }
+        let request = relationshipStateUpdateGate.begin(handle: actorHandle)
 
         do {
-            relationship = try await ActorRelationshipService.fetch(handle: actorHandle, cachePolicy: cachePolicy)
+            let fetchedRelationship = try await ActorRelationshipService.fetch(
+                handle: actorHandle,
+                cachePolicy: cachePolicy
+            )
+            guard canApplyRelationshipStateUpdate(request) else { return }
+            relationship = fetchedRelationship
         } catch {
-            relationship = nil
+            guard canApplyRelationshipStateUpdate(request) else { return }
         }
+    }
+
+    private func canApplyRelationshipStateUpdate(_ request: ActorRelationshipRequestToken) -> Bool {
+        relationshipStateUpdateGate.allows(request, currentHandle: actorHandle)
     }
 
     private func performRelationshipAction(_ action: ActorRelationshipAction, handle: String) {
         guard authManager.isAuthenticated else { return }
         guard !isApplyingRelationshipAction else { return }
 
+        let request = relationshipStateUpdateGate.begin(handle: handle)
+        isApplyingRelationshipAction = true
         Task {
-            isApplyingRelationshipAction = true
             defer { isApplyingRelationshipAction = false }
 
             do {
                 let currentRelationship: ActorRelationshipState
-                if let relationship {
+                if let relationship, relationship.handle == handle {
                     currentRelationship = relationship
-                } else if let fetched = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly) {
+                } else if let fetched = try await ActorRelationshipService.fetch(
+                    handle: handle,
+                    cachePolicy: .networkOnly
+                ) {
+                    guard canApplyRelationshipStateUpdate(request) else { return }
                     currentRelationship = fetched
                     self.relationship = fetched
                 } else {
@@ -173,8 +195,14 @@ struct PostSneakPeekModifier: ViewModifier {
                 guard !currentRelationship.isViewer else { return }
 
                 try await ActorRelationshipService.perform(action: action, actorId: currentRelationship.actorId)
-                relationship = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly)
+                let refreshedRelationship = try await ActorRelationshipService.fetch(
+                    handle: handle,
+                    cachePolicy: .networkOnly
+                )
+                guard canApplyRelationshipStateUpdate(request) else { return }
+                relationship = refreshedRelationship
             } catch {
+                guard canApplyRelationshipStateUpdate(request) else { return }
                 relationshipActionErrorMessage = error.localizedDescription
             }
         }
@@ -212,7 +240,7 @@ struct PostSneakPeekModifier: ViewModifier {
                 title: NSLocalizedString("sneakpeek.action.sharePost", comment: "Share post"),
                 image: UIImage(systemName: "square.and.arrow.up")
             ) { _ in
-                ShareSheetPresenter.present(items: [shareURL])
+                presentShareSheet(items: [shareURL])
             }
             children.append(shareAction)
         }
@@ -230,11 +258,9 @@ struct PostSneakPeekModifier: ViewModifier {
         if authManager.isAuthenticated {
             userChildren.append(
                 UIDeferredMenuElement { completion in
-                    Task {
+                    DeferredMenuMainActor.perform {
                         await loadRelationship()
-                        let actions = await MainActor.run {
-                            relationshipActions(handle: handle)
-                        }
+                        let actions = relationshipActions(handle: handle)
                         completion(actions)
                     }
                 }
@@ -246,7 +272,7 @@ struct PostSneakPeekModifier: ViewModifier {
                 title: NSLocalizedString("sneakpeek.action.shareProfileLink", comment: "Share profile link"),
                 image: UIImage(systemName: "link")
             ) { _ in
-                ShareSheetPresenter.present(items: [profileURL])
+                presentShareSheet(items: [profileURL])
             }
             userChildren.append(shareProfileAction)
         }
@@ -260,6 +286,15 @@ struct PostSneakPeekModifier: ViewModifier {
         )
     }
 
+    private func presentShareSheet(items: [Any]) {
+        Task { @MainActor in
+            if let error = await ShareSheetPresentationCaller.shared.present(items: items) {
+                relationshipActionErrorMessage = error.userFacingMessage
+            }
+        }
+    }
+
+    @MainActor
     private func relationshipActions(handle: String) -> [UIMenuElement] {
         guard authManager.isAuthenticated,
               let relationship,
@@ -319,8 +354,8 @@ private struct ProfileSneakPeekModifier: ViewModifier {
     @State private var relationship: ActorRelationshipState?
     @State private var relationshipActionErrorMessage: String?
     @State private var isApplyingRelationshipAction = false
+    @State private var relationshipStateUpdateGate = ActorRelationshipStateUpdateGate()
 
-    @ViewBuilder
     func body(content: Content) -> some View {
         if let handle {
             content
@@ -349,37 +384,59 @@ private struct ProfileSneakPeekModifier: ViewModifier {
                 } message: {
                     Text(relationshipActionErrorMessage ?? "")
                 }
+                .onChange(of: handle) {
+                    relationshipStateUpdateGate.invalidate()
+                    relationship = nil
+                    relationshipActionErrorMessage = nil
+                }
         } else {
             content
         }
     }
 
+    @MainActor
     private func loadRelationship(cachePolicy: CachePolicy.Query.SingleResponse = .networkFirst) async {
         guard let handle else {
+            relationshipStateUpdateGate.invalidate()
             relationship = nil
             return
         }
+        let request = relationshipStateUpdateGate.begin(handle: handle)
 
         do {
-            relationship = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: cachePolicy)
+            let fetchedRelationship = try await ActorRelationshipService.fetch(
+                handle: handle,
+                cachePolicy: cachePolicy
+            )
+            guard canApplyRelationshipStateUpdate(request) else { return }
+            relationship = fetchedRelationship
         } catch {
-            relationship = nil
+            guard canApplyRelationshipStateUpdate(request) else { return }
         }
+    }
+
+    private func canApplyRelationshipStateUpdate(_ request: ActorRelationshipRequestToken) -> Bool {
+        relationshipStateUpdateGate.allows(request, currentHandle: handle)
     }
 
     private func performRelationshipAction(_ action: ActorRelationshipAction, handle: String) {
         guard authManager.isAuthenticated else { return }
         guard !isApplyingRelationshipAction else { return }
 
+        let request = relationshipStateUpdateGate.begin(handle: handle)
+        isApplyingRelationshipAction = true
         Task {
-            isApplyingRelationshipAction = true
             defer { isApplyingRelationshipAction = false }
 
             do {
                 let currentRelationship: ActorRelationshipState
-                if let relationship {
+                if let relationship, relationship.handle == handle {
                     currentRelationship = relationship
-                } else if let fetched = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly) {
+                } else if let fetched = try await ActorRelationshipService.fetch(
+                    handle: handle,
+                    cachePolicy: .networkOnly
+                ) {
+                    guard canApplyRelationshipStateUpdate(request) else { return }
                     currentRelationship = fetched
                     self.relationship = fetched
                 } else {
@@ -389,8 +446,14 @@ private struct ProfileSneakPeekModifier: ViewModifier {
                 guard !currentRelationship.isViewer else { return }
 
                 try await ActorRelationshipService.perform(action: action, actorId: currentRelationship.actorId)
-                relationship = try await ActorRelationshipService.fetch(handle: handle, cachePolicy: .networkOnly)
+                let refreshedRelationship = try await ActorRelationshipService.fetch(
+                    handle: handle,
+                    cachePolicy: .networkOnly
+                )
+                guard canApplyRelationshipStateUpdate(request) else { return }
+                relationship = refreshedRelationship
             } catch {
+                guard canApplyRelationshipStateUpdate(request) else { return }
                 relationshipActionErrorMessage = error.localizedDescription
             }
         }
@@ -426,11 +489,9 @@ private struct ProfileSneakPeekModifier: ViewModifier {
         if authManager.isAuthenticated {
             actions.append(
                 UIDeferredMenuElement { completion in
-                    Task {
+                    DeferredMenuMainActor.perform {
                         await loadRelationship()
-                        let elements = await MainActor.run {
-                            profileRelationshipActions(handle: handle)
-                        }
+                        let elements = profileRelationshipActions(handle: handle)
                         completion(elements)
                     }
                 }
@@ -442,7 +503,7 @@ private struct ProfileSneakPeekModifier: ViewModifier {
                 title: NSLocalizedString("sneakpeek.action.shareProfileLink", comment: "Share profile link"),
                 image: UIImage(systemName: "link")
             ) { _ in
-                ShareSheetPresenter.present(items: [profileURL])
+                presentShareSheet(items: [profileURL])
             }
             actions.append(shareProfileAction)
         }
@@ -450,6 +511,15 @@ private struct ProfileSneakPeekModifier: ViewModifier {
         return actions
     }
 
+    private func presentShareSheet(items: [Any]) {
+        Task { @MainActor in
+            if let error = await ShareSheetPresentationCaller.shared.present(items: items) {
+                relationshipActionErrorMessage = error.userFacingMessage
+            }
+        }
+    }
+
+    @MainActor
     private func profileRelationshipActions(handle: String) -> [UIMenuElement] {
         guard authManager.isAuthenticated,
               let relationship,
@@ -511,21 +581,37 @@ extension View {
     }
 }
 
+private struct EngagementToolbarAlternateAction: ViewModifier {
+    let name: String?
+    let action: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if let name, let action {
+            content.accessibilityAction(named: Text(name)) {
+                action()
+            }
+        } else {
+            content
+        }
+    }
+}
+
 struct EngagementToolbarButton: View {
     let icon: String
     let count: Int
     let showsZeroCount: Bool
+    let accessibility: EngagementToolbarAccessibility
     let tint: Color
     let isLoading: Bool
     let onTap: () -> Void
     let onLongPress: (() -> Void)?
 
-    @State private var suppressTap = false
-
     init(
         icon: String,
         count: Int,
         showsZeroCount: Bool,
+        accessibilityLabel: String,
+        accessibilityLongPressLabel: String? = nil,
         tint: Color = .secondary,
         isLoading: Bool = false,
         onTap: @escaping () -> Void,
@@ -534,6 +620,11 @@ struct EngagementToolbarButton: View {
         self.icon = icon
         self.count = count
         self.showsZeroCount = showsZeroCount
+        accessibility = EngagementToolbarAccessibility(
+            label: accessibilityLabel,
+            count: count,
+            alternateActionName: accessibilityLongPressLabel
+        )
         self.tint = tint
         self.isLoading = isLoading
         self.onTap = onTap
@@ -556,23 +647,48 @@ struct EngagementToolbarButton: View {
                     .foregroundStyle(tint)
             }
         }
+        .frame(
+            minWidth: CGFloat(EngagementToolbarAccessibility.minimumHitSize),
+            minHeight: CGFloat(EngagementToolbarAccessibility.minimumHitSize)
+        )
         .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isButton)
-        .onTapGesture {
-            if suppressTap {
-                suppressTap = false
-                return
-            }
-            onTap()
+        .accessibilityLabel(accessibility.label)
+        .accessibilityValue(accessibility.value)
+        .accessibilityAction {
+            EngagementToolbarGesturePolicy.dispatch(
+                .tap,
+                onTap: onTap,
+                onLongPress: onLongPress
+            )
         }
-        .onLongPressGesture(minimumDuration: 0.45) {
-            guard let onLongPress else { return }
-            suppressTap = true
-            onLongPress()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                suppressTap = false
-            }
-        }
+        .modifier(
+            EngagementToolbarAlternateAction(
+                name: accessibility.alternateActionName,
+                action: onLongPress
+            )
+        )
+        .gesture(
+            LongPressGesture(minimumDuration: 0.45)
+                .onEnded { _ in
+                    EngagementToolbarGesturePolicy.dispatch(
+                        .longPress,
+                        onTap: onTap,
+                        onLongPress: onLongPress
+                    )
+                }
+                .exclusively(
+                    before: TapGesture()
+                        .onEnded {
+                            EngagementToolbarGesturePolicy.dispatch(
+                                .tap,
+                                onTap: onTap,
+                                onLongPress: onLongPress
+                            )
+                        }
+                )
+        )
     }
 }
 
@@ -636,7 +752,7 @@ struct RepostIndicator: View {
             }
             .profileSneakPeek(handle: enableProfileSneakPeek ? actor.handle : nil)
 
-            Text("reposted")
+            Text(PostL10n.reposted)
                 .font(.caption)
         }
         .foregroundStyle(.secondary)
@@ -699,8 +815,8 @@ private struct ActorHeaderIdentity<Actor: ActorProtocol>: View {
                             HTMLTextView(html: name, font: nameFont)
                         }
                     }
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     if let nameWeight {
                         nameView.fontWeight(nameWeight)
                     } else {
@@ -835,24 +951,6 @@ struct QuotedPostCard<QuotedPost: QuotedPostProtocol>: View {
     }
 }
 
-struct PostEngagementSnapshot: Equatable {
-    let hasShared: Bool
-    let hasBookmarked: Bool
-    let shares: Int
-    let reactions: Int
-    let reactionGroups: [ReactionGroupSnapshot]
-}
-
-extension PostEngagementSnapshot {
-    init<P: PostProtocol & ReactionCapablePostProtocol>(post: P) {
-        hasShared = post.viewerHasShared
-        hasBookmarked = post.sharedPost?.viewerHasBookmarked ?? post.viewerHasBookmarked
-        shares = post.engagementStats.shares
-        reactions = post.engagementStats.reactions
-        reactionGroups = post.reactionGroupsSnapshot
-    }
-}
-
 struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     private enum ActiveSheet: Identifiable {
         case reply
@@ -889,30 +987,16 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var activeSheet: ActiveSheet?
+    @State private var pendingQuotedPostNavigation = PendingSheetPostNavigation()
     @State private var showingReactionPicker = false
-    @State private var isSharing = false
     @State private var isBookmarking = false
     @State private var isReacting = false
-    @State private var hasShared: Bool
-    @State private var hasBookmarked: Bool
-    @State private var sharesCount: Int
-    @State private var reactionsCount: Int
-    @State private var reactionGroups: [ReactionGroupSnapshot]
-    @State private var reactionInfos: [ReactionGroupInfo] = []
-    @State private var isLoadingReactionInfos = false
-    @State private var reactionErrorMessage: String?
-    @State private var shareActors: [ShareActorInfo] = []
-    @State private var isLoadingShares = false
-    @State private var sharesErrorMessage: String?
-    @State private var hasMoreShares = false
-    @State private var sharesCursor: String?
-    @State private var isLoadingMoreShares = false
-    @State private var quotes: [HackersPub.PostQuotesQuery.Data.Node.AsPost.Quotes.Edge.Node] = []
-    @State private var isLoadingQuotes = false
-    @State private var quotesErrorMessage: String?
-    @State private var hasMoreQuotes = false
-    @State private var quotesCursor: String?
-    @State private var isLoadingMoreQuotes = false
+    @State private var engagementState: PostEngagementState
+    @State private var reactionInfoState = ReactionInfoLoadState<ReactionGroupInfo>()
+    @State private var reactionRetryEmoji: String?
+    @State private var reactionCoordinator: PostReactionRequestCoordinator
+    @State private var sharesState: EngagementListSheetState<ShareActorInfo>
+    @State private var quotesState: EngagementListSheetState<PostEngagementSheetLoader.Quote>
     @AppStorage("engagement.sharePressActionsSwapped") private var sharePressActionsSwapped = false
     @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
     @AppStorage("engagement.confirmBeforeShare") private var confirmBeforeShare = false
@@ -921,11 +1005,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     @State private var showingDeleteConfirmation = false
     @State private var isDeleting = false
     @State private var deleteErrorMessage: String?
-    @State private var markdownMaxLength = UserDefaults.standard.integer(forKey: "markdownMaxLength") {
-        didSet {
-            UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
-        }
-    }
+    @AppStorage(MarkdownMaxLengthPreference.key)
+    private var markdownMaxLength = MarkdownMaxLengthPreference.defaultValue
 
     init(
         post: P,
@@ -945,11 +1026,39 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         self.enableSneakPeek = enableSneakPeek
         self.contentRenderMode = contentRenderMode
         self.onBookmarkChanged = onBookmarkChanged
-        _hasShared = State(initialValue: post.viewerHasShared)
-        _hasBookmarked = State(initialValue: post.sharedPost?.viewerHasBookmarked ?? post.viewerHasBookmarked)
-        _sharesCount = State(initialValue: post.engagementStats.shares)
-        _reactionsCount = State(initialValue: post.engagementStats.reactions)
-        _reactionGroups = State(initialValue: post.reactionGroupsSnapshot)
+        let engagementState = PostEngagementState(post: post)
+        _engagementState = State(initialValue: engagementState)
+        _reactionCoordinator = State(
+            initialValue: PostReactionRequestCoordinator(targetPostID: engagementState.target.postID)
+        )
+        _sharesState = State(initialValue: Self.makeSharesState(postID: engagementState.target.postID))
+        _quotesState = State(initialValue: Self.makeQuotesState(postID: engagementState.target.postID))
+    }
+
+    private static func makeSharesState(postID: String) -> EngagementListSheetState<ShareActorInfo> {
+        EngagementListSheetState(id: \.id, loader: sharesLoader(for: postID))
+    }
+
+    private static func sharesLoader(
+        for postID: String
+    ) -> EngagementListSheetState<ShareActorInfo>.Loader {
+        { cursor in
+            await PostEngagementSheetLoader.shares(postID: postID, after: cursor)
+        }
+    }
+
+    private static func makeQuotesState(
+        postID: String
+    ) -> EngagementListSheetState<PostEngagementSheetLoader.Quote> {
+        EngagementListSheetState(id: \.id, loader: quotesLoader(for: postID))
+    }
+
+    private static func quotesLoader(
+        for postID: String
+    ) -> EngagementListSheetState<PostEngagementSheetLoader.Quote>.Loader {
+        { cursor in
+            await PostEngagementSheetLoader.quotes(postID: postID, after: cursor)
+        }
     }
 
     private var useReactionPopover: Bool {
@@ -957,11 +1066,11 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     }
 
     private var viewerHasReacted: Bool {
-        reactionGroups.contains(where: { $0.viewerHasReacted })
+        engagementState.viewerHasReacted
     }
 
-    private var engagementSnapshot: PostEngagementSnapshot {
-        PostEngagementSnapshot(post: post)
+    private var incomingEngagementState: PostEngagementState {
+        PostEngagementState(post: post)
     }
 
     private var canDeleteCurrentPost: Bool {
@@ -974,8 +1083,12 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         authManager.isAuthenticated
     }
 
+    private var engagementTargetID: String {
+        engagementState.target.postID
+    }
+
     private var bookmarkTargetID: String {
-        post.sharedPost?.id ?? post.id
+        engagementTargetID
     }
 
     private var repostIndicatorActor: (any ActorProtocol)? {
@@ -988,7 +1101,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
 
     private var mainSneakPeekPostId: String? {
         guard sneakPeekEnabled, !post.isArticle else { return nil }
-        return post.id
+        return engagementTargetID
     }
 
     private var sneakPeekEnabled: Bool {
@@ -1031,32 +1144,27 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     }
 
     private func toggleShare() async {
-        guard !isSharing else { return }
-        isSharing = true
-        defer { isSharing = false }
+        guard let attempt = engagementState.beginShareToggle() else { return }
 
         do {
-            if hasShared {
-                // Unshare
-                let response = try await apolloClient.perform(
-                    mutation: HackersPub.UnsharePostMutation(postId: post.id)
-                )
-                if let payload = response.data?.unsharePost.asUnsharePostPayload {
-                    hasShared = payload.originalPost.viewerHasShared
-                    sharesCount = payload.originalPost.engagementStats.shares
-                }
-            } else {
-                // Share
-                let response = try await apolloClient.perform(
-                    mutation: HackersPub.SharePostMutation(postId: post.id)
-                )
-                if let payload = response.data?.sharePost.asSharePostPayload {
-                    hasShared = payload.originalPost.viewerHasShared
-                    sharesCount = payload.originalPost.engagementStats.shares
-                }
-            }
+            let result = try await PostEngagementMutationService.setShared(
+                postID: attempt.targetPostID,
+                desiredHasShared: attempt.desiredHasShared
+            )
+            engagementState.completeShare(
+                attempt,
+                hasShared: result.hasShared,
+                sharesCount: result.sharesCount
+            )
         } catch {
-            print("Error toggling share: \(error)")
+            if PostEngagementMutationError.isCancellation(error) {
+                engagementState.cancelShare(attempt)
+            } else {
+                engagementState.failShare(
+                    attempt,
+                    message: PostEngagementMutationError.userMessage(for: error)
+                )
+            }
         }
     }
 
@@ -1065,8 +1173,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
         guard AuthManager.shared.currentAccount != nil else { return }
 
         isBookmarking = true
-        let previousState = hasBookmarked
-        hasBookmarked.toggle()
+        let previousState = engagementState.hasBookmarked
+        engagementState.hasBookmarked.toggle()
         defer { isBookmarking = false }
 
         do {
@@ -1075,27 +1183,32 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                     mutation: HackersPub.UnbookmarkPostMutation(postId: bookmarkTargetID)
                 )
                 if let payload = response.data?.unbookmarkPost.asUnbookmarkPostPayload {
-                    hasBookmarked = payload.post.viewerHasBookmarked
-                    onBookmarkChanged?(bookmarkTargetID, hasBookmarked)
+                    engagementState.hasBookmarked = PostBookmarkChangePropagation.resolve(
+                        postID: bookmarkTargetID,
+                        authoritativeState: payload.post.viewerHasBookmarked,
+                        fallbackState: previousState,
+                        onChange: onBookmarkChanged
+                    )
                 } else {
-                    hasBookmarked = previousState
-                    onBookmarkChanged?(bookmarkTargetID, previousState)
+                    engagementState.hasBookmarked = previousState
                 }
             } else {
                 let response = try await apolloClient.perform(
                     mutation: HackersPub.BookmarkPostMutation(postId: bookmarkTargetID)
                 )
                 if let payload = response.data?.bookmarkPost.asBookmarkPostPayload {
-                    hasBookmarked = payload.post.viewerHasBookmarked
-                    onBookmarkChanged?(bookmarkTargetID, hasBookmarked)
+                    engagementState.hasBookmarked = PostBookmarkChangePropagation.resolve(
+                        postID: bookmarkTargetID,
+                        authoritativeState: payload.post.viewerHasBookmarked,
+                        fallbackState: previousState,
+                        onChange: onBookmarkChanged
+                    )
                 } else {
-                    hasBookmarked = previousState
-                    onBookmarkChanged?(bookmarkTargetID, previousState)
+                    engagementState.hasBookmarked = previousState
                 }
             }
         } catch {
-            hasBookmarked = previousState
-            onBookmarkChanged?(bookmarkTargetID, previousState)
+            engagementState.hasBookmarked = previousState
             print("Error toggling bookmark: \(error)")
         }
     }
@@ -1103,7 +1216,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     private func presentSharesSheet() {
         activeSheet = .shares
         Task {
-            await fetchShares()
+            await sharesState.reload()
         }
     }
 
@@ -1143,6 +1256,7 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             )
 
             if response.data?.deletePost.asDeletePostPayload != nil {
+                PostContentEventCenter.publish(.postDeleted(postID: post.id))
                 NotificationCenter.default.post(name: Notification.Name("RefreshTimeline"), object: nil)
             } else if let invalidInput = response.data?.deletePost.asInvalidInputError {
                 deleteErrorMessage = String(
@@ -1181,25 +1295,33 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     }
 
     private func handleShareTap() {
-        if sharePressActionsSwapped {
-            presentSharesSheet()
-        } else {
-            requestShareToggle()
-        }
+        performShareAccessAction(isAlternateAction: false)
     }
 
     private func handleShareLongPress() {
-        if sharePressActionsSwapped {
-            requestShareToggle()
-        } else {
+        performShareAccessAction(isAlternateAction: true)
+    }
+
+    private func performShareAccessAction(isAlternateAction: Bool) {
+        switch PostEngagementAccessPolicy.share(
+            isAuthenticated: canPerformEngagementActions,
+            actionsSwapped: sharePressActionsSwapped,
+            isAlternateAction: isAlternateAction,
+            postID: engagementTargetID
+        ) {
+        case .toggleShare:
+            performShareToggle()
+        case .viewShares:
             presentSharesSheet()
+        case .composeReply, .viewReplies:
+            break
         }
     }
 
     private func presentQuotesSheet() {
         activeSheet = .quotes
         Task {
-            await fetchQuotes()
+            await quotesState.reload()
         }
     }
 
@@ -1228,7 +1350,8 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     }
 
     private func presentReactionPicker() {
-        reactionInfos = []
+        engagementState.prepareReactionPicker()
+        reactionRetryEmoji = nil
         if useReactionPopover {
             showingReactionPicker = true
         } else {
@@ -1241,279 +1364,134 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
     }
 
     private func applyReactionLocally(emoji: String, add: Bool) {
-        if let existingIndex = reactionGroups.firstIndex(where: { $0.emoji == emoji }) {
-            var group = reactionGroups[existingIndex]
-            let updatedCount = max(0, group.totalCount + (add ? 1 : -1))
-            if updatedCount == 0 {
-                reactionGroups.remove(at: existingIndex)
-            } else {
-                group.totalCount = updatedCount
-                group.viewerHasReacted = add
-                reactionGroups[existingIndex] = group
-            }
-        } else if add {
-            reactionGroups.append(
-                ReactionGroupSnapshot(
-                    id: "emoji:\(emoji)",
-                    emoji: emoji,
-                    customEmojiName: nil,
-                    customEmojiImageUrl: nil,
-                    totalCount: 1,
-                    viewerHasReacted: true
-                )
-            )
-        }
-        reactionsCount = max(0, reactionsCount + (add ? 1 : -1))
-    }
-
-    private func reactionGroupInfo(from group: HackersPub.PostDetailQuery.Data.Node.AsPost.ReactionGroup) -> ReactionGroupInfo {
-        if let emojiGroup = group.asEmojiReactionGroup {
-            return ReactionGroupInfo(
-                emoji: emojiGroup.emoji,
-                customEmojiUrl: nil,
-                reactors: emojiGroup.reactors.edges.map { edge in
-                    ReactorInfo(
-                        id: edge.node.id,
-                        name: edge.node.name,
-                        handle: edge.node.handle,
-                        avatarUrl: edge.node.avatarUrl
-                    )
-                },
-                totalCount: emojiGroup.reactors.totalCount
-            )
-        } else if let customGroup = group.asCustomEmojiReactionGroup {
-            return ReactionGroupInfo(
-                emoji: customGroup.customEmoji.name,
-                customEmojiUrl: customGroup.customEmoji.imageUrl,
-                reactors: customGroup.reactors.edges.map { edge in
-                    ReactorInfo(
-                        id: edge.node.id,
-                        name: edge.node.name,
-                        handle: edge.node.handle,
-                        avatarUrl: edge.node.avatarUrl
-                    )
-                },
-                totalCount: customGroup.reactors.totalCount
-            )
-        }
-        return ReactionGroupInfo(emoji: "?", customEmojiUrl: nil, reactors: [], totalCount: 0)
+        engagementState.applyReaction(emoji: emoji, adding: add)
     }
 
     private func fetchReactionInfos() async {
-        guard !isLoadingReactionInfos else { return }
-        isLoadingReactionInfos = true
-        defer { isLoadingReactionInfos = false }
+        guard reactionInfoState.beginLoading() else { return }
+        reactionCoordinator.setTargetPostID(engagementTargetID)
+        guard let request = reactionCoordinator.beginInfoLoad() else { return }
 
         do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.PostDetailQuery(id: post.id, repliesAfter: nil),
-                cachePolicy: .networkOnly
-            )
-
-            guard let fetchedPost = response.data?.node?.asPost else {
-                reactionInfos = []
-                return
-            }
-
-            reactionInfos = fetchedPost.reactionGroups.map { reactionGroupInfo(from: $0) }
-            reactionGroups = fetchedPost.reactionGroupsSnapshot
-            reactionsCount = fetchedPost.engagementStats.reactions
+            let result = try await PostReactionInfoService.fetch(postID: request.targetPostID)
+            guard reactionCoordinator.shouldApply(request) else { return }
+            reactionInfoState.succeed(items: result.infos)
+            engagementState.reconcileReactions(groups: result.groups, totalCount: result.totalCount)
         } catch {
-            reactionInfos = []
-            print("Error fetching reaction info: \(error)")
+            guard reactionCoordinator.shouldApply(request) else { return }
+            if PostEngagementMutationError.isCancellation(error) {
+                reactionInfoState.cancel()
+            } else {
+                reactionInfoState.fail(
+                    message: (error as? LocalizedError)?.errorDescription
+                        ?? PostReactionInfoError.server(error.localizedDescription).localizedDescription
+                )
+            }
         }
     }
 
-    private func toggleReaction(emoji: String) async {
-        guard !isReacting else { return }
+    // swiftlint:disable:next function_body_length
+    private func toggleReaction(emoji: String) async -> PostReactionMutationResult? {
+        guard !isReacting else { return nil }
         guard AuthManager.shared.currentAccount != nil else {
-            reactionErrorMessage = ReactionL10n.signInRequired
-            return
+            engagementState.reactionErrorMessage = ReactionL10n.signInRequired
+            reactionRetryEmoji = emoji
+            return nil
         }
         isReacting = true
         defer { isReacting = false }
 
-        let shouldRemove = reactionGroups.first(where: { $0.emoji == emoji })?.viewerHasReacted == true
+        reactionCoordinator.setTargetPostID(engagementTargetID)
+        guard let attempt = reactionCoordinator.beginMutation() else { return nil }
+        reactionInfoState.cancel()
+        let rollback = engagementState.reactionRollbackSnapshot()
+
+        let shouldRemove = ReactionGroupIndex.viewerHasReacted(
+            to: emoji,
+            in: engagementState.reactionGroups
+        )
+        let mutationEmoji = shouldRemove
+            ? ReactionGroupIndex.mutationEmoji(for: emoji, in: engagementState.reactionGroups)
+            : emoji
+        applyReactionLocally(emoji: mutationEmoji, add: !shouldRemove)
 
         do {
-            if shouldRemove {
-                let response = try await apolloClient.perform(
-                    mutation: HackersPub.RemoveReactionFromPostMutation(postId: post.id, emoji: emoji)
-                )
-
-                if let payload = response.data?.removeReactionFromPost.asRemoveReactionFromPostPayload, payload.success {
-                    applyReactionLocally(emoji: emoji, add: false)
-                } else {
-                    reactionErrorMessage = ReactionL10n.unableToRemove
-                }
-            } else {
-                let response = try await apolloClient.perform(
-                    mutation: HackersPub.AddReactionToPostMutation(postId: post.id, emoji: emoji)
-                )
-
-                if let payload = response.data?.addReactionToPost.asAddReactionToPostPayload, payload.reaction != nil {
-                    applyReactionLocally(emoji: emoji, add: true)
-                } else {
-                    reactionErrorMessage = ReactionL10n.unableToAdd
-                }
+            let result = try await PostEngagementMutationService.setReaction(
+                postID: attempt.targetPostID,
+                emoji: mutationEmoji,
+                adding: !shouldRemove
+            )
+            reactionRetryEmoji = nil
+            switch reactionCoordinator.finish(attempt, outcome: .success) {
+            case .synchronize:
+                return result
+            case .ignore, .rollbackWithoutError, .rollbackWithError:
+                return nil
             }
         } catch {
-            reactionErrorMessage = shouldRemove ? ReactionL10n.unableToRemove : ReactionL10n.unableToAdd
-            print("Error toggling reaction: \(error)")
+            let completion = reactionCoordinator.finish(
+                attempt,
+                outcome: PostEngagementMutationError.isCancellation(error) ? .cancelled : .failure
+            )
+            switch completion {
+            case .rollbackWithoutError:
+                engagementState.restoreReactionState(from: rollback)
+            case .rollbackWithError:
+                engagementState.restoreReactionState(from: rollback)
+                engagementState.reactionErrorMessage = PostReactionMutationError.userMessage(
+                    for: error,
+                    adding: !shouldRemove
+                )
+                reactionRetryEmoji = emoji
+            case .ignore, .synchronize:
+                break
+            }
+            return nil
         }
     }
 
-    private func fetchShares() async {
-        guard !isLoadingShares else { return }
-
-        isLoadingShares = true
-        sharesErrorMessage = nil
-        defer { isLoadingShares = false }
-
-        do {
-            let response = try await apolloClient.fetch(query: HackersPub.PostSharesQuery(id: post.id, after: nil))
-
-            if let errors = response.errors, !errors.isEmpty {
-                sharesErrorMessage = errors.first?.message ?? "Unknown error"
-                return
-            }
-
-            guard let shares = response.data?.node?.asPost?.shares else {
-                shareActors = []
-                hasMoreShares = false
-                sharesCursor = nil
-                return
-            }
-
-            shareActors = shares.edges.map { edge in
-                ShareActorInfo(
-                    id: edge.node.actor.id,
-                    name: edge.node.actor.name,
-                    handle: edge.node.actor.handle,
-                    avatarUrl: edge.node.actor.avatarUrl
-                )
-            }
-            hasMoreShares = shares.pageInfo.hasNextPage
-            sharesCursor = shares.pageInfo.endCursor
-        } catch {
-            sharesErrorMessage = "Failed to load shares: \(error.localizedDescription)"
-        }
-    }
-
-    private func loadMoreShares() async {
-        guard let cursor = sharesCursor, hasMoreShares, !isLoadingMoreShares else { return }
-
-        isLoadingMoreShares = true
-        defer { isLoadingMoreShares = false }
-
-        do {
-            let response = try await apolloClient.fetch(query: HackersPub.PostSharesQuery(id: post.id, after: .some(cursor)))
-
-            if let errors = response.errors, !errors.isEmpty {
-                sharesErrorMessage = errors.first?.message ?? "Unknown error"
-                return
-            }
-
-            guard let shares = response.data?.node?.asPost?.shares else {
-                return
-            }
-
-            let incoming = shares.edges.map { edge in
-                ShareActorInfo(
-                    id: edge.node.actor.id,
-                    name: edge.node.actor.name,
-                    handle: edge.node.actor.handle,
-                    avatarUrl: edge.node.actor.avatarUrl
-                )
-            }
-            for actor in incoming where !shareActors.contains(where: { $0.id == actor.id }) {
-                shareActors.append(actor)
-            }
-
-            hasMoreShares = shares.pageInfo.hasNextPage
-            sharesCursor = shares.pageInfo.endCursor
-        } catch {
-            sharesErrorMessage = "Failed to load more shares: \(error.localizedDescription)"
-        }
-    }
-
-    private func fetchQuotes() async {
-        guard !isLoadingQuotes else { return }
-
-        isLoadingQuotes = true
-        quotesErrorMessage = nil
-        defer { isLoadingQuotes = false }
-
-        do {
-            let response = try await apolloClient.fetch(query: HackersPub.PostQuotesQuery(id: post.id, after: nil))
-
-            if let errors = response.errors, !errors.isEmpty {
-                quotesErrorMessage = errors.first?.message ?? "Unknown error"
-                return
-            }
-
-            guard let quotesConnection = response.data?.node?.asPost?.quotes else {
-                quotes = []
-                hasMoreQuotes = false
-                quotesCursor = nil
-                return
-            }
-
-            quotes = quotesConnection.edges.map { $0.node }
-            hasMoreQuotes = quotesConnection.pageInfo.hasNextPage
-            quotesCursor = quotesConnection.pageInfo.endCursor
-        } catch {
-            quotesErrorMessage = "Failed to load quotes: \(error.localizedDescription)"
-        }
-    }
-
-    private func loadMoreQuotes() async {
-        guard let cursor = quotesCursor, hasMoreQuotes, !isLoadingMoreQuotes else { return }
-
-        isLoadingMoreQuotes = true
-        defer { isLoadingMoreQuotes = false }
-
-        do {
-            let response = try await apolloClient.fetch(query: HackersPub.PostQuotesQuery(id: post.id, after: .some(cursor)))
-
-            if let errors = response.errors, !errors.isEmpty {
-                quotesErrorMessage = errors.first?.message ?? "Unknown error"
-                return
-            }
-
-            guard let quotesConnection = response.data?.node?.asPost?.quotes else {
-                return
-            }
-
-            quotes.append(contentsOf: quotesConnection.edges.map { $0.node })
-            hasMoreQuotes = quotesConnection.pageInfo.hasNextPage
-            quotesCursor = quotesConnection.pageInfo.endCursor
-        } catch {
-            quotesErrorMessage = "Failed to load more quotes: \(error.localizedDescription)"
+    private func synchronizeReactionMutation(_ result: PostReactionMutationResult) async {
+        switch result.refreshScope {
+        case .reactionDetails:
+            await fetchReactionInfos()
         }
     }
 
     private func openQuotedPost(id: String) {
+        pendingQuotedPostNavigation.schedule(postID: id)
         activeSheet = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            navigationCoordinator.navigateToPost(id: id)
-        }
     }
 
     var body: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 8) {
             VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 8) {
-                    // Show repost indicator
-                    if showAuthor, let repostIndicatorActor {
-                        RepostIndicator(
-                            actor: repostIndicatorActor,
-                            enableProfileSneakPeek: sneakPeekEnabled,
+                // Show repost indicator
+                if showAuthor, let repostIndicatorActor {
+                    RepostIndicator(
+                        actor: repostIndicatorActor,
+                        enableProfileSneakPeek: sneakPeekEnabled,
+                        prefersPlainTextName: contentRenderMode == .lightweightText
+                    )
+                }
+
+                if showAuthor && post.sharedPost == nil && timelineSharer == nil {
+                    HStack(spacing: 8) {
+                        ActorHeaderIdentity(
+                            actor: post.actor,
+                            avatarSize: 40,
+                            nameFont: .headline,
+                            nameWeight: .bold,
+                            handleFont: .subheadline,
+                            sneakPeekHandle: sneakPeekHandle(post.actor.handle),
                             prefersPlainTextName: contentRenderMode == .lightweightText
                         )
-                    }
 
-                    if showAuthor && post.sharedPost == nil && timelineSharer == nil {
+                        Spacer()
+                    }
+                }
+
+                if timelineSharer != nil {
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack(spacing: 8) {
                             ActorHeaderIdentity(
                                 actor: post.actor,
@@ -1527,126 +1505,21 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
 
                             Spacer()
                         }
-                    }
 
-                    if timelineSharer != nil {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 8) {
-                                ActorHeaderIdentity(
-                                    actor: post.actor,
-                                    avatarSize: 40,
-                                    nameFont: .headline,
-                                    nameWeight: .bold,
-                                    handleFont: .subheadline,
-                                    sneakPeekHandle: sneakPeekHandle(post.actor.handle),
-                                    prefersPlainTextName: contentRenderMode == .lightweightText
-                                )
-
-                                Spacer()
-                            }
-
-                            if let name = post.name {
-                                Text(name)
-                                    .font(.headline)
-                            }
-
-                            let content = self.getContent(content: post.content)
-                            EmbeddedPostContentPreviewView(
-                                html: content,
-                                media: mediaItems(from: post.media),
-                                onTap: !disableNavigation ? {
-                                    navigationCoordinator.navigateToPost(id: post.id)
-                                } : nil,
-                                suppressLongPressInteractions: sneakPeekEnabled,
-                                sneakPeekPostId: sneakPeekPostId(post.id),
-                                sneakPeekActorHandle: sneakPeekHandle(post.actor.handle),
-                                sneakPeekShareURL: post.resolvedShareURL
-                            )
-
-                            if let quotedPost = post.quotedPost {
-                                QuotedPostCard(
-                                    quotedPost: quotedPost,
-                                    contentRenderMode: contentRenderMode,
-                                    disableNavigation: disableNavigation,
-                                    suppressContentLongPress: sneakPeekEnabled,
-                                    sneakPeekPostId: sneakPeekPostId(quotedPost.id),
-                                    sneakPeekActorHandle: sneakPeekHandle(quotedPost.actor.handle),
-                                    enableProfileSneakPeek: sneakPeekEnabled,
-                                    onTap: {
-                                        navigationCoordinator.navigateToPost(id: quotedPost.id)
-                                    }
-                                )
-                            }
-
-                            Text(DateFormatHelper.relativeTime(from: post.published))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    } else if let sharedPost = post.sharedPost {
-                        // Display shared post
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 8) {
-                                ActorHeaderIdentity(
-                                    actor: sharedPost.actor,
-                                    avatarSize: 40,
-                                    nameFont: .headline,
-                                    nameWeight: .bold,
-                                    handleFont: .subheadline,
-                                    sneakPeekHandle: sneakPeekHandle(sharedPost.actor.handle),
-                                    prefersPlainTextName: contentRenderMode == .lightweightText
-                                )
-
-                                Spacer()
-                            }
-
-                            if let name = sharedPost.name {
-                                Text(name)
-                                    .font(.headline)
-                            }
-
-                            let content = self.getContent(content: sharedPost.content)
-                            EmbeddedPostContentPreviewView(
-                                html: content,
-                                media: mediaItems(from: sharedPost.media),
-                                onTap: !disableNavigation ? {
-                                    navigationCoordinator.navigateToPost(id: sharedPost.id)
-                                } : nil,
-                                suppressLongPressInteractions: sneakPeekEnabled,
-                                sneakPeekPostId: sneakPeekPostId(sharedPost.id),
-                                sneakPeekActorHandle: sneakPeekHandle(sharedPost.actor.handle),
-                                sneakPeekShareURL: sharedPost.resolvedShareURL
-                            )
-
-                            Text(DateFormatHelper.relativeTime(from: sharedPost.published))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    } else if post.isArticle {
-                        ArticleSummaryCard(post: post) {
-                            navigationCoordinator.navigateToPost(id: post.id)
-                        }
-                    } else {
-                        // Display original post content
                         if let name = post.name {
                             Text(name)
                                 .font(.headline)
                         }
 
                         let content = self.getContent(content: post.content)
-                        PostContentPreviewView(
+                        EmbeddedPostContentPreviewView(
                             html: content,
                             media: mediaItems(from: post.media),
-                            onTap: !disableNavigation && !post.isArticle ? {
+                            onTap: !disableNavigation ? {
                                 navigationCoordinator.navigateToPost(id: post.id)
                             } : nil,
                             suppressLongPressInteractions: sneakPeekEnabled,
-                            sneakPeekPostId: mainSneakPeekPostId,
+                            sneakPeekPostId: sneakPeekPostId(post.id),
                             sneakPeekActorHandle: sneakPeekHandle(post.actor.handle),
                             sneakPeekShareURL: post.resolvedShareURL
                         )
@@ -1665,236 +1538,347 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
                                 }
                             )
                         }
+
+                        Text(DateFormatHelper.relativeTime(from: post.published))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else if let sharedPost = post.sharedPost {
+                    // Display shared post
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 8) {
+                            ActorHeaderIdentity(
+                                actor: sharedPost.actor,
+                                avatarSize: 40,
+                                nameFont: .headline,
+                                nameWeight: .bold,
+                                handleFont: .subheadline,
+                                sneakPeekHandle: sneakPeekHandle(sharedPost.actor.handle),
+                                prefersPlainTextName: contentRenderMode == .lightweightText
+                            )
+
+                            Spacer()
+                        }
+
+                        if let name = sharedPost.name {
+                            Text(name)
+                                .font(.headline)
+                        }
+
+                        let content = self.getContent(content: sharedPost.content)
+                        EmbeddedPostContentPreviewView(
+                            html: content,
+                            media: mediaItems(from: sharedPost.media),
+                            onTap: !disableNavigation ? {
+                                navigationCoordinator.navigateToPost(id: sharedPost.id)
+                            } : nil,
+                            suppressLongPressInteractions: sneakPeekEnabled,
+                            sneakPeekPostId: sneakPeekPostId(sharedPost.id),
+                            sneakPeekActorHandle: sneakPeekHandle(sharedPost.actor.handle),
+                            sneakPeekShareURL: sharedPost.resolvedShareURL
+                        )
+
+                        if let quotedPost = sharedPost.quotedPost {
+                            QuotedPostCard(
+                                quotedPost: quotedPost,
+                                contentRenderMode: contentRenderMode,
+                                disableNavigation: disableNavigation,
+                                suppressContentLongPress: sneakPeekEnabled,
+                                sneakPeekPostId: sneakPeekPostId(quotedPost.id),
+                                sneakPeekActorHandle: sneakPeekHandle(quotedPost.actor.handle),
+                                enableProfileSneakPeek: sneakPeekEnabled,
+                                onTap: {
+                                    navigationCoordinator.navigateToPost(id: quotedPost.id)
+                                }
+                            )
+                        }
+
+                        Text(DateFormatHelper.relativeTime(from: sharedPost.published))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else if post.isArticle {
+                    ArticleSummaryCard(post: post) {
+                        navigationCoordinator.navigateToPost(id: post.id)
+                    }
+                } else {
+                    // Display original post content
+                    if let name = post.name {
+                        Text(name)
+                            .font(.headline)
                     }
 
-                    Text(DateFormatHelper.relativeTime(from: displayedPublished))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .background(
-                    Group {
-                        if !disableNavigation && !post.isArticle && !enableSneakPeek {
-                            NavigationLink(destination: PostDetailView(postId: post.id)) {
-                                Color.clear
+                    let content = self.getContent(content: post.content)
+                    PostContentPreviewView(
+                        html: content,
+                        media: mediaItems(from: post.media),
+                        onTap: !disableNavigation && !post.isArticle ? {
+                            navigationCoordinator.navigateToPost(id: post.id)
+                        } : nil,
+                        suppressLongPressInteractions: sneakPeekEnabled,
+                        sneakPeekPostId: mainSneakPeekPostId,
+                        sneakPeekActorHandle: sneakPeekHandle(post.actor.handle),
+                        sneakPeekShareURL: post.resolvedShareURL
+                    )
+
+                    if let quotedPost = post.quotedPost {
+                        QuotedPostCard(
+                            quotedPost: quotedPost,
+                            contentRenderMode: contentRenderMode,
+                            disableNavigation: disableNavigation,
+                            suppressContentLongPress: sneakPeekEnabled,
+                            sneakPeekPostId: sneakPeekPostId(quotedPost.id),
+                            sneakPeekActorHandle: sneakPeekHandle(quotedPost.actor.handle),
+                            enableProfileSneakPeek: sneakPeekEnabled,
+                            onTap: {
+                                navigationCoordinator.navigateToPost(id: quotedPost.id)
                             }
-                            .opacity(0)
-                            .buttonStyle(.plain)
+                        )
+                    }
+                }
+
+                Text(DateFormatHelper.relativeTime(from: displayedPublished))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(
+                Group {
+                    if !disableNavigation && !post.isArticle && !enableSneakPeek {
+                        NavigationLink(destination: PostDetailView(postId: engagementTargetID)) {
+                            Color.clear
+                        }
+                        .opacity(0)
+                        .buttonStyle(.plain)
+                    }
+                }
+            )
+
+            HStack(spacing: 16) {
+                EngagementToolbarButton(
+                    icon: "arrowshape.turn.up.left",
+                    count: engagementState.repliesCount,
+                    showsZeroCount: false,
+                    accessibilityLabel: canPerformEngagementActions
+                        ? PostL10n.repliesTitle
+                        : PostL10n.viewRepliesAction,
+                    onTap: {
+                        if canPerformEngagementActions {
+                            activeSheet = .reply
+                        } else {
+                            navigationCoordinator.navigateToPost(id: engagementTargetID)
                         }
                     }
                 )
 
-                HStack(spacing: 16) {
-                    if canPerformEngagementActions {
-                        EngagementToolbarButton(
-                            icon: "arrowshape.turn.up.left",
-                            count: post.engagementStats.replies,
-                            showsZeroCount: false,
-                            onTap: {
-                                activeSheet = .reply
-                            }
-                        )
-
-                        EngagementToolbarButton(
-                            icon: "arrow.2.squarepath",
-                            count: sharesCount,
-                            showsZeroCount: false,
-                            tint: hasShared ? .green : .secondary,
-                            isLoading: isSharing,
-                            onTap: {
-                                handleShareTap()
-                            },
-                            onLongPress: {
-                                handleShareLongPress()
-                            }
-                        )
+                EngagementToolbarButton(
+                    icon: "arrow.2.squarepath",
+                    count: engagementState.sharesCount,
+                    showsZeroCount: false,
+                    accessibilityLabel: canPerformEngagementActions
+                        ? PostL10n.sharesTitle
+                        : PostL10n.viewSharesAction,
+                    accessibilityLongPressLabel: canPerformEngagementActions
+                        ? (sharePressActionsSwapped
+                            ? (engagementState.hasShared ? PostL10n.unshareAction : PostL10n.shareAction)
+                            : PostL10n.viewSharesAction)
+                        : PostL10n.viewSharesAction,
+                    tint: engagementState.hasShared ? .green : .secondary,
+                    isLoading: engagementState.isSharing,
+                    onTap: {
+                        handleShareTap()
+                    },
+                    onLongPress: {
+                        handleShareLongPress()
                     }
+                )
 
-                    EngagementToolbarButton(
-                        icon: viewerHasReacted ? "heart.fill" : "heart",
-                        count: reactionsCount,
-                        showsZeroCount: false,
-                        tint: viewerHasReacted ? .red : .secondary,
-                        isLoading: isReacting,
-                        onTap: {
-                            presentReactionPicker()
+                EngagementToolbarButton(
+                    icon: viewerHasReacted ? "heart.fill" : "heart",
+                    count: engagementState.reactionsCount,
+                    showsZeroCount: false,
+                    accessibilityLabel: ReactionL10n.title,
+                    tint: viewerHasReacted ? .red : .secondary,
+                    isLoading: isReacting,
+                    onTap: {
+                        presentReactionPicker()
+                    }
+                )
+
+                EngagementToolbarButton(
+                    icon: "quote.bubble",
+                    count: engagementState.quotesCount,
+                    showsZeroCount: false,
+                    accessibilityLabel: PostL10n.quotesTitle,
+                    accessibilityLongPressLabel: quotePressActionsSwapped
+                        ? PostL10n.quoteAction
+                        : PostL10n.viewQuotesAction,
+                    onTap: {
+                        handleQuoteTap()
+                    },
+                    onLongPress: {
+                        handleQuoteLongPress()
+                    }
+                )
+
+                Spacer()
+
+                if canPerformEngagementActions {
+                    Button {
+                        Task {
+                            await toggleBookmark()
                         }
+                    } label: {
+                        if isBookmarking {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else {
+                            Image(systemName: engagementState.hasBookmarked ? "bookmark.fill" : "bookmark")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(engagementState.hasBookmarked ? .yellow : .secondary)
+                    .accessibilityLabel(
+                        engagementState.hasBookmarked
+                            ? NSLocalizedString("bookmark.action.remove", comment: "Remove bookmark")
+                            : NSLocalizedString("bookmark.action.add", comment: "Add bookmark")
                     )
-
-                    EngagementToolbarButton(
-                        icon: "quote.bubble",
-                        count: post.engagementStats.quotes,
-                        showsZeroCount: false,
-                        onTap: {
-                            handleQuoteTap()
-                        },
-                        onLongPress: {
-                            handleQuoteLongPress()
-                        }
-                    )
-
-                    Spacer()
-
-                    if canPerformEngagementActions {
-                        Button {
-                            Task {
-                                await toggleBookmark()
-                            }
-                        } label: {
-                            if isBookmarking {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                            } else {
-                                Image(systemName: hasBookmarked ? "bookmark.fill" : "bookmark")
-                            }
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(hasBookmarked ? .yellow : .secondary)
-                        .accessibilityLabel(
-                            hasBookmarked
-                                ? NSLocalizedString("bookmark.action.remove", comment: "Remove bookmark")
-                                : NSLocalizedString("bookmark.action.add", comment: "Add bookmark")
-                        )
-                    }
-
-                    if let shareURL = post.resolvedShareURL {
-                        ShareLink(item: shareURL) {
-                            Label("Share", systemImage: "square.and.arrow.up")
-                                .labelStyle(.iconOnly)
-                        }
-                        .buttonStyle(.borderless)
-                    }
-
-                    if canDeleteCurrentPost {
-                        Button {
-                            requestDeletePost()
-                        } label: {
-                            if isDeleting {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                            } else {
-                                Image(systemName: "trash")
-                            }
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(.red)
-                        .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
-                    }
                 }
-                .foregroundStyle(.secondary)
+
+                if let shareURL = post.resolvedShareURL {
+                    ShareLink(item: shareURL) {
+                        Label(PostL10n.shareAction, systemImage: "square.and.arrow.up")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.borderless)
+                }
+
+                if canDeleteCurrentPost {
+                    Button {
+                        requestDeletePost()
+                    } label: {
+                        if isDeleting {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "trash")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.red)
+                    .accessibilityLabel(NSLocalizedString("post.action.delete", comment: "Delete post"))
+                }
             }
+            .foregroundStyle(.secondary)
         }
         .onChange(of: post.id) {
-            hasShared = post.viewerHasShared
-            hasBookmarked = post.sharedPost?.viewerHasBookmarked ?? post.viewerHasBookmarked
-            sharesCount = post.engagementStats.shares
-            reactionsCount = post.engagementStats.reactions
-            reactionGroups = post.reactionGroupsSnapshot
-            reactionInfos = []
+            engagementState = incomingEngagementState
+            reactionInfoState = ReactionInfoLoadState()
+            reactionRetryEmoji = nil
+            reactionCoordinator = PostReactionRequestCoordinator(targetPostID: engagementTargetID)
+            sharesState.reset(loader: Self.sharesLoader(for: engagementTargetID))
+            quotesState.reset(loader: Self.quotesLoader(for: engagementTargetID))
         }
-        .onChange(of: engagementSnapshot) { _, snapshot in
-            hasShared = snapshot.hasShared
-            hasBookmarked = snapshot.hasBookmarked
-            sharesCount = snapshot.shares
-            reactionsCount = snapshot.reactions
-            reactionGroups = snapshot.reactionGroups
-            reactionInfos = []
+        .onChange(of: incomingEngagementState) { _, incomingState in
+            engagementState = incomingState
+            reactionInfoState = ReactionInfoLoadState()
+            reactionRetryEmoji = nil
+            reactionCoordinator = PostReactionRequestCoordinator(targetPostID: incomingState.target.postID)
+            sharesState.reset(loader: Self.sharesLoader(for: incomingState.target.postID))
+            quotesState.reset(loader: Self.quotesLoader(for: incomingState.target.postID))
         }
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .reply:
-                ComposeView(
-                    replyToPostId: post.id,
-                    replyToActor: post.actor.handle,
-                    initialMentions: getMentionHandles(
-                        from: post,
-                        excludingHandle: AuthManager.shared.currentAccount?.handle
-                    )
-                )
-            case .quote:
-                ComposeView(quotedPostId: post.id)
-            case .shares:
-                SharesListSheetView(
-                    title: "Shares",
-                    actors: shareActors,
-                    isLoading: isLoadingShares,
-                    isLoadingMore: isLoadingMoreShares,
-                    errorMessage: sharesErrorMessage,
-                    emptyTitle: "No shares yet",
-                    hasMore: hasMoreShares,
-                    loadMoreTitle: "Load more shares",
-                    onRetry: {
-                        Task {
-                            await fetchShares()
-                        }
-                    },
-                    onLoadMore: {
-                        Task {
-                            await loadMoreShares()
-                        }
-                    }
-                )
-            case .quotes:
-                NavigationStack {
-                    QuotesListSheetView(
-                        items: quotes,
-                        isLoading: isLoadingQuotes,
-                        errorMessage: quotesErrorMessage,
-                        emptyTitle: "No quotes yet",
-                        hasMore: hasMoreQuotes,
-                        isLoadingMore: isLoadingMoreQuotes,
-                        loadMoreTitle: "Load more quotes",
-                        onRetry: {
-                            Task {
-                                await fetchQuotes()
-                            }
-                        },
-                        onLoadMore: {
-                            Task {
-                                await loadMoreQuotes()
-                            }
-                        },
-                        onPostSelected: { selectedId in
-                            openQuotedPost(id: selectedId)
-                        }
-                    )
-                    .navigationTitle("Quotes")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button {
-                                activeSheet = nil
-                            } label: {
-                                Image(systemName: "xmark")
-                            }
-                            .accessibilityLabel(NSLocalizedString("reaction.action.close", comment: "Close"))
-                        }
-                    }
+        .sheet(
+            item: $activeSheet,
+            onDismiss: {
+                if let postID = pendingQuotedPostNavigation.consume() {
+                    navigationCoordinator.navigateToPost(id: postID)
                 }
-            case .reactionPicker:
-                PostReactionSheetView(
-                    reactionGroups: reactionGroups,
-                    reactionInfos: reactionInfos,
-                    isLoadingReactionInfos: isLoadingReactionInfos,
-                    isSubmitting: isReacting,
-                    onEmojiSelect: { emoji in
-                        Task {
-                            await toggleReaction(emoji: emoji)
-                            await fetchReactionInfos()
+            },
+            content: { sheet in
+                switch sheet {
+                case .reply:
+                    ComposeView(
+                        replyToPostId: engagementTargetID
+                    )
+                case .quote:
+                    ComposeView(quotedPostId: engagementTargetID)
+                case .shares:
+                    SharesListSheetView(
+                        title: PostEngagementSheetL10n.sharesTitle,
+                        state: sharesState,
+                        emptyTitle: PostEngagementSheetL10n.sharesEmpty,
+                        loadMoreTitle: PostEngagementSheetL10n.sharesLoadMore
+                    )
+                case .quotes:
+                    NavigationStack {
+                        QuotesListSheetView(
+                            state: quotesState,
+                            emptyTitle: PostEngagementSheetL10n.quotesEmpty,
+                            loadMoreTitle: PostEngagementSheetL10n.quotesLoadMore,
+                            onPostSelected: { selectedId in
+                                openQuotedPost(id: selectedId)
+                            }
+                        )
+                        .navigationTitle(PostEngagementSheetL10n.quotesTitle)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button {
+                                    activeSheet = nil
+                                } label: {
+                                    Image(systemName: "xmark")
+                                }
+                                .accessibilityLabel(NSLocalizedString("reaction.action.close", comment: "Close"))
+                            }
                         }
-                    },
-                    onReactorSelected: { handle in
-                        activeSheet = nil
-                        navigationCoordinator.navigateToProfile(handle: handle)
-                    },
-                    onClose: {
-                        activeSheet = nil
                     }
-                )
-                .presentationDetents([.medium, .large])
+                case .reactionPicker:
+                    PostReactionSheetView(
+                        reactionGroups: engagementState.reactionGroups,
+                        reactionInfos: reactionInfoState.items,
+                        isLoadingReactionInfos: reactionInfoState.isLoading,
+                        reactionInfosErrorMessage: reactionInfoState.errorMessage,
+                        reactionMutationErrorMessage: engagementState.reactionErrorMessage,
+                        isSubmitting: isReacting,
+                        onEmojiSelect: { emoji in
+                            Task {
+                                if let result = await toggleReaction(emoji: emoji) {
+                                    await synchronizeReactionMutation(result)
+                                }
+                            }
+                        },
+                        onRetryReactionInfos: {
+                            Task {
+                                await fetchReactionInfos()
+                            }
+                        },
+                        onRetryReactionMutation: {
+                            guard let emoji = reactionRetryEmoji else { return }
+                            Task {
+                                if let result = await toggleReaction(emoji: emoji) {
+                                    await synchronizeReactionMutation(result)
+                                }
+                            }
+                        },
+                        onReactorSelected: { handle in
+                            activeSheet = nil
+                            navigationCoordinator.navigateToProfile(handle: handle)
+                        },
+                        onClose: {
+                            activeSheet = nil
+                        }
+                    )
+                    .presentationDetents([.medium, .large])
+                }
             }
-        }
+        )
         .popover(
             isPresented: Binding(
                 get: { showingReactionPicker && useReactionPopover },
@@ -1907,14 +1891,30 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             arrowEdge: .bottom
         ) {
             PostReactionSheetView(
-                reactionGroups: reactionGroups,
-                reactionInfos: reactionInfos,
-                isLoadingReactionInfos: isLoadingReactionInfos,
+                reactionGroups: engagementState.reactionGroups,
+                reactionInfos: reactionInfoState.items,
+                isLoadingReactionInfos: reactionInfoState.isLoading,
+                reactionInfosErrorMessage: reactionInfoState.errorMessage,
+                reactionMutationErrorMessage: engagementState.reactionErrorMessage,
                 isSubmitting: isReacting,
                 onEmojiSelect: { emoji in
                     Task {
-                        await toggleReaction(emoji: emoji)
+                        if let result = await toggleReaction(emoji: emoji) {
+                            await synchronizeReactionMutation(result)
+                        }
+                    }
+                },
+                onRetryReactionInfos: {
+                    Task {
                         await fetchReactionInfos()
+                    }
+                },
+                onRetryReactionMutation: {
+                    guard let emoji = reactionRetryEmoji else { return }
+                    Task {
+                        if let result = await toggleReaction(emoji: emoji) {
+                            await synchronizeReactionMutation(result)
+                        }
                     }
                 },
                 onReactorSelected: { handle in
@@ -1928,21 +1928,24 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             .frame(width: 360)
         }
         .alert(
-            ReactionL10n.failedTitle,
+            NSLocalizedString("share.error.title", comment: "Share error title"),
             isPresented: Binding(
-                get: { reactionErrorMessage != nil },
+                get: { engagementState.shareErrorMessage != nil },
                 set: { isPresented in
                     if !isPresented {
-                        reactionErrorMessage = nil
+                        engagementState.shareErrorMessage = nil
                     }
                 }
             )
         ) {
-            Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
-                reactionErrorMessage = nil
+            Button(NSLocalizedString("common.retry", comment: "Retry")) {
+                performShareToggle()
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {
+                engagementState.shareErrorMessage = nil
             }
         } message: {
-            Text(reactionErrorMessage ?? "")
+            Text(engagementState.shareErrorMessage ?? "")
         }
         .alert(
             NSLocalizedString("delete.error.title", comment: "Delete error title"),
@@ -1962,14 +1965,14 @@ struct PostView<P: PostProtocol & ReactionCapablePostProtocol>: View {
             Text(deleteErrorMessage ?? "")
         }
         .confirmationDialog(
-            hasShared
+            engagementState.hasShared
                 ? NSLocalizedString("share.confirm.unshareTitle", comment: "Confirmation dialog title for undoing a share")
                 : NSLocalizedString("share.confirm.shareTitle", comment: "Confirmation dialog title for sharing a post"),
             isPresented: $showingShareConfirmation,
             titleVisibility: .visible
         ) {
             Button(
-                hasShared
+                engagementState.hasShared
                     ? NSLocalizedString("share.confirm.unshareAction", comment: "Confirmation action to undo share")
                     : NSLocalizedString("share.confirm.shareAction", comment: "Confirmation action to share")
             ) {
