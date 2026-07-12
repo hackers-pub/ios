@@ -7,7 +7,9 @@ private enum NewsSortOption: String, CaseIterable, Identifiable {
     case newest
     case allTime
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var title: String {
         switch self {
@@ -37,61 +39,69 @@ private struct NewsComposeSeed: Identifiable {
     let content: String
 }
 
+private struct NewsModerationRetry {
+    let penalty: HackersPub.NewsPenalty
+    let storyID: String
+}
+
+// swiftlint:disable:next type_body_length
 struct NewsView: View {
     @State private var edges: [HackersPub.NewsStoriesQuery.Data.NewsStories.Edge] = []
     @State private var selectedSort: NewsSortOption = .popular
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var hasLoadedInitial = false
+    @State private var requestLifecycle = NewsRequestLifecycle()
+    @State private var moderationState = NewsModerationPresentationState()
+    @State private var moderationRetry: NewsModerationRetry?
     @State private var hasNextPage = false
     @State private var endCursor: String?
-    @State private var isModerator = false
     @State private var showingSettings = false
     @State private var showingAdmin = false
     @State private var composeSeed: NewsComposeSeed?
-    @State private var fetchGeneration = 0
 
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
+    private var isLoading: Bool {
+        requestLifecycle.isLoading
+    }
+
+    private var feedErrorMessage: String? {
+        requestLifecycle.errorMessage
+    }
+
+    private var isModerator: Bool {
+        moderationState.isModerator
+    }
+
     var body: some View {
         NavigationStack(path: navigationCoordinator.pathBinding(for: .news)) {
-            Group {
-                if isLoading && edges.isEmpty {
-                    ProgressView(NSLocalizedString("timeline.loading", comment: "Loading indicator"))
-                } else if let errorMessage, edges.isEmpty {
-                    LoadFailureView(message: errorMessage) {
-                        Task {
-                            await fetchStories(reset: true)
-                        }
-                    }
-                } else if edges.isEmpty {
-                    ContentUnavailableView(
-                        NSLocalizedString("news.empty.title", comment: "No news stories title"),
-                        systemImage: "newspaper",
-                        description: Text(NSLocalizedString("news.empty.description", comment: "No news stories description"))
-                    )
-                } else {
-                    newsList
-                }
-            }
-            .navigationTitle(NSLocalizedString("nav.news", comment: "News navigation title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if authManager.isAuthenticated {
-                    ToolbarItem(placement: .topBarLeading) {
-                        ViewerProfileButton()
-                    }
-
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            showingSettings = true
-                        } label: {
-                            Label(NSLocalizedString("common.settings", comment: "Settings button"), systemImage: "gear")
+            newsList
+                .navigationTitle(NSLocalizedString("nav.news", comment: "News navigation title"))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    if NewsToolbarPolicy.showsProfile(isAuthenticated: authManager.isAuthenticated) {
+                        ToolbarItem(placement: .topBarLeading) {
+                            ViewerProfileButton()
                         }
                     }
 
-                    if isModerator {
+                    if NewsToolbarPolicy.showsSettings(isAuthenticated: authManager.isAuthenticated) {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button {
+                                showingSettings = true
+                            } label: {
+                                Label(
+                                    NSLocalizedString("common.settings", comment: "Settings button"),
+                                    systemImage: "gear"
+                                )
+                            }
+                            .accessibilityIdentifier("news.settings")
+                        }
+                    }
+
+                    if NewsToolbarPolicy.showsAdmin(
+                        isAuthenticated: authManager.isAuthenticated,
+                        isModerator: isModerator
+                    ) {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button {
                                 showingAdmin = true
@@ -101,40 +111,63 @@ struct NewsView: View {
                         }
                     }
                 }
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
-            }
-            .sheet(isPresented: $showingAdmin) {
-                NewsAdminView {
-                    Task {
-                        await fetchStories(reset: true)
+                .sheet(isPresented: $showingSettings) {
+                    SettingsView()
+                }
+                .sheet(isPresented: $showingAdmin) {
+                    NewsAdminView {
+                        Task {
+                            await refreshStories()
+                        }
                     }
                 }
-            }
-            .sheet(item: $composeSeed) { seed in
-                ComposeView(initialContent: seed.content)
-            }
-            .navigationDestination(for: NavigationDestination.self) { destination in
-                switch destination {
-                case .profile(let handle):
-                    ActorProfileViewWrapper(handle: handle)
-                case .post(let id):
-                    PostDetailView(postId: id)
-                case .newsStory(let id):
-                    NewsStoryDetailView(storyId: id)
+                .sheet(item: $composeSeed) { seed in
+                    ComposeView(initialContent: seed.content)
                 }
-            }
-            .task {
-                guard !hasLoadedInitial else { return }
-                hasLoadedInitial = true
-                await fetchStories(reset: true)
-            }
-            .onChange(of: selectedSort) { _, _ in
-                Task {
-                    await fetchStories(reset: true)
+                .navigationDestination(for: NavigationDestination.self) { destination in
+                    switch destination {
+                    case let .profile(handle):
+                        ActorProfileViewWrapper(handle: handle)
+                    case let .post(id):
+                        PostDetailView(postId: id)
+                    case let .newsStory(id):
+                        NewsStoryDetailView(storyId: id)
+                    }
                 }
-            }
+                .task {
+                    guard requestLifecycle.shouldLoadInitial else { return }
+                    await refreshStories()
+                }
+                .onChange(of: selectedSort) { _, _ in
+                    Task {
+                        await refreshStories()
+                    }
+                }
+                .alert(
+                    NSLocalizedString("news.moderation.error.title", comment: "News moderation error title"),
+                    isPresented: Binding(
+                        get: { moderationState.error != nil },
+                        set: { isPresented in
+                            if !isPresented {
+                                dismissModerationFailure()
+                            }
+                        }
+                    )
+                ) {
+                    if let retry = moderationRetry, moderationState.error?.canRetry == true {
+                        Button(NSLocalizedString("common.retry", comment: "Retry button")) {
+                            Task {
+                                await setPenalty(retry.penalty, for: retry.storyID)
+                            }
+                        }
+                    }
+
+                    Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
+                        dismissModerationFailure()
+                    }
+                } message: {
+                    Text(moderationErrorMessage)
+                }
         }
     }
 
@@ -145,44 +178,66 @@ struct NewsView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 12)
 
-                ForEach(edges, id: \.node.id) { edge in
-                    NewsStoryCardView(
-                        story: edge.node,
-                        isModerator: isModerator,
-                        onShare: authManager.isAuthenticated ? {
-                            composeSeed = NewsComposeSeed(content: "\(edge.node.url)\n\n")
-                        } : nil,
-                        onSetPenalty: { penalty in
-                            Task {
-                                await setPenalty(penalty, for: edge.node.uuid)
-                            }
-                        }
-                    )
-                    .id(edge.node.id)
-                    .onAppear {
-                        if edge.node.id == edges.last?.node.id && hasNextPage && !isLoading {
-                            Task {
-                                await loadMore()
-                            }
-                        }
-                    }
-
-                    Divider()
-                }
-
-                if isLoading && !edges.isEmpty {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                    .padding()
-                }
-
-                if let errorMessage, !edges.isEmpty {
-                    InlineLoadFailureView(message: errorMessage) {
+                if isLoading && edges.isEmpty {
+                    ProgressView(NSLocalizedString("timeline.loading", comment: "Loading indicator"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 48)
+                } else if let feedErrorMessage, edges.isEmpty {
+                    LoadFailureView(message: feedErrorMessage) {
                         Task {
-                            await fetchStories(reset: true)
+                            await refreshStories()
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                } else if edges.isEmpty {
+                    ContentUnavailableView(
+                        NSLocalizedString("news.empty.title", comment: "No news stories title"),
+                        systemImage: "newspaper",
+                        description: Text(NSLocalizedString("news.empty.description", comment: "No news stories description"))
+                    )
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 48)
+                } else {
+                    ForEach(edges, id: \.node.id) { edge in
+                        NewsStoryCardView(
+                            story: edge.node,
+                            isModerator: isModerator,
+                            onShare: authManager.isAuthenticated ? {
+                                composeSeed = NewsComposeSeed(content: "\(edge.node.url)\n\n")
+                            } : nil,
+                            onSetPenalty: { penalty in
+                                Task {
+                                    await setPenalty(penalty, for: edge.node.uuid)
+                                }
+                            }
+                        )
+                        .id(edge.node.id)
+                        .onAppear {
+                            if edge.node.id == edges.last?.node.id && hasNextPage && !isLoading {
+                                Task {
+                                    await loadMore()
+                                }
+                            }
+                        }
+
+                        Divider()
+                    }
+
+                    if isLoading {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                        .padding()
+                    }
+
+                    if let feedErrorMessage {
+                        InlineLoadFailureView(message: feedErrorMessage) {
+                            Task {
+                                await refreshStories()
+                            }
                         }
                     }
                 }
@@ -190,7 +245,7 @@ struct NewsView: View {
             .padding(.top, 8)
         }
         .refreshable {
-            await fetchStories(reset: true)
+            await refreshStories()
         }
     }
 
@@ -203,68 +258,78 @@ struct NewsView: View {
         .pickerStyle(.segmented)
     }
 
-    private func fetchStories(reset: Bool) async {
-        let generation = nextFetchGeneration()
-        if reset {
-            endCursor = nil
-            hasNextPage = false
+    private func refreshStories() async {
+        let requestID = requestLifecycle.begin()
+        var outcome: NewsRequestOutcome = .cancelled
+        defer {
+            requestLifecycle.finish(requestID: requestID, outcome: outcome)
         }
-        if edges.isEmpty || reset {
-            isLoading = true
-        }
+
+        endCursor = nil
+        hasNextPage = false
 
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.NewsStoriesQuery(order: .some(selectedSort.order), after: nil, first: 25),
                 cachePolicy: .networkOnly
             )
-            guard generation == fetchGeneration, !Task.isCancelled else { return }
+            guard requestLifecycle.isCurrent(requestID), !Task.isCancelled else { return }
+
+            if let graphQLError = response.errors?.first {
+                outcome = .failure(message(for: graphQLError))
+                return
+            }
+
             let connection = response.data?.newsStories
             edges = connection?.edges ?? []
             hasNextPage = connection?.pageInfo.hasNextPage ?? false
             endCursor = connection?.pageInfo.endCursor
-            isModerator = response.data?.viewer?.moderator ?? false
-            errorMessage = nil
-            isLoading = false
+            moderationState.updateModeratorStatus(response.data?.viewer?.moderator ?? false)
+            outcome = .success
+        } catch is CancellationError {
+            // A cancelled view task must not surface an error or close the initial-load gate.
         } catch {
-            guard generation == fetchGeneration, !Task.isCancelled else { return }
-            errorMessage = error.localizedDescription
-            isLoading = false
+            guard requestLifecycle.isCurrent(requestID), !Task.isCancelled else { return }
+            outcome = .failure(error.localizedDescription)
             print("Error loading news stories: \(error)")
         }
     }
 
     private func loadMore() async {
         guard hasNextPage, let endCursor, !isLoading else { return }
-        let generation = fetchGeneration
 
-        isLoading = true
+        let requestID = requestLifecycle.begin()
+        var outcome: NewsRequestOutcome = .cancelled
+        defer {
+            requestLifecycle.finish(requestID: requestID, outcome: outcome)
+        }
 
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.NewsStoriesQuery(order: .some(selectedSort.order), after: .some(endCursor), first: 25),
                 cachePolicy: .networkOnly
             )
-            guard generation == fetchGeneration, !Task.isCancelled else { return }
+            guard requestLifecycle.isCurrent(requestID), !Task.isCancelled else { return }
+
+            if let graphQLError = response.errors?.first {
+                outcome = .failure(message(for: graphQLError))
+                return
+            }
+
             let connection = response.data?.newsStories
             let existingIDs = Set(edges.map(\.node.id))
             edges.append(contentsOf: (connection?.edges ?? []).filter { !existingIDs.contains($0.node.id) })
             hasNextPage = connection?.pageInfo.hasNextPage ?? false
             self.endCursor = connection?.pageInfo.endCursor
-            isModerator = response.data?.viewer?.moderator ?? isModerator
-            errorMessage = nil
-            isLoading = false
+            moderationState.updateModeratorStatus(response.data?.viewer?.moderator ?? isModerator)
+            outcome = .success
+        } catch is CancellationError {
+            // A cancelled pagination task leaves the current feed usable without an error banner.
         } catch {
-            guard generation == fetchGeneration, !Task.isCancelled else { return }
-            errorMessage = error.localizedDescription
-            isLoading = false
+            guard requestLifecycle.isCurrent(requestID), !Task.isCancelled else { return }
+            outcome = .failure(error.localizedDescription)
             print("Error loading more news stories: \(error)")
         }
-    }
-
-    private func nextFetchGeneration() -> Int {
-        fetchGeneration += 1
-        return fetchGeneration
     }
 
     private func setPenalty(_ penalty: HackersPub.NewsPenalty, for storyId: String) async {
@@ -272,14 +337,68 @@ struct NewsView: View {
             let response = try await apolloClient.perform(
                 mutation: HackersPub.SetNewsScorePenaltyMutation(id: storyId, penalty: .case(penalty))
             )
-            guard response.data?.setNewsScorePenalty?.asPostLink != nil else {
-                errorMessage = NSLocalizedString("news.moderation.failed", comment: "News moderation failed")
+
+            if let graphQLError = response.errors?.first {
+                presentModerationFailure(.graphQLError(message(for: graphQLError)), penalty: penalty, storyID: storyId)
                 return
             }
-            await fetchStories(reset: true)
+
+            guard let result = response.data?.setNewsScorePenalty else {
+                presentModerationFailure(.missingResult, penalty: penalty, storyID: storyId)
+                return
+            }
+
+            if result.asPostLink != nil {
+                dismissModerationFailure()
+                await refreshStories()
+            } else if result.asNotAuthenticatedError != nil {
+                presentModerationFailure(.notAuthenticated, penalty: penalty, storyID: storyId)
+            } else if result.asNotAuthorizedError != nil {
+                presentModerationFailure(.notAuthorized, penalty: penalty, storyID: storyId)
+            } else {
+                presentModerationFailure(.missingResult, penalty: penalty, storyID: storyId)
+            }
+        } catch is CancellationError {
+            // A dismissed menu or departing view should not show an action error.
         } catch {
-            errorMessage = error.localizedDescription
+            presentModerationFailure(.network(error.localizedDescription), penalty: penalty, storyID: storyId)
             print("Error setting news penalty: \(error)")
+        }
+    }
+
+    private func presentModerationFailure(
+        _ failure: NewsModerationFailure,
+        penalty: HackersPub.NewsPenalty,
+        storyID: String
+    ) {
+        moderationState.record(failure)
+        moderationRetry = failure.canRetry ? NewsModerationRetry(penalty: penalty, storyID: storyID) : nil
+    }
+
+    private func dismissModerationFailure() {
+        moderationState.clearError()
+        moderationRetry = nil
+    }
+
+    private func message(for graphQLError: GraphQLError) -> String {
+        graphQLError.message?.nilIfBlank ?? graphQLError.localizedDescription
+    }
+
+    private var moderationErrorMessage: String {
+        guard let failure = moderationState.error else { return "" }
+
+        switch failure {
+        case let .graphQLError(message), let .network(message):
+            return message.nilIfBlank ?? NSLocalizedString("news.moderation.failed", comment: "News moderation failed")
+        case .missingResult:
+            return NSLocalizedString("news.moderation.missingResult", comment: "News moderation missing result")
+        case .notAuthenticated:
+            return NSLocalizedString("news.moderation.notAuthenticated", comment: "News moderation requires sign in")
+        case .notAuthorized:
+            return NSLocalizedString(
+                "news.moderation.notAuthorized",
+                comment: "News moderation requires moderator authorization"
+            )
         }
     }
 }
@@ -422,16 +541,22 @@ struct NewsStoryDetailView: View {
 
     @State private var story: HackersPub.NewsStoryDetailQuery.Data.NewsStory?
     @State private var sharingPosts: [HackersPub.NewsStoryDetailQuery.Data.NewsStory.SharingPosts.Edge] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var hasLoadedInitial = false
+    @State private var requestLifecycle = NewsRequestLifecycle()
     @State private var hasNextPage = false
     @State private var endCursor: String?
     @State private var composeSeed: NewsComposeSeed?
-    @State private var fetchGeneration = 0
+    @State private var postContentGeneration = 0
 
     @Environment(AuthManager.self) private var authManager
     @Environment(ExternalURLRouter.self) private var externalURLRouter
+
+    private var isLoading: Bool {
+        requestLifecycle.isLoading
+    }
+
+    private var errorMessage: String? {
+        requestLifecycle.errorMessage
+    }
 
     var body: some View {
         Group {
@@ -440,7 +565,7 @@ struct NewsStoryDetailView: View {
             } else if let errorMessage, story == nil {
                 LoadFailureView(message: errorMessage) {
                     Task {
-                        await fetchStory(reset: true)
+                        await refreshStory()
                     }
                 }
             } else if story == nil {
@@ -482,9 +607,11 @@ struct NewsStoryDetailView: View {
             ComposeView(initialContent: seed.content)
         }
         .task {
-            guard !hasLoadedInitial else { return }
-            hasLoadedInitial = true
-            await fetchStory(reset: true)
+            guard requestLifecycle.shouldLoadInitial else { return }
+            await refreshStory()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postContentDidChange)) { notification in
+            handlePostContentNotification(notification)
         }
     }
 
@@ -493,7 +620,7 @@ struct NewsStoryDetailView: View {
             LazyVStack(spacing: 0) {
                 if let story {
                     NewsStoryHeaderView(story: story)
-                    .padding()
+                        .padding()
                 }
 
                 if sharingPosts.isEmpty && !isLoading {
@@ -536,77 +663,95 @@ struct NewsStoryDetailView: View {
                 if let errorMessage, story != nil {
                     InlineLoadFailureView(message: errorMessage) {
                         Task {
-                            await fetchStory(reset: true)
+                            await refreshStory()
                         }
                     }
                 }
             }
         }
         .refreshable {
-            await fetchStory(reset: true)
+            await refreshStory()
         }
     }
 
-    private func fetchStory(reset: Bool) async {
-        let generation = nextFetchGeneration()
-        if reset {
-            endCursor = nil
-            hasNextPage = false
+    @MainActor
+    private func handlePostContentNotification(_ notification: Notification) {
+        guard let event = PostContentEventCenter.event(from: notification) else { return }
+        let rows = sharingPosts.map {
+            postListItemIdentity(rowID: $0.node.id, post: $0.node)
         }
-        if story == nil || reset {
-            isLoading = true
+        let action = PostContentListEventRouter.route(
+            event,
+            host: .newsSharingPosts,
+            rows: rows,
+            eventGeneration: postContentGeneration,
+            activeGeneration: postContentGeneration
+        )
+        guard case let .remove(rowIDs) = action else { return }
+        postContentGeneration += 1
+        sharingPosts.removeAll { rowIDs.contains($0.node.id) }
+    }
+
+    private func refreshStory() async {
+        let requestID = requestLifecycle.begin()
+        var outcome: NewsRequestOutcome = .cancelled
+        defer {
+            requestLifecycle.finish(requestID: requestID, outcome: outcome)
         }
+
+        endCursor = nil
+        hasNextPage = false
 
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.NewsStoryDetailQuery(id: storyId, after: nil, first: 20),
                 cachePolicy: .networkOnly
             )
-            guard generation == fetchGeneration, !Task.isCancelled else { return }
+            guard requestLifecycle.isCurrent(requestID), !Task.isCancelled else { return }
+
             story = response.data?.newsStory
             sharingPosts = response.data?.newsStory?.sharingPosts.edges ?? []
             hasNextPage = response.data?.newsStory?.sharingPosts.pageInfo.hasNextPage ?? false
             endCursor = response.data?.newsStory?.sharingPosts.pageInfo.endCursor
-            errorMessage = nil
-            isLoading = false
+            outcome = .success
+        } catch is CancellationError {
+            // A cancelled detail task must permit the next appearance to load it again.
         } catch {
-            guard generation == fetchGeneration, !Task.isCancelled else { return }
-            errorMessage = error.localizedDescription
-            isLoading = false
+            guard requestLifecycle.isCurrent(requestID), !Task.isCancelled else { return }
+            outcome = .failure(error.localizedDescription)
             print("Error loading news story: \(error)")
         }
     }
 
     private func loadMore() async {
         guard hasNextPage, let endCursor, !isLoading else { return }
-        let generation = fetchGeneration
 
-        isLoading = true
+        let requestID = requestLifecycle.begin()
+        var outcome: NewsRequestOutcome = .cancelled
+        defer {
+            requestLifecycle.finish(requestID: requestID, outcome: outcome)
+        }
 
         do {
             let response = try await apolloClient.fetch(
                 query: HackersPub.NewsStoryDetailQuery(id: storyId, after: .some(endCursor), first: 20),
                 cachePolicy: .networkOnly
             )
-            guard generation == fetchGeneration, !Task.isCancelled else { return }
+            guard requestLifecycle.isCurrent(requestID), !Task.isCancelled else { return }
+
             let connection = response.data?.newsStory?.sharingPosts
             let existingIDs = Set(sharingPosts.map(\.node.id))
             sharingPosts.append(contentsOf: (connection?.edges ?? []).filter { !existingIDs.contains($0.node.id) })
             hasNextPage = connection?.pageInfo.hasNextPage ?? false
             self.endCursor = connection?.pageInfo.endCursor
-            errorMessage = nil
-            isLoading = false
+            outcome = .success
+        } catch is CancellationError {
+            // A cancelled pagination task leaves the current discussion intact.
         } catch {
-            guard generation == fetchGeneration, !Task.isCancelled else { return }
-            errorMessage = error.localizedDescription
-            isLoading = false
+            guard requestLifecycle.isCurrent(requestID), !Task.isCancelled else { return }
+            outcome = .failure(error.localizedDescription)
             print("Error loading more news discussion: \(error)")
         }
-    }
-
-    private func nextFetchGeneration() -> Int {
-        fetchGeneration += 1
-        return fetchGeneration
     }
 
     private func openExternalURL(_ value: String) {
@@ -623,21 +768,19 @@ private struct NewsAdminView: View {
     @State private var penalizedStories: [HackersPub.NewsAdminQuery.Data.NewsPenalizedStory] = []
     @State private var patternInput = ""
     @State private var noteInput = ""
-    @State private var isLoading = false
+    @State private var loadState = NewsAdminLoadState()
     @State private var isAddingPattern = false
     @State private var isRecomputing = false
-    @State private var errorMessage: String?
-    @State private var hasLoadedInitial = false
 
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             Group {
-                if isLoading && !hasLoadedInitial {
+                if loadState.isLoading && !loadState.hasLoadedInitial {
                     ProgressView(NSLocalizedString("timeline.loading", comment: "Loading indicator"))
-                } else if let errorMessage, !hasLoadedInitial {
-                    LoadFailureView(message: errorMessage) {
+                } else if let initialErrorMessage = loadState.initialErrorMessage, loadState.showsInitialFailure {
+                    LoadFailureView(message: initialErrorMessage) {
                         Task {
                             await fetchAdminState()
                         }
@@ -656,18 +799,41 @@ private struct NewsAdminView: View {
                 }
             }
             .task {
-                guard !hasLoadedInitial else { return }
+                guard loadState.shouldLoadInitial else { return }
                 await fetchAdminState()
+            }
+            .alert(
+                NSLocalizedString("news.admin.actionError.title", comment: "News admin action error title"),
+                isPresented: Binding(
+                    get: { loadState.actionErrorMessage != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            loadState.clearActionError()
+                        }
+                    }
+                )
+            ) {
+                Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
+                    loadState.clearActionError()
+                }
+            } message: {
+                Text(loadState.actionErrorMessage ?? "")
             }
         }
     }
 
     private var adminList: some View {
         List {
-            if let errorMessage {
+            if let refreshErrorMessage = loadState.refreshErrorMessage {
                 Section {
-                    Text(errorMessage)
+                    Text(refreshErrorMessage)
                         .foregroundStyle(.red)
+
+                    Button(NSLocalizedString("common.retry", comment: "Retry button")) {
+                        Task {
+                            await fetchAdminState()
+                        }
+                    }
                 }
             }
 
@@ -813,10 +979,10 @@ private struct NewsAdminView: View {
     }
 
     private func fetchAdminState() async {
-        isLoading = true
+        let requestID = loadState.begin()
+        var outcome: NewsRequestOutcome = .cancelled
         defer {
-            isLoading = false
-            hasLoadedInitial = true
+            loadState.finish(requestID: requestID, outcome: outcome)
         }
 
         do {
@@ -824,18 +990,27 @@ private struct NewsAdminView: View {
                 query: HackersPub.NewsAdminQuery(),
                 cachePolicy: .networkOnly
             )
+            guard loadState.isCurrent(requestID), !Task.isCancelled else { return }
+
+            if let error = response.errors?.first {
+                outcome = .failure(error.localizedDescription)
+                return
+            }
 
             guard response.data?.viewer?.moderator == true else {
-                errorMessage = NSLocalizedString("news.admin.notAuthorized", comment: "News admin not authorized")
+                outcome = .failure(NSLocalizedString("news.admin.notAuthorized", comment: "News admin not authorized"))
                 return
             }
 
             status = response.data?.newsScoreStatus
             excludedPatterns = response.data?.newsExcludedPatterns ?? []
             penalizedStories = response.data?.newsPenalizedStories ?? []
-            errorMessage = nil
+            outcome = .success
+        } catch is CancellationError {
+            // The sheet can be dismissed while the initial request is in flight.
         } catch {
-            errorMessage = error.localizedDescription
+            guard loadState.isCurrent(requestID), !Task.isCancelled else { return }
+            outcome = .failure(error.localizedDescription)
             print("Error loading news admin state: \(error)")
         }
     }
@@ -847,14 +1022,20 @@ private struct NewsAdminView: View {
         do {
             let response = try await apolloClient.perform(mutation: HackersPub.RecomputeNewsScoresMutation())
             guard response.data?.recomputeNewsScores.asRecomputeNewsScoresPayload != nil else {
-                errorMessage = NSLocalizedString("news.admin.recompute.failed", comment: "Recompute news scores failed")
+                loadState.recordActionFailure(
+                    NSLocalizedString(
+                        "news.admin.recompute.failed",
+                        comment: "Recompute news scores failed"
+                    )
+                )
                 return
             }
 
+            loadState.clearActionError()
             await fetchAdminState()
             onDidUpdate()
         } catch {
-            errorMessage = error.localizedDescription
+            loadState.recordActionFailure(error.localizedDescription)
             print("Error recomputing news scores: \(error)")
         }
     }
@@ -874,16 +1055,22 @@ private struct NewsAdminView: View {
             )
 
             guard response.data?.addNewsExcludedPattern.asNewsExcludedPattern != nil else {
-                errorMessage = NSLocalizedString("news.admin.addPattern.failed", comment: "Add excluded pattern failed")
+                loadState.recordActionFailure(
+                    NSLocalizedString(
+                        "news.admin.addPattern.failed",
+                        comment: "Add excluded pattern failed"
+                    )
+                )
                 return
             }
 
+            loadState.clearActionError()
             patternInput = ""
             noteInput = ""
             await fetchAdminState()
             onDidUpdate()
         } catch {
-            errorMessage = error.localizedDescription
+            loadState.recordActionFailure(error.localizedDescription)
             print("Error adding news excluded pattern: \(error)")
         }
     }
@@ -892,14 +1079,20 @@ private struct NewsAdminView: View {
         do {
             let response = try await apolloClient.perform(mutation: HackersPub.RemoveNewsExcludedPatternMutation(id: id))
             guard response.data?.removeNewsExcludedPattern.asRemoveNewsExcludedPatternPayload != nil else {
-                errorMessage = NSLocalizedString("news.admin.removePattern.failed", comment: "Remove excluded pattern failed")
+                loadState.recordActionFailure(
+                    NSLocalizedString(
+                        "news.admin.removePattern.failed",
+                        comment: "Remove excluded pattern failed"
+                    )
+                )
                 return
             }
 
+            loadState.clearActionError()
             await fetchAdminState()
             onDidUpdate()
         } catch {
-            errorMessage = error.localizedDescription
+            loadState.recordActionFailure(error.localizedDescription)
             print("Error removing news excluded pattern: \(error)")
         }
     }
@@ -910,14 +1103,20 @@ private struct NewsAdminView: View {
                 mutation: HackersPub.SetNewsScorePenaltyMutation(id: storyId, penalty: .case(.none))
             )
             guard response.data?.setNewsScorePenalty?.asPostLink != nil else {
-                errorMessage = NSLocalizedString("news.admin.clearPenalty.failed", comment: "Clear news penalty failed")
+                loadState.recordActionFailure(
+                    NSLocalizedString(
+                        "news.admin.clearPenalty.failed",
+                        comment: "Clear news penalty failed"
+                    )
+                )
                 return
             }
 
+            loadState.clearActionError()
             await fetchAdminState()
             onDidUpdate()
         } catch {
-            errorMessage = error.localizedDescription
+            loadState.recordActionFailure(error.localizedDescription)
             print("Error clearing news penalty: \(error)")
         }
     }
