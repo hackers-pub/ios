@@ -1,11 +1,11 @@
-import SwiftUI
 import Combine
+import SwiftUI
 import UIKit
 
 class FontSettingsManager: ObservableObject {
     static let shared = FontSettingsManager()
 
-    // User preferences stored in UserDefaults with manual publishing
+    /// User preferences stored in UserDefaults with manual publishing
     @Published var selectedFontName: String {
         didSet {
             UserDefaults.standard.set(selectedFontName, forKey: "selectedFontName")
@@ -29,15 +29,18 @@ class FontSettingsManager: ObservableObject {
 
     private init() {
         // Load saved preferences
-        self.selectedFontName = UserDefaults.standard.string(forKey: "selectedFontName") ?? "System"
-        self.fontSizeMultiplier = UserDefaults.standard.double(forKey: "fontSizeMultiplier") != 0 ? UserDefaults.standard.double(forKey: "fontSizeMultiplier") : 1.0
-        self.useSystemDynamicType = UserDefaults.standard.object(forKey: "useSystemDynamicType") as? Bool ?? true
+        selectedFontName = UserDefaults.standard.string(forKey: "selectedFontName") ?? "System"
+        fontSizeMultiplier =
+            UserDefaults.standard.double(forKey: "fontSizeMultiplier") != 0
+                ? UserDefaults.standard.double(forKey: "fontSizeMultiplier")
+                : 1.0
+        useSystemDynamicType = UserDefaults.standard.object(forKey: "useSystemDynamicType") as? Bool ?? true
 
         loadAllAvailableFonts()
         setupCommonFonts()
     }
 
-    // Load all fonts available on the device
+    /// Load all fonts available on the device
     private func loadAllAvailableFonts() {
         var families = Set<String>()
         var allFonts = Set<String>()
@@ -54,13 +57,17 @@ class FontSettingsManager: ObservableObject {
         }
 
         allAvailableFonts = Array(allFonts).sorted { font1, font2 in
-            if font1 == "System" { return true }
-            if font2 == "System" { return false }
+            if font1 == "System" {
+                return true
+            }
+            if font2 == "System" {
+                return false
+            }
             return font1.localizedCaseInsensitiveCompare(font2) == .orderedAscending
         }
     }
 
-    // Setup common fonts from detected fonts
+    /// Setup common fonts from detected fonts
     private func setupCommonFonts() {
         // List of commonly used font families (will be filtered by what's actually available)
         let commonFamilyNames = [
@@ -73,7 +80,7 @@ class FontSettingsManager: ObservableObject {
             "Courier",
             "Courier New",
             "Avenir",
-            "Avenir Next",
+            "Avenir Next"
         ]
 
         var common = [String]()
@@ -87,7 +94,7 @@ class FontSettingsManager: ObservableObject {
         commonFonts = common
     }
 
-    // Get font name for CSS
+    /// Get font name for CSS
     var cssFontFamily: String {
         switch selectedFontName {
         case "System":
@@ -101,17 +108,43 @@ class FontSettingsManager: ObservableObject {
 
     func uiFont(for textStyle: UIFont.TextStyle, weight: UIFont.Weight = .regular) -> UIFont {
         let size = scaledSize(for: textStyle)
+        return Self.resolvedUIFont(named: selectedFontName, size: size, weight: weight)
+    }
 
-        if selectedFontName == "System" {
+    static func resolvedUIFont(named fontName: String, size: CGFloat, weight: UIFont.Weight) -> UIFont {
+        guard fontName != "System" else {
             return UIFont.systemFont(ofSize: size, weight: weight)
         }
 
-        if let font = UIFont(name: selectedFontName, size: size) {
-            return font
+        guard let baseFont = UIFont(name: fontName, size: size) else {
+            return UIFont.systemFont(ofSize: size, weight: weight)
         }
 
-        // Fallback to system font
-        return UIFont.systemFont(ofSize: size, weight: weight)
+        let requestedWeight = weight.rawValue
+        let baseDistance = abs(Self.fontWeight(for: baseFont) - requestedWeight)
+        let closestFamilyFace = UIFont.fontNames(forFamilyName: baseFont.familyName)
+            .compactMap { UIFont(name: $0, size: size) }
+            .min { lhs, rhs in
+                abs(Self.fontWeight(for: lhs) - requestedWeight) < abs(Self.fontWeight(for: rhs) - requestedWeight)
+            }
+
+        guard let closestFamilyFace else { return baseFont }
+        let closestDistance = abs(Self.fontWeight(for: closestFamilyFace) - requestedWeight)
+        if closestDistance < baseDistance {
+            return closestFamilyFace
+        }
+        return baseFont
+    }
+
+    private static func fontWeight(for font: UIFont) -> CGFloat {
+        let traits = font.fontDescriptor.object(forKey: .traits) as? [UIFontDescriptor.TraitKey: Any]
+        if let number = traits?[.weight] as? NSNumber {
+            return CGFloat(number.doubleValue)
+        }
+
+        return font.fontDescriptor.symbolicTraits.contains(.traitBold)
+            ? UIFont.Weight.bold.rawValue
+            : UIFont.Weight.regular.rawValue
     }
 
     func font(for textStyle: UIFont.TextStyle) -> Font {
@@ -124,7 +157,7 @@ class FontSettingsManager: ObservableObject {
         return .custom(selectedFontName, size: size)
     }
 
-    // Get scaled font size based on user preference
+    /// Get scaled font size based on user preference
     func scaledSize(for textStyle: UIFont.TextStyle) -> CGFloat {
         if useSystemDynamicType {
             // Disable multipling font size
@@ -151,15 +184,10 @@ class FontSettingsManager: ObservableObject {
         }
     }
 
-    func searchFonts(query: String) -> [String] {
-        if query.isEmpty {
-            return commonFonts
-        }
-        return allAvailableFonts.filter { $0.localizedCaseInsensitiveContains(query) }
-    }
-
     func isFontAvailable(_ fontName: String) -> Bool {
-        if fontName == "System" { return true }
+        if fontName == "System" {
+            return true
+        }
         return UIFont(name: fontName, size: 12) != nil
     }
 

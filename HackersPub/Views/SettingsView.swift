@@ -1,12 +1,114 @@
-import SwiftUI
 @preconcurrency import Apollo
+import Kingfisher
+import SwiftUI
+
+protocol SettingsCacheBacking {
+    func clearApolloCache() async throws
+    func clearKingfisherMemoryCache()
+    func clearKingfisherDiskCache() async
+    func clearSharedURLCache()
+    func cacheSize() async throws -> Int64
+}
+
+enum CacheClearResult: Equatable {
+    case bestEffort(size: Int64)
+    case failure(size: Int64?)
+}
+
+private enum SettingsCacheMeasurementError: Error {
+    case documentsDirectoryUnavailable
+}
+
+struct SettingsCacheController {
+    private let backing: any SettingsCacheBacking
+
+    init(backing: any SettingsCacheBacking) {
+        self.backing = backing
+    }
+
+    static let live = SettingsCacheController(backing: LiveSettingsCacheBacking())
+
+    func cacheSize() async throws -> Int64 {
+        try await backing.cacheSize()
+    }
+
+    func clearAndMeasure() async -> CacheClearResult {
+        let clearedApolloCache: Bool
+        do {
+            try await backing.clearApolloCache()
+            clearedApolloCache = true
+        } catch {
+            clearedApolloCache = false
+        }
+
+        backing.clearKingfisherMemoryCache()
+        await backing.clearKingfisherDiskCache()
+        backing.clearSharedURLCache()
+
+        do {
+            let size = try await backing.cacheSize()
+            return clearedApolloCache ? .bestEffort(size: size) : .failure(size: size)
+        } catch {
+            return .failure(size: nil)
+        }
+    }
+}
+
+private struct LiveSettingsCacheBacking: SettingsCacheBacking {
+    func clearApolloCache() async throws {
+        try await apolloClient.clearCache()
+    }
+
+    func clearKingfisherMemoryCache() {
+        KingfisherManager.shared.cache.clearMemoryCache()
+    }
+
+    func clearKingfisherDiskCache() async {
+        await KingfisherManager.shared.cache.clearDiskCache()
+    }
+
+    func clearSharedURLCache() {
+        URLCache.shared.removeAllCachedResponses()
+    }
+
+    func cacheSize() async throws -> Int64 {
+        async let apolloCacheSize = Self.apolloSQLiteCacheSize()
+        async let kingfisherCacheSize = Self.kingfisherDiskCacheSize()
+        let urlCacheSize = Int64(URLCache.shared.currentDiskUsage)
+        let apolloSize = try await apolloCacheSize
+        let kingfisherSize = try await kingfisherCacheSize
+        return apolloSize + kingfisherSize + urlCacheSize
+    }
+
+    private static func apolloSQLiteCacheSize() async throws -> Int64 {
+        try await Task.detached(priority: .utility) { () throws -> Int64 in
+            guard let documentsDirectory = FileManager.default.urls(
+                for: .documentDirectory,
+                in: .userDomainMask
+            ).first else {
+                throw SettingsCacheMeasurementError.documentsDirectoryUnavailable
+            }
+
+            let fileURL = documentsDirectory.appendingPathComponent(ApolloCacheConfiguration.fileName)
+            return try ApolloSQLiteCacheMetric.physicalSize(at: fileURL)
+        }.value
+    }
+
+    private static func kingfisherDiskCacheSize() async throws -> Int64 {
+        let size = try await KingfisherManager.shared.cache.diskStorageSize
+        return Int64(size)
+    }
+}
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var authManager
     @EnvironmentObject private var fontSettings: FontSettingsManager
     @State private var showingClearCacheAlert = false
-    @State private var cacheCleared = false
+    @State private var cacheClearCompleted = false
+    @State private var isClearingCache = false
+    @State private var cacheClearErrorMessage: String?
+    @State private var cacheClearFeedbackGeneration = 0
     @State private var cacheSize: String = NSLocalizedString("settings.calculating", comment: "Cache size calculating")
     @State private var showingAddPasskeyAlert = false
     @State private var newPasskeyName = ""
@@ -14,28 +116,28 @@ struct SettingsView: View {
     @State private var passkeyPendingRevocation: PasskeyInfo?
     @State private var isRegisteringPasskey = false
     @State private var revokingPasskeyID: String?
-#if os(iOS)
-    @State private var currentAppIcon: String = {
-        // Map actual alternate icon name to display name
-        switch UIApplication.shared.alternateIconName {
-        case "AppIconCry": return "Cry"
-        case "AppIconCurious": return "Curious"
-        case "AppIconFrown": return "Frown"
-        case "AppIconWink": return "Wink"
-        default: return "Logo"
-        }
-    }()
-#endif
-    @State private var markdownMaxLength = UserDefaults.standard.integer(forKey: "markdownMaxLength") {
-        didSet {
-            UserDefaults.standard.set(markdownMaxLength, forKey: "markdownMaxLength")
-        }
-    }
+    @State private var passkeyLoadTaskOwner = PasskeyTaskOwner()
+    @State private var passkeyRegistrationTaskOwner = PasskeyTaskOwner()
+    #if os(iOS)
+        @State private var currentAppIcon: String = {
+            // Map actual alternate icon name to display name
+            switch UIApplication.shared.alternateIconName {
+            case "AppIconCry": return "Cry"
+            case "AppIconCurious": return "Curious"
+            case "AppIconFrown": return "Frown"
+            case "AppIconWink": return "Wink"
+            default: return "Logo"
+            }
+        }()
+    #endif
+    @AppStorage(MarkdownMaxLengthPreference.key)
+    private var markdownMaxLength = MarkdownMaxLengthPreference.defaultValue
     @AppStorage("engagement.sharePressActionsSwapped") private var sharePressActionsSwapped = false
     @AppStorage("engagement.quotePressActionsSwapped") private var quotePressActionsSwapped = false
     @AppStorage("engagement.confirmBeforeShare") private var confirmBeforeShare = false
     @AppStorage("engagement.confirmBeforeDelete") private var confirmBeforeDelete = true
     @AppStorage(ExternalURLRouter.useInAppBrowserKey) private var useInAppBrowser = true
+    private let cacheController = SettingsCacheController.live
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
@@ -43,12 +145,12 @@ struct SettingsView: View {
         return "\(version) (\(build))"
     }
 
-    private let appIcons: [(name: String, displayName: String)] = [
-        ("Logo", "Default"),
-        ("Cry", "Cry"),
-        ("Curious", "Curious"),
-        ("Frown", "Frown"),
-        ("Wink", "Wink")
+    private let appIcons: [(name: String, displayNameKey: String)] = [
+        ("Logo", "settings.appIcon.default"),
+        ("Cry", "settings.appIcon.cry"),
+        ("Curious", "settings.appIcon.curious"),
+        ("Frown", "settings.appIcon.frown"),
+        ("Wink", "settings.appIcon.wink")
     ]
 
     var body: some View {
@@ -92,13 +194,13 @@ struct SettingsView: View {
 
                 LinksSettingsSection(useInAppBrowser: $useInAppBrowser)
 
-#if os(iOS)
-                AppIconSettingsSection(
-                    currentAppIcon: currentAppIcon,
-                    appIcons: appIcons,
-                    onSelect: setAppIcon
-                )
-#endif
+                #if os(iOS)
+                    AppIconSettingsSection(
+                        currentAppIcon: currentAppIcon,
+                        appIcons: appIcons,
+                        onSelect: setAppIcon
+                    )
+                #endif
 
                 Section {
                     HStack {
@@ -114,12 +216,19 @@ struct SettingsView: View {
                         HStack {
                             Text(NSLocalizedString("settings.clearCache", comment: "Clear cache button"))
                             Spacer()
-                            if cacheCleared {
+                            if isClearingCache {
+                                ProgressView()
+                                    .accessibilityHidden(true)
+                            } else if cacheClearCompleted {
                                 Image(systemName: "checkmark")
                                     .foregroundStyle(.green)
+                                    .accessibilityHidden(true)
                             }
                         }
                     }
+                    .disabled(isClearingCache)
+                    .accessibilityLabel(NSLocalizedString("settings.clearCache", comment: "Clear cache button"))
+                    .accessibilityValue(cacheClearAccessibilityValue)
                 } header: {
                     Text(NSLocalizedString("settings.cache", comment: "Cache section header"))
                 }
@@ -127,6 +236,7 @@ struct SettingsView: View {
                 if authManager.isAuthenticated {
                     AuthenticatedSettingsSection(
                         passkeys: authManager.passkeys,
+                        passkeysLoadError: authManager.passkeysLoadError,
                         isLoadingPasskeys: authManager.isLoadingPasskeys,
                         isRegisteringPasskey: isRegisteringPasskey,
                         revokingPasskeyID: revokingPasskeyID,
@@ -136,6 +246,9 @@ struct SettingsView: View {
                         },
                         onRemovePasskey: { passkey in
                             passkeyPendingRevocation = passkey
+                        },
+                        onRetryPasskeys: {
+                            startPasskeyLoad()
                         },
                         onSignOut: {
                             Task {
@@ -162,9 +275,11 @@ struct SettingsView: View {
             .modifier(settingsAlerts)
             .task {
                 await calculateCacheSize()
-                if authManager.isAuthenticated {
-                    await authManager.loadPasskeys()
-                }
+                guard !Task.isCancelled, authManager.isAuthenticated else { return }
+                startPasskeyLoad()
+            }
+            .onDisappear {
+                cancelPasskeyTasks()
             }
         }
     }
@@ -172,6 +287,7 @@ struct SettingsView: View {
     private var settingsAlerts: SettingsAlertsModifier {
         SettingsAlertsModifier(
             showingClearCacheAlert: $showingClearCacheAlert,
+            cacheClearErrorMessage: $cacheClearErrorMessage,
             showingAddPasskeyAlert: $showingAddPasskeyAlert,
             newPasskeyName: $newPasskeyName,
             passkeyPendingRevocation: $passkeyPendingRevocation,
@@ -182,9 +298,7 @@ struct SettingsView: View {
                 }
             },
             onRegisterPasskey: {
-                Task {
-                    await registerPasskey()
-                }
+                startPasskeyRegistration()
             },
             onRevokePasskey: { passkey in
                 Task {
@@ -192,6 +306,23 @@ struct SettingsView: View {
                 }
             }
         )
+    }
+
+    private func startPasskeyLoad() {
+        passkeyLoadTaskOwner.start {
+            await authManager.loadPasskeys()
+        }
+    }
+
+    private func startPasskeyRegistration() {
+        passkeyRegistrationTaskOwner.start {
+            await registerPasskey()
+        }
+    }
+
+    private func cancelPasskeyTasks() {
+        passkeyLoadTaskOwner.cancel()
+        passkeyRegistrationTaskOwner.cancel()
     }
 
     private func registerPasskey() async {
@@ -204,6 +335,9 @@ struct SettingsView: View {
         do {
             try await authManager.registerPasskey(name: name)
         } catch {
+            guard !Task.isCancelled,
+                  PasskeyAuthorizationErrorPolicy.shouldPresent(error)
+            else { return }
             passkeyErrorMessage = error.localizedDescription
         }
     }
@@ -220,62 +354,10 @@ struct SettingsView: View {
     }
 
     private func calculateCacheSize() async {
-        let size = await getCacheDirectorySize()
-        cacheSize = formatBytes(size)
-    }
-
-    private func getCacheDirectorySize() async -> Int64 {
-        await withCheckedContinuation { continuation in
-            Task.detached {
-                let fileManager = FileManager.default
-                var totalSize: Int64 = 0
-
-                // Calculate iOS cache directory size
-                if let cacheDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
-                    if let enumerator = fileManager.enumerator(at: cacheDirectory, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) {
-                        while let fileURL = enumerator.nextObject() as? URL {
-                            do {
-                                let resourceValues = try fileURL.resourceValues(forKeys: [.fileSizeKey])
-                                if let fileSize = resourceValues.fileSize {
-                                    totalSize += Int64(fileSize)
-                                }
-                            } catch {
-                                // Skip files that can't be read
-                            }
-                        }
-                    }
-                }
-
-                // Calculate Apollo SQLite cache size
-                if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-                    let apolloCacheURL = documentsDirectory.appendingPathComponent("apollo_cache.sqlite")
-                    do {
-                        let resourceValues = try apolloCacheURL.resourceValues(forKeys: [.fileSizeKey])
-                        if let fileSize = resourceValues.fileSize {
-                            totalSize += Int64(fileSize)
-                        }
-                    } catch {
-                        // Apollo cache file doesn't exist or can't be read
-                    }
-
-                    // Also include SQLite WAL and SHM files
-                    let walURL = documentsDirectory.appendingPathComponent("apollo_cache.sqlite-wal")
-                    let shmURL = documentsDirectory.appendingPathComponent("apollo_cache.sqlite-shm")
-
-                    for url in [walURL, shmURL] {
-                        do {
-                            let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
-                            if let fileSize = resourceValues.fileSize {
-                                totalSize += Int64(fileSize)
-                            }
-                        } catch {
-                            // File doesn't exist or can't be read
-                        }
-                    }
-                }
-
-                continuation.resume(returning: totalSize)
-            }
+        do {
+            cacheSize = try formatBytes(await cacheController.cacheSize())
+        } catch {
+            cacheSize = NSLocalizedString("settings.cacheSize.unavailable", comment: "Cache size unavailable")
         }
     }
 
@@ -287,80 +369,121 @@ struct SettingsView: View {
     }
 
     private func clearCache() async {
-        do {
-            try await apolloClient.clearCache()
-            await calculateCacheSize()
-            cacheCleared = true
-        } catch {
-            print("Error clearing cache: \(error)")
+        guard !isClearingCache else { return }
+
+        isClearingCache = true
+        cacheClearCompleted = false
+        cacheClearFeedbackGeneration += 1
+        defer { isClearingCache = false }
+
+        switch await cacheController.clearAndMeasure() {
+        case let .bestEffort(size):
+            cacheSize = formatBytes(size)
+            cacheClearCompleted = true
+            scheduleCacheClearFeedbackReset()
+        case let .failure(size):
+            if let size {
+                cacheSize = formatBytes(size)
+            } else {
+                cacheSize = NSLocalizedString("settings.cacheSize.unavailable", comment: "Cache size unavailable")
+            }
+            cacheClearErrorMessage = NSLocalizedString(
+                "settings.clearCache.error.message",
+                comment: "Clear cache failure message"
+            )
+        }
+    }
+
+    private var cacheClearAccessibilityValue: String {
+        if isClearingCache {
+            return NSLocalizedString("settings.clearCache.clearing", comment: "Clear cache in progress")
+        }
+        if cacheClearCompleted {
+            return NSLocalizedString("settings.clearCache.bestEffort", comment: "Best-effort cache clear completed")
+        }
+        return ""
+    }
+
+    private func scheduleCacheClearFeedbackReset() {
+        cacheClearFeedbackGeneration += 1
+        let generation = cacheClearFeedbackGeneration
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled, cacheClearFeedbackGeneration == generation else { return }
+            cacheClearCompleted = false
         }
     }
 
     private func setAppIcon(_ iconName: String) {
-#if os(iOS)
-        // Map display name to actual alternate icon name
-        let actualIconName: String? = {
-            switch iconName {
-            case "Logo": return nil
-            case "Cry": return "AppIconCry"
-            case "Curious": return "AppIconCurious"
-            case "Frown": return "AppIconFrown"
-            case "Wink": return "AppIconWink"
-            default: return nil
-            }
-        }()
+        #if os(iOS)
+            // Map display name to actual alternate icon name
+            let actualIconName: String? = {
+                switch iconName {
+                case "Logo": return nil
+                case "Cry": return "AppIconCry"
+                case "Curious": return "AppIconCurious"
+                case "Frown": return "AppIconFrown"
+                case "Wink": return "AppIconWink"
+                default: return nil
+                }
+            }()
 
-        UIApplication.shared.setAlternateIconName(actualIconName) { error in
-            if let error = error {
-                print("Failed request to update the app's icon: \(error)")
-            } else {
-                currentAppIcon = iconName
+            UIApplication.shared.setAlternateIconName(actualIconName) { error in
+                if let error = error {
+                    print("Failed request to update the app's icon: \(error)")
+                } else {
+                    currentAppIcon = iconName
+                }
             }
-        }
-#endif
+        #endif
     }
 }
 
 #if os(iOS)
-private struct AppIconSettingsSection: View {
-    let currentAppIcon: String
-    let appIcons: [(name: String, displayName: String)]
-    let onSelect: (String) -> Void
+    private struct AppIconSettingsSection: View {
+        let currentAppIcon: String
+        let appIcons: [(name: String, displayNameKey: String)]
+        let onSelect: (String) -> Void
 
-    var body: some View {
-        Section {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(appIcons, id: \.name) { icon in
-                        Button {
-                            onSelect(icon.name)
-                        } label: {
-                            VStack(spacing: 8) {
-                                Image(icon.name)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 80, height: 80)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(currentAppIcon == icon.name ? Color.blue : Color.clear, lineWidth: 3)
-                                    )
+        var body: some View {
+            Section {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(appIcons, id: \.name) { icon in
+                            Button {
+                                onSelect(icon.name)
+                            } label: {
+                                VStack(spacing: 8) {
+                                    Image(icon.name)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 80, height: 80)
+                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(
+                                                    currentAppIcon == icon.name ? Color.blue : Color.clear,
+                                                    lineWidth: 3
+                                                )
+                                        )
 
-                                Text(icon.displayName)
-                                    .font(.caption)
-                                    .foregroundStyle(.primary)
+                                    Text(NSLocalizedString(icon.displayNameKey, comment: "App icon display name"))
+                                        .font(.caption)
+                                        .foregroundStyle(.primary)
+                                }
                             }
+                            .accessibilityAddTraits(currentAppIcon == icon.name ? .isSelected : [])
                         }
                     }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 8)
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 8)
+            } header: {
+                Text(NSLocalizedString("settings.appIcon", comment: "App icon section header"))
             }
-        } header: {
-            Text(NSLocalizedString("settings.appIcon", comment: "App icon section header"))
         }
     }
-}
 #endif
 
 private struct TypographySettingsSection: View {
@@ -392,9 +515,9 @@ private struct TypographySettingsSection: View {
                     value: SliderHelper.snappedBinding(
                         $fontSettings.fontSizeMultiplier,
                         step: 0.05,
-                        range: 0.75...3.0
+                        range: 0.75 ... 3.0
                     ),
-                    in: 0.75...3.0,
+                    in: 0.75 ... 3.0,
                     step: 0.05
                 )
                 .disabled(fontSettings.useSystemDynamicType)
@@ -430,6 +553,7 @@ private struct TypographySettingsSection: View {
 
 private struct SettingsAlertsModifier: ViewModifier {
     @Binding var showingClearCacheAlert: Bool
+    @Binding var cacheClearErrorMessage: String?
     @Binding var showingAddPasskeyAlert: Bool
     @Binding var newPasskeyName: String
     @Binding var passkeyPendingRevocation: PasskeyInfo?
@@ -439,12 +563,25 @@ private struct SettingsAlertsModifier: ViewModifier {
     let onRegisterPasskey: () -> Void
     let onRevokePasskey: (PasskeyInfo) -> Void
 
+    // swiftlint:disable:next function_body_length
     func body(content: Content) -> some View {
         content
             .background {
                 Color.clear
-                    .alert(NSLocalizedString("settings.clearCacheAlert.title", comment: "Clear cache alert title"), isPresented: $showingClearCacheAlert) {
-                        Button(NSLocalizedString("settings.clearCacheAlert.cancel", comment: "Cancel button"), role: .cancel) { }
+                    .alert(
+                        NSLocalizedString(
+                            "settings.clearCacheAlert.title",
+                            comment: "Clear cache alert title"
+                        ),
+                        isPresented: $showingClearCacheAlert
+                    ) {
+                        Button(
+                            NSLocalizedString(
+                                "settings.clearCacheAlert.cancel",
+                                comment: "Cancel button"
+                            ),
+                            role: .cancel
+                        ) {}
                         Button(NSLocalizedString("settings.clearCacheAlert.clear", comment: "Clear button"), role: .destructive, action: onClearCache)
                     } message: {
                         Text(NSLocalizedString("settings.clearCacheAlert.message", comment: "Clear cache alert message"))
@@ -452,9 +589,28 @@ private struct SettingsAlertsModifier: ViewModifier {
             }
             .background {
                 Color.clear
+                    .alert(
+                        NSLocalizedString("settings.clearCache.error.title", comment: "Clear cache failure title"),
+                        isPresented: cacheClearErrorAlertBinding
+                    ) {
+                        Button(
+                            NSLocalizedString(
+                                "settings.clearCache.error.dismiss",
+                                comment: "Dismiss clear cache failure"
+                            ),
+                            role: .cancel
+                        ) {
+                            cacheClearErrorMessage = nil
+                        }
+                    } message: {
+                        Text(cacheClearErrorMessage ?? "")
+                    }
+            }
+            .background {
+                Color.clear
                     .alert(NSLocalizedString("settings.passkeys.add", comment: "Add passkey alert title"), isPresented: $showingAddPasskeyAlert) {
                         TextField(NSLocalizedString("settings.passkeys.name", comment: "Passkey name field"), text: $newPasskeyName)
-                        Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+                        Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
                         Button(NSLocalizedString("settings.passkeys.add", comment: "Add passkey button"), action: onRegisterPasskey)
                             .disabled(newPasskeyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     } message: {
@@ -464,7 +620,7 @@ private struct SettingsAlertsModifier: ViewModifier {
             .background {
                 Color.clear
                     .alert(NSLocalizedString("settings.passkeys.remove", comment: "Remove passkey alert title"), isPresented: removePasskeyAlertBinding) {
-                        Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+                        Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
                         Button(NSLocalizedString("settings.passkeys.remove", comment: "Remove passkey button"), role: .destructive) {
                             if let passkey = passkeyPendingRevocation {
                                 onRevokePasskey(passkey)
@@ -504,6 +660,17 @@ private struct SettingsAlertsModifier: ViewModifier {
         )
     }
 
+    private var cacheClearErrorAlertBinding: Binding<Bool> {
+        Binding(
+            get: { cacheClearErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    cacheClearErrorMessage = nil
+                }
+            }
+        )
+    }
+
     private var removePasskeyMessage: String {
         String(
             format: NSLocalizedString("settings.passkeys.removeMessage", comment: "Remove passkey confirmation message"),
@@ -522,11 +689,12 @@ private struct TimelineSettingsSection: View {
                     Text(NSLocalizedString("settings.timeline.markdownMaxLength", comment: "Timeline markdown max length label"))
                     Spacer()
                     Picker(selection: $markdownMaxLength, label: Text("")) {
-                        Text("300").tag(300)
+                        Text("300").tag(MarkdownMaxLengthPreference.defaultValue)
                         Text("500").tag(500)
                         Text("700").tag(700)
                         Text("1,000").tag(1000)
-                        Text(NSLocalizedString("settings.timeline.unlimited", comment: "Unlimited option label")).tag(0)
+                        Text(NSLocalizedString("settings.timeline.unlimited", comment: "Unlimited option label"))
+                            .tag(MarkdownMaxLengthPreference.unlimitedValue)
                     }
                     .pickerStyle(MenuPickerStyle())
                 }
@@ -596,21 +764,25 @@ private struct LinksSettingsSection: View {
 
 private struct AuthenticatedSettingsSection: View {
     let passkeys: [PasskeyInfo]
+    let passkeysLoadError: String?
     let isLoadingPasskeys: Bool
     let isRegisteringPasskey: Bool
     let revokingPasskeyID: String?
     let onAddPasskey: () -> Void
     let onRemovePasskey: (PasskeyInfo) -> Void
+    let onRetryPasskeys: () -> Void
     let onSignOut: () -> Void
 
     var body: some View {
         PasskeysSettingsSection(
             passkeys: passkeys,
+            loadError: passkeysLoadError,
             isLoading: isLoadingPasskeys,
             isRegistering: isRegisteringPasskey,
             revokingPasskeyID: revokingPasskeyID,
             onAdd: onAddPasskey,
-            onRemove: onRemovePasskey
+            onRemove: onRemovePasskey,
+            onRetry: onRetryPasskeys
         )
 
         Section {
@@ -627,11 +799,13 @@ private struct AuthenticatedSettingsSection: View {
 
 private struct PasskeysSettingsSection: View {
     let passkeys: [PasskeyInfo]
+    let loadError: String?
     let isLoading: Bool
     let isRegistering: Bool
     let revokingPasskeyID: String?
     let onAdd: () -> Void
     let onRemove: (PasskeyInfo) -> Void
+    let onRetry: () -> Void
 
     var body: some View {
         Section {
@@ -641,16 +815,26 @@ private struct PasskeysSettingsSection: View {
                     Text(NSLocalizedString("settings.passkeys.loading", comment: "Loading passkeys label"))
                         .foregroundStyle(.secondary)
                 }
-            } else if passkeys.isEmpty {
-                Text(NSLocalizedString("settings.passkeys.empty", comment: "No passkeys label"))
-                    .foregroundStyle(.secondary)
             } else {
-                ForEach(passkeys) { passkey in
-                    PasskeyRow(
-                        passkey: passkey,
-                        isRevoking: revokingPasskeyID == passkey.id,
-                        onRemove: { onRemove(passkey) }
-                    )
+                if let loadError {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(loadError, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                        Button(NSLocalizedString("common.retry", comment: "Retry button"), action: onRetry)
+                    }
+                }
+
+                if passkeys.isEmpty {
+                    Text(NSLocalizedString("settings.passkeys.empty", comment: "No passkeys label"))
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(passkeys) { passkey in
+                        PasskeyRow(
+                            passkey: passkey,
+                            isRevoking: revokingPasskeyID == passkey.id,
+                            onRemove: { onRemove(passkey) }
+                        )
+                    }
                 }
             }
 

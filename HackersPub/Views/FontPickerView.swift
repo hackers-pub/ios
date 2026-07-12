@@ -10,7 +10,9 @@ struct FontPickerView: View {
         case common
         case all
 
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
 
         var displayName: String {
             switch self {
@@ -63,9 +65,12 @@ struct FontPickerView: View {
         }
         .navigationTitle(NSLocalizedString("fontPicker.title", comment: "Font picker title"))
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.inline)
         #endif
-        .searchable(text: $searchText, prompt: NSLocalizedString("fontPicker.search", comment: "Search fonts placeholder"))
+            .searchable(
+                text: $searchText,
+                prompt: NSLocalizedString("fontPicker.search", comment: "Search fonts placeholder")
+            )
     }
 
     private var footerText: String {
@@ -86,10 +91,10 @@ struct FontPickerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(fontName)
                         .foregroundStyle(.primary)
-                        .font(.custom(fontName == "System" ? "System" : fontName, size: 17))
+                        .font(previewFont(for: fontName, size: 17))
 
                     Text(NSLocalizedString("fontPicker.preview", comment: "Font preview text"))
-                        .font(.custom(fontName == "System" ? "System" : fontName, size: 14))
+                        .font(previewFont(for: fontName, size: 14))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -104,6 +109,10 @@ struct FontPickerView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func previewFont(for fontName: String, size: CGFloat) -> Font {
+        fontName == "System" ? .system(size: size) : .custom(fontName, size: size)
     }
 }
 
