@@ -4,6 +4,7 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
+		<!-- Add www applinks only after its AASA file is served directly without a redirect. -->
 		<string>applinks:hackers.pub</string>
 		<string>applinks:hackers.pub?mode=developer</string>
 		<string>webcredentials:hackers.pub</string>

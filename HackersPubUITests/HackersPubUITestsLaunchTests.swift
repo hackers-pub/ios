@@ -1,15 +1,9 @@
-//
-//  HackersPubUITestsLaunchTests.swift
-//  HackersPubUITests
-//
-//  Created by Jihyeok Seo on 9/26/25.
-//
-
 import XCTest
 
 final class HackersPubUITestsLaunchTests: XCTestCase {
+    private let uiTimeout: TimeInterval = 5
 
-    override class var runsForEachTargetApplicationUIConfiguration: Bool {
+    override static var runsForEachTargetApplicationUIConfiguration: Bool {
         true
     }
 
@@ -18,16 +12,18 @@ final class HackersPubUITestsLaunchTests: XCTestCase {
     }
 
     @MainActor
-    func testLaunch() throws {
+    func testGuestLaunchShowsSearchAndSignInTabs() {
         let app = XCUIApplication()
+        app.launchArguments = [
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US",
+            "-com.hackerspub.ui-test.force-guest",
+            "-com.hackerspub.ui-test.reset-search-state",
+            "-com.hackerspub.ui-test.no-live-root-network"
+        ]
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
-
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "Launch Screen"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        XCTAssertTrue(app.buttons["tab.search"].waitForExistence(timeout: uiTimeout))
+        XCTAssertTrue(app.buttons["tab.sign-in"].waitForExistence(timeout: uiTimeout))
     }
 }

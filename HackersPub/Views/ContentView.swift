@@ -1,13 +1,180 @@
-import SwiftUI
 @preconcurrency import Apollo
+import SwiftUI
+
+enum TabCustomizationScope: String {
+    case guest
+    case authenticated
+
+    init(isAuthenticated: Bool) {
+        self = isAuthenticated ? .authenticated : .guest
+    }
+}
+
+struct TabCustomizationPersistenceContext: Equatable {
+    let scope: TabCustomizationScope
+    let epoch: UInt64
+}
+
+struct TabCustomizationPersistenceCoordinator<Value> {
+    private(set) var activeContext: TabCustomizationPersistenceContext
+    private(set) var value: Value
+    private(set) var isRestoring = false
+
+    var activeScope: TabCustomizationScope {
+        activeContext.scope
+    }
+
+    init(scope: TabCustomizationScope, value: Value) {
+        activeContext = TabCustomizationPersistenceContext(scope: scope, epoch: 1)
+        self.value = value
+    }
+
+    @discardableResult
+    mutating func transition(
+        to scope: TabCustomizationScope,
+        persist: (TabCustomizationPersistenceContext, Value) -> Void,
+        restore: (TabCustomizationPersistenceContext) -> Value
+    ) -> TabCustomizationPersistenceContext {
+        let previousContext = activeContext
+        precondition(previousContext.epoch < UInt64.max, "Tab customization epoch exhausted")
+        let nextContext = TabCustomizationPersistenceContext(
+            scope: scope,
+            epoch: previousContext.epoch + 1
+        )
+
+        guard previousContext.scope != scope else {
+            activeContext = nextContext
+            return nextContext
+        }
+
+        guard activeContext == previousContext else { return activeContext }
+        persist(previousContext, value)
+        activeContext = nextContext
+        isRestoring = true
+        guard activeContext == nextContext else { return activeContext }
+        let restoredValue = restore(nextContext)
+        guard activeContext == nextContext else { return activeContext }
+        value = restoredValue
+        isRestoring = false
+        return nextContext
+    }
+
+    @discardableResult
+    mutating func apply(
+        _ value: Value,
+        from context: TabCustomizationPersistenceContext,
+        persist: (TabCustomizationPersistenceContext, Value) -> Void
+    ) -> Bool {
+        guard !isRestoring, context == activeContext else { return false }
+
+        self.value = value
+        persist(context, value)
+        return true
+    }
+}
+
+struct TabCustomizationPersistenceAdapter<Value> {
+    private var coordinator: TabCustomizationPersistenceCoordinator<Value>
+    private let persist: (TabCustomizationPersistenceContext, Value) -> Void
+    private let restore: (TabCustomizationPersistenceContext) -> Value
+
+    init(
+        scope: TabCustomizationScope,
+        value: Value,
+        persist: @escaping (TabCustomizationPersistenceContext, Value) -> Void,
+        restore: @escaping (TabCustomizationPersistenceContext) -> Value
+    ) {
+        coordinator = TabCustomizationPersistenceCoordinator(scope: scope, value: value)
+        self.persist = persist
+        self.restore = restore
+    }
+
+    var activeScope: TabCustomizationScope {
+        coordinator.activeScope
+    }
+
+    var activeContext: TabCustomizationPersistenceContext {
+        coordinator.activeContext
+    }
+
+    var value: Value {
+        coordinator.value
+    }
+
+    @discardableResult
+    mutating func transition(to scope: TabCustomizationScope) -> TabCustomizationPersistenceContext {
+        coordinator.transition(to: scope, persist: persist, restore: restore)
+    }
+
+    @discardableResult
+    mutating func apply(
+        _ value: Value,
+        from context: TabCustomizationPersistenceContext
+    ) -> Bool {
+        coordinator.apply(value, from: context, persist: persist)
+    }
+}
+
+enum TabCustomizationStorage {
+    private static let baseStorageKey = "tabViewCustomization"
+
+    static func load(for scope: TabCustomizationScope) -> TabViewCustomization {
+        guard
+            let data = UserDefaults.standard.data(forKey: storageKey(for: scope)),
+            let customization = try? JSONDecoder().decode(TabViewCustomization.self, from: data)
+        else {
+            return TabViewCustomization()
+        }
+
+        return customization
+    }
+
+    static func save(_ customization: TabViewCustomization, for scope: TabCustomizationScope) {
+        guard let data = try? JSONEncoder().encode(customization) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey(for: scope))
+    }
+
+    private static func storageKey(for scope: TabCustomizationScope) -> String {
+        "\(baseStorageKey).\(scope.rawValue)"
+    }
+}
+
+@MainActor
+struct ContentViewSearchRequestConsumer {
+    let navigationCoordinator: NavigationCoordinator
+
+    @discardableResult
+    func consume(forward: (SearchRequest) -> Void) -> SearchRequest? {
+        guard let request = navigationCoordinator.consumeRequestedSearch() else { return nil }
+        forward(request)
+        return request
+    }
+
+    @discardableResult
+    func consume(_ apply: (String) -> Void) -> SearchRequest? {
+        consume(forward: { apply($0.query) })
+    }
+}
 
 struct ContentView: View {
-    private static let tabViewCustomizationStorageKey = "tabViewCustomization"
-
     @State private var searchText = ""
+    @State private var searchSubmitRequest: SearchSubmitRequest?
+    @State private var routerSearchRequest: SearchRequest?
+    @State private var searchSubmitGeneration = 0
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
-    @State private var tabViewCustomization = TabViewCustomization()
+    @Environment(NotificationReadState.self) private var notificationReadState
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var tabCustomizationPersistence = TabCustomizationPersistenceAdapter(
+        scope: .guest,
+        value: TabCustomizationStorage.load(for: .guest),
+        persist: { context, customization in
+            TabCustomizationStorage.save(customization, for: context.scope)
+        },
+        restore: { context in
+            TabCustomizationStorage.load(for: context.scope)
+        }
+    )
     @State private var selectedTab: String = "timeline"
     @State private var showingComposeView = false
 
@@ -22,9 +189,18 @@ struct ContentView: View {
         .sheet(isPresented: $showingComposeView) {
             ComposeView()
         }
+        .alert(
+            rootNoticePresentation.title,
+            isPresented: rootNoticePresentation.isPresented
+        ) {
+            Button(NSLocalizedString("compose.error.ok", comment: "OK button"), role: .cancel) {
+                rootNoticePresentation.dismiss()
+            }
+        } message: {
+            Text(rootNoticePresentation.message)
+        }
     }
 
-    @ViewBuilder
     private var mainContent: some View {
         TabView(selection: $selectedTab) {
             if authManager.isAuthenticated {
@@ -38,6 +214,7 @@ struct ContentView: View {
                     NotificationsView()
                 }
                 .customizationID("notifications")
+                .badge(notificationReadState.presentation.badgeCount)
 
                 Tab(NSLocalizedString("tab.news", comment: "News tab"), systemImage: "newspaper", value: "news", role: nil) {
                     NewsView()
@@ -58,10 +235,20 @@ struct ContentView: View {
                 .defaultVisibility(.hidden, for: .tabBar)
 
                 Tab(NSLocalizedString("tab.search", comment: "Search tab"), systemImage: "magnifyingglass", value: "search", role: .search) {
-                    SearchView(searchText: $searchText, showingComposeView: $showingComposeView)
-                        .searchable(text: $searchText)
-                        .textInputAutocapitalization(.never)
+                    SearchView(
+                        searchText: $searchText,
+                        showingComposeView: $showingComposeView,
+                        searchSubmitRequest: searchSubmitRequest,
+                        routerSearchRequest: routerSearchRequest,
+                        onRouterSearchRequestHandled: acknowledgeRouterSearchRequest
+                    )
+                    .searchable(text: $searchText)
+                    .onSubmit(of: .search) {
+                        submitSearch(query: searchText)
+                    }
+                    .textInputAutocapitalization(.never)
                 }
+                .accessibilityIdentifier("tab.search")
                 .customizationID("search")
             } else {
                 Tab(NSLocalizedString("tab.local", comment: "Local tab"), systemImage: "cat", value: "local", role: nil) {
@@ -81,38 +268,57 @@ struct ContentView: View {
                 .customizationID("news")
 
                 Tab(NSLocalizedString("tab.search", comment: "Search tab"), systemImage: "magnifyingglass", value: "search", role: .search) {
-                    SearchView(searchText: $searchText)
-                        .searchable(text: $searchText)
-                        .textInputAutocapitalization(.never)
+                    SearchView(
+                        searchText: $searchText,
+                        searchSubmitRequest: searchSubmitRequest,
+                        routerSearchRequest: routerSearchRequest,
+                        onRouterSearchRequestHandled: acknowledgeRouterSearchRequest
+                    )
+                    .searchable(text: $searchText)
+                    .onSubmit(of: .search) {
+                        submitSearch(query: searchText)
+                    }
+                    .textInputAutocapitalization(.never)
                 }
+                .accessibilityIdentifier("tab.search")
                 .customizationID("search")
 
                 Tab(NSLocalizedString("tab.signIn", comment: "Sign in tab"), systemImage: "rectangle.portrait.and.arrow.right", value: "signIn", role: nil) {
                     SignInView()
                 }
+                .accessibilityIdentifier("tab.sign-in")
                 .customizationID("signIn")
             }
         }
         .tabViewStyle(.sidebarAdaptable)
-        .tabViewCustomization($tabViewCustomization)
+        .tabViewCustomization(tabViewCustomizationBinding(for: tabCustomizationPersistence.activeContext))
         .task {
-            tabViewCustomization = Self.loadTabViewCustomization(isAuthenticated: authManager.isAuthenticated)
+            synchronizeTabCustomizationScope(isAuthenticated: authManager.isAuthenticated)
             // Set default tab based on auth state
             if !applyRequestedTabIfAvailable(isAuthenticated: authManager.isAuthenticated) {
-                selectedTab = authManager.isAuthenticated ? "timeline" : "local"
+                selectedTab = AppTabSelectionPolicy.defaultTab(isAuthenticated: authManager.isAuthenticated).rawValue
                 updateCurrentTab()
             }
-            applyRequestedSearchText()
+            forwardRequestedSearch()
+        }
+        .task(id: notificationReadSession) {
+            await refreshNotificationBadge()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task {
+                await refreshNotificationBadge()
+            }
         }
         .onChange(of: authManager.isAuthenticated) { _, isAuth in
-            tabViewCustomization = Self.loadTabViewCustomization(isAuthenticated: isAuth)
+            synchronizeTabCustomizationScope(isAuthenticated: isAuth)
             // Switch to appropriate tab when auth state changes
             if applyRequestedTabIfAvailable(isAuthenticated: isAuth) {
                 return
             } else if migrateDeepLinkPathIfNeeded(isAuthenticated: isAuth) {
                 return
             } else {
-                selectedTab = isAuth ? "timeline" : "local"
+                selectedTab = AppTabSelectionPolicy.defaultTab(isAuthenticated: isAuth).rawValue
                 updateCurrentTab()
             }
         }
@@ -120,26 +326,81 @@ struct ContentView: View {
             updateCurrentTab()
         }
         .onChange(of: navigationCoordinator.currentTab) { _, tab in
-            guard selectedTab != tab.rawValue else { return }
-            selectedTab = tab.rawValue
+            let normalizedTab = AppTabSelectionPolicy.normalized(
+                tab,
+                isAuthenticated: authManager.isAuthenticated
+            )
+            guard normalizedTab == tab else {
+                navigationCoordinator.setCurrentTab(normalizedTab)
+                return
+            }
+            guard selectedTab != normalizedTab.rawValue else { return }
+            selectedTab = normalizedTab.rawValue
         }
-        .onChange(of: navigationCoordinator.requestedSearchText) { _, _ in
-            applyRequestedSearchText()
-        }
-        .onChange(of: tabViewCustomization) { _, customization in
-            Self.saveTabViewCustomization(customization, isAuthenticated: authManager.isAuthenticated)
+        .onChange(of: navigationCoordinator.requestedSearch) { _, _ in
+            forwardRequestedSearch()
         }
     }
 
     private func updateCurrentTab() {
-        let tab = AppTab(rawValue: selectedTab) ?? .timeline
+        let tab = AppTabSelectionPolicy.normalized(
+            AppTab(rawValue: selectedTab),
+            isAuthenticated: authManager.isAuthenticated
+        )
         guard navigationCoordinator.currentTab != tab else { return }
         navigationCoordinator.setCurrentTab(tab)
     }
 
-    private func applyRequestedSearchText() {
-        guard let query = navigationCoordinator.requestedSearchText else { return }
-        searchText = query
+    private var rootNoticePresentation: NavigationRootNoticePresentationAdapter {
+        NavigationRootNoticePresentationAdapter(coordinator: navigationCoordinator)
+    }
+
+    private var notificationReadSession: NotificationReadSession? {
+        currentNotificationReadSession(for: authManager)
+    }
+
+    private func refreshNotificationBadge() async {
+        let session = notificationReadSession
+        await notificationReadState.refreshUnreadCount(for: session)
+    }
+
+    private func forwardRequestedSearch() {
+        ContentViewSearchRequestConsumer(navigationCoordinator: navigationCoordinator).consume(
+            forward: { routerSearchRequest = $0 }
+        )
+    }
+
+    private func acknowledgeRouterSearchRequest(_ request: SearchRequest) {
+        guard routerSearchRequest?.id == request.id else { return }
+        routerSearchRequest = nil
+    }
+
+    private func tabViewCustomizationBinding(
+        for context: TabCustomizationPersistenceContext
+    ) -> Binding<TabViewCustomization> {
+        let capturedValue = tabCustomizationPersistence.value
+        return Binding(
+            get: {
+                guard tabCustomizationPersistence.activeContext == context else {
+                    return capturedValue
+                }
+                return tabCustomizationPersistence.value
+            },
+            set: { customization in
+                tabCustomizationPersistence.apply(customization, from: context)
+            }
+        )
+    }
+
+    private func synchronizeTabCustomizationScope(isAuthenticated: Bool) {
+        tabCustomizationPersistence.transition(
+            to: TabCustomizationScope(isAuthenticated: isAuthenticated)
+        )
+    }
+
+    private func submitSearch(query: String) {
+        searchSubmitGeneration &+= 1
+        searchSubmitRequest = SearchSubmitRequest(id: searchSubmitGeneration, query: query)
     }
 
     @discardableResult
@@ -149,20 +410,12 @@ struct ContentView: View {
         let requestedTab = navigationCoordinator.currentTab
         navigationCoordinator.consumeRequestedTab()
 
-        guard isSelectable(tab: requestedTab, isAuthenticated: isAuthenticated) else {
+        guard AppTabSelectionPolicy.isSelectable(requestedTab, isAuthenticated: isAuthenticated) else {
             return false
         }
 
         selectedTab = requestedTab.rawValue
         return true
-    }
-
-    private func isSelectable(tab: AppTab, isAuthenticated: Bool) -> Bool {
-        if isAuthenticated {
-            return [.timeline, .notifications, .news, .explore, .bookmarks, .search].contains(tab)
-        }
-
-        return [.local, .global, .news, .search, .signIn].contains(tab)
     }
 
     private func migrateDeepLinkPathIfNeeded(isAuthenticated: Bool) -> Bool {
@@ -180,29 +433,14 @@ struct ContentView: View {
 
         return false
     }
-
-    private static func loadTabViewCustomization(isAuthenticated: Bool) -> TabViewCustomization {
-        guard
-            let data = UserDefaults.standard.data(forKey: tabViewCustomizationStorageKey(isAuthenticated: isAuthenticated)),
-            let customization = try? JSONDecoder().decode(TabViewCustomization.self, from: data)
-        else {
-            return TabViewCustomization()
-        }
-
-        return customization
-    }
-
-    private static func saveTabViewCustomization(_ customization: TabViewCustomization, isAuthenticated: Bool) {
-        guard let data = try? JSONEncoder().encode(customization) else { return }
-        UserDefaults.standard.set(data, forKey: tabViewCustomizationStorageKey(isAuthenticated: isAuthenticated))
-    }
-
-    private static func tabViewCustomizationStorageKey(isAuthenticated: Bool) -> String {
-        "\(tabViewCustomizationStorageKey).\(isAuthenticated ? "authenticated" : "guest")"
-    }
 }
 
 #Preview {
     ContentView()
         .environment(AuthManager.shared)
+        .environment(NotificationReadState())
+        .environment(NavigationCoordinator())
+        .environment(ExternalURLRouter.shared)
+        .environmentObject(FontSettingsManager.shared)
+    // swiftlint:disable:next file_length
 }
