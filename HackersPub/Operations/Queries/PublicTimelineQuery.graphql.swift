@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "PublicTimelineQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query PublicTimelineQuery($after: String, $before: String, $first: Int, $last: Int) { publicTimeline(first: $first, after: $after, before: $before, last: $last) { __typename edges { __typename cursor added sharersCount lastSharer { __typename id name handle avatarUrl } node { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } } }"#
+        #"query PublicTimelineQuery($after: String, $before: String, $first: Int, $last: Int) { publicTimeline(first: $first, after: $after, before: $before, last: $last) { __typename edges { __typename cursor added sharersCount lastSharer { __typename id name handle avatarUrl } node { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } sharedPost { __typename id name published summary content excerpt url iri viewerHasShared viewerHasBookmarked actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } quotedPost { __typename id name published content actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } quotedPost { __typename id name published summary content excerpt url iri actor { __typename id name handle avatarUrl } media { __typename url thumbnailUrl alt height width } } engagementStats { __typename replies reactions shares quotes } reactionGroups { __typename ... on EmojiReactionGroup { emoji reactors { __typename totalCount viewerHasReacted } } ... on CustomEmojiReactionGroup { customEmoji { __typename id name imageUrl } reactors { __typename totalCount viewerHasReacted } } } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } } }"#
       ))
 
     public var after: GraphQLNullable<String>
@@ -273,6 +273,7 @@ public extension HackersPub {
                 .field("viewerHasBookmarked", Bool.self),
                 .field("actor", Actor.self),
                 .field("media", [Medium].self),
+                .field("quotedPost", QuotedPost?.self),
                 .field("engagementStats", EngagementStats.self),
                 .field("mentions", Mentions.self, arguments: ["first": 20]),
               ] }
@@ -302,6 +303,8 @@ public extension HackersPub {
               public var actor: Actor { __data["actor"] }
               /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
               public var media: [Medium] { __data["media"] }
+              /// The post being quoted inline. `null` for posts that are not quotes.
+              public var quotedPost: QuotedPost? { __data["quotedPost"] }
               public var engagementStats: EngagementStats { __data["engagementStats"] }
               /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
               public var mentions: Mentions { __data["mentions"] }
@@ -359,6 +362,94 @@ public extension HackersPub {
                 public var alt: String? { __data["alt"] }
                 public var height: Int? { __data["height"] }
                 public var width: Int? { __data["width"] }
+              }
+
+              /// PublicTimeline.Edge.Node.SharedPost.QuotedPost
+              ///
+              /// Parent Type: `Post`
+              public struct QuotedPost: HackersPub.SelectionSet {
+                @_spi(Unsafe) public let __data: DataDict
+                @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Interfaces.Post }
+                @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                  .field("__typename", String.self),
+                  .field("id", HackersPub.ID.self),
+                  .field("name", String?.self),
+                  .field("published", HackersPub.DateTime.self),
+                  .field("content", HackersPub.HTML.self),
+                  .field("actor", Actor.self),
+                  .field("media", [Medium].self),
+                ] }
+                @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                  PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost.self
+                ] }
+
+                public var id: HackersPub.ID { __data["id"] }
+                /// The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
+                public var name: String? { __data["name"] }
+                public var published: HackersPub.DateTime { __data["published"] }
+                /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
+                public var content: HackersPub.HTML { __data["content"] }
+                /// The actor who authored or boosted this post.
+                public var actor: Actor { __data["actor"] }
+                /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
+                public var media: [Medium] { __data["media"] }
+
+                /// PublicTimeline.Edge.Node.SharedPost.QuotedPost.Actor
+                ///
+                /// Parent Type: `Actor`
+                public struct Actor: HackersPub.SelectionSet {
+                  @_spi(Unsafe) public let __data: DataDict
+                  @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                  @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                  @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                    .field("__typename", String.self),
+                    .field("id", HackersPub.ID.self),
+                    .field("name", HackersPub.HTML?.self),
+                    .field("handle", String.self),
+                    .field("avatarUrl", HackersPub.URL.self),
+                  ] }
+                  @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                    PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost.Actor.self
+                  ] }
+
+                  public var id: HackersPub.ID { __data["id"] }
+                  /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set.
+                  public var name: HackersPub.HTML? { __data["name"] }
+                  /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
+                  public var handle: String { __data["handle"] }
+                  /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.
+                  public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+                }
+
+                /// PublicTimeline.Edge.Node.SharedPost.QuotedPost.Medium
+                ///
+                /// Parent Type: `PostMedium`
+                public struct Medium: HackersPub.SelectionSet {
+                  @_spi(Unsafe) public let __data: DataDict
+                  @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                  @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMedium }
+                  @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                    .field("__typename", String.self),
+                    .field("url", HackersPub.URL.self),
+                    .field("thumbnailUrl", String?.self),
+                    .field("alt", String?.self),
+                    .field("height", Int?.self),
+                    .field("width", Int?.self),
+                  ] }
+                  @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                    PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost.Medium.self
+                  ] }
+
+                  public var url: HackersPub.URL { __data["url"] }
+                  public var thumbnailUrl: String? { __data["thumbnailUrl"] }
+                  public var alt: String? { __data["alt"] }
+                  public var height: Int? { __data["height"] }
+                  public var width: Int? { __data["width"] }
+                }
               }
 
               /// PublicTimeline.Edge.Node.SharedPost.EngagementStats

@@ -1,5 +1,32 @@
-import SwiftUI
 @preconcurrency import Apollo
+import SwiftUI
+
+struct TimelineEmptyState: View {
+    let retry: () -> Void
+    let refresh: () async -> Void
+
+    var body: some View {
+        ScrollView {
+            ContentUnavailableView {
+                Label(
+                    NSLocalizedString("timeline.empty.title", comment: "Empty timeline title"),
+                    systemImage: "text.line.first.and.arrowtriangle.forward"
+                )
+            } description: {
+                Text(NSLocalizedString("timeline.empty.description", comment: "Empty timeline description"))
+            } actions: {
+                Button(NSLocalizedString("common.retry", comment: "Retry button")) {
+                    retry()
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 48)
+        }
+        .refreshable {
+            await refresh()
+        }
+    }
+}
 
 struct LoadNewerItemsRow: View {
     let isLoading: Bool
@@ -23,9 +50,6 @@ struct LoadNewerItemsRow: View {
     }
 }
 
-typealias Post = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node
-typealias LocalPost = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node
-
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
     typealias QuotedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost
@@ -34,9 +58,9 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node: PostProt
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
-        return self.mentions.edges.map { $0.node.handle }
+        return mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -44,7 +68,7 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.Actor: Ac
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.LastSharer: ActorProtocol {}
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge {
     var timelineListID: String {
-        "\(node.id)-\(added)"
+        node.id
     }
 }
 
@@ -52,23 +76,30 @@ extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.Medium: M
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
-    typealias QuotedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost
     typealias EngagementStatsType = HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.EngagementStats
-    var sharedPost: HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
-    var quotedPost: HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
+    var sharedPost: HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? {
+        nil
+    }
 
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
-        return self.mentions.edges.map { $0.node.handle }
+        return mentions.edges.map { $0.node.handle }
     }
 }
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.Actor: ActorProtocol {}
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.Medium: MediaProtocol {}
+
+extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost: QuotedPostProtocol {}
+
+extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost.Actor: ActorProtocol {}
+
+extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost.Medium: MediaProtocol {}
 
 extension HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost: QuotedPostProtocol {}
 
@@ -84,9 +115,9 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node: PostProto
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
-        return self.mentions.edges.map { $0.node.handle }
+        return mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -94,7 +125,7 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.Actor: Act
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.LastSharer: ActorProtocol {}
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge {
     var timelineListID: String {
-        "\(node.id)-\(added)"
+        node.id
     }
 }
 
@@ -102,17 +133,18 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.Medium: Me
 
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
-    typealias QuotedPostType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost
     typealias EngagementStatsType = HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.EngagementStats
-    var sharedPost: HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
-    var quotedPost: HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? { nil }
+    var sharedPost: HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost? {
+        nil
+    }
 
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
-        return self.mentions.edges.map { $0.node.handle }
+        return mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -120,13 +152,17 @@ extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost
 
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.Medium: MediaProtocol {}
 
+extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost: QuotedPostProtocol {}
+
+extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost.Actor: ActorProtocol {}
+
+extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.SharedPost.QuotedPost.Medium: MediaProtocol {}
+
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost: QuotedPostProtocol {}
 
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost.Actor: ActorProtocol {}
 
 extension HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge.Node.QuotedPost.Medium: MediaProtocol {}
-
-typealias PersonalPost = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node: PostProtocol {
     typealias SharedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost
@@ -136,9 +172,9 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node: Post
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
-        return self.mentions.edges.map { $0.node.handle }
+        return mentions.edges.map { $0.node.handle }
     }
 }
 
@@ -146,7 +182,7 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Actor
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.LastSharer: ActorProtocol {}
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge {
     var timelineListID: String {
-        "\(node.id)-\(added)"
+        node.id
     }
 }
 
@@ -154,23 +190,31 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Mediu
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost: PostProtocol {
     typealias SharedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost
-    typealias QuotedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost
+    typealias QuotedPostType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.QuotedPost
     typealias EngagementStatsType = HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.EngagementStats
-    var sharedPost: HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost? { nil }
-    var quotedPost: HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost? { nil }
+    var sharedPost: HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost? {
+        nil
+    }
 
     var isArticle: Bool {
         return __typename == "Article"
     }
-    
+
     var mentionedHandles: [String] {
-        return self.mentions.edges.map { $0.node.handle }
+        return mentions.edges.map { $0.node.handle }
     }
 }
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.Actor: ActorProtocol {}
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.Medium: MediaProtocol {}
+
+extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.QuotedPost: QuotedPostProtocol {}
+
+extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.QuotedPost.Actor: ActorProtocol {}
+
+extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.SharedPost.QuotedPost
+    .Medium: MediaProtocol {}
 
 extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.QuotedPost: QuotedPostProtocol {}
 
@@ -180,111 +224,46 @@ extension HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge.Node.Quote
 
 struct TimelineView: View {
     @Binding var showingComposeView: Bool
-    @State private var edges: [HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge] = []
-    @State private var hasLoadedInitial = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var hasPreviousPage = false
-    @State private var hasNextPage = false
-    @State private var startCursor: String?
-    @State private var endCursor: String?
-    @State private var pendingNewerCursor: String?
-    @State private var shouldRefresh = false
+    @State private var controller = TimelineFeedController<HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge>(
+        source: .publicTimeline
+    )
+    @State private var scrollPositionID: String?
     @State private var showingSettings = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
-        self._showingComposeView = showingComposeView
+        _showingComposeView = showingComposeView
     }
 
     var body: some View {
         NavigationStack(path: navigationCoordinator.pathBinding(for: .global)) {
-            Group {
-                if isLoading && edges.isEmpty {
-                    ProgressView()
-                } else if let errorMessage, edges.isEmpty {
-                    LoadFailureView(message: errorMessage) {
-                        Task {
-                            await fetchPosts()
-                        }
-                    }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            if hasPreviousPage && !edges.isEmpty {
-                                LoadNewerItemsRow(isLoading: isLoading) {
-                                    Task {
-                                        await loadNewerPosts()
-                                    }
-                                }
-                                Divider()
-                            }
-
-                            ForEach(edges, id: \.timelineListID) { edge in
-                                PostView(
-                                    post: edge.node,
-                                    timelineSharer: edge.lastSharer,
-                                    timelineAdded: edge.added,
-                                    showAuthor: true,
-                                    enableSneakPeek: true,
-                                    contentRenderMode: .lightweightText
-                                )
-                                    .padding()
-                                    .id(edge.timelineListID)
-                                    .onAppear {
-                                        if edge.cursor == edges.last?.cursor && hasNextPage && !isLoading {
-                                            Task {
-                                                await loadMore()
-                                            }
-                                        }
-                                    }
-
-                                Divider()
-                            }
-
-                            if isLoading && !edges.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    ProgressView()
-                                    Spacer()
-                                }
-                                .padding()
-                            }
-
-                            if let errorMessage, !edges.isEmpty {
-                                InlineLoadFailureView(message: errorMessage) {
-                                    Task {
-                                        await refreshPosts()
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.top, 8)
-                    }
-                    .id(edges.first?.timelineListID ?? "timeline-empty")
-                    .refreshable {
-                        await refreshPosts()
-                    }
-                }
-            }
+            TimelineFeedContent(
+                timelineState: controller.timelineState,
+                scrollPositionID: $scrollPositionID,
+                edgeID: \.timelineListID,
+                edgeCursor: \.cursor,
+                post: \.node,
+                sharer: \.lastSharer,
+                added: \.added,
+                retry: { controller.retry() },
+                refresh: { await controller.refresh() },
+                loadNewer: { controller.loadNewer() },
+                loadMore: { controller.loadMore() }
+            )
             .navigationTitle(NSLocalizedString("timeline.fediverse", comment: "Fediverse navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                guard !hasLoadedInitial else { return }
-                hasLoadedInitial = true
-                await fetchPosts()
-            }
-            .onChange(of: shouldRefresh) { _, newValue in
-                if newValue {
-                    Task {
-                        await refreshPosts()
-                        shouldRefresh = false
-                    }
-                }
+                await controller.supervise()
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshTimeline"))) { _ in
-                shouldRefresh = true
+                controller.requestRefresh()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .postContentDidChange)) { notification in
+                controller.handlePostContentNotification(notification)
+            }
+            .onDisappear {
+                controller.cancelAll()
             }
             .toolbar {
                 ToolbarItem(placement: .navigation) {
@@ -314,264 +293,61 @@ struct TimelineView: View {
             }
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {
-                case .profile(let handle):
+                case let .profile(handle):
                     ActorProfileViewWrapper(handle: handle)
-                case .post(let id):
+                case let .post(id):
                     PostDetailView(postId: id)
-                case .newsStory(let id):
+                case let .newsStory(id):
                     NewsStoryDetailView(storyId: id)
                 }
             }
         }
     }
-
-    private func fetchPosts() async {
-        // Don't show loading initially if we have cached data
-        if edges.isEmpty {
-            isLoading = true
-        }
-        defer { isLoading = false }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.PublicTimelineQuery(after: nil, before: nil, first: 20, last: nil),
-                cachePolicy: .networkFirst
-            )
-            edges = response.data?.publicTimeline.edges ?? []
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
-            startCursor = response.data?.publicTimeline.pageInfo.startCursor
-            endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func loadMore() async {
-        guard let cursor = endCursor, hasNextPage else { return }
-
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.PublicTimelineQuery(after: .some(cursor), before: nil, first: 20, last: nil),
-                cachePolicy: .networkOnly
-            )
-            appendUnique(response.data?.publicTimeline.edges ?? [])
-            hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
-            endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func refreshPosts() async {
-        let shouldShowLoading = edges.isEmpty
-        if shouldShowLoading {
-            isLoading = true
-        }
-        defer {
-            if shouldShowLoading {
-                isLoading = false
-            }
-        }
-
-        do {
-            if edges.isEmpty || startCursor == nil {
-                let response = try await apolloClient.fetch(
-                    query: HackersPub.PublicTimelineQuery(after: nil, before: nil, first: 20, last: nil),
-                    cachePolicy: .networkOnly
-                )
-                edges = response.data?.publicTimeline.edges ?? []
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
-                startCursor = response.data?.publicTimeline.pageInfo.startCursor
-                endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            } else {
-                try await fetchNewerPosts()
-            }
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func loadNewerPosts() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            try await fetchNewerPosts()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func fetchNewerPosts() async throws {
-        guard let cursor = pendingNewerCursor ?? startCursor else { return }
-
-        let response = try await apolloClient.fetch(
-            query: HackersPub.PublicTimelineQuery(
-                after: nil,
-                before: .some(cursor),
-                first: nil,
-                last: 20
-            ),
-            cachePolicy: .networkOnly
-        )
-        guard let connection = response.data?.publicTimeline else { return }
-        mergeNewerPage(
-            connection.edges,
-            nextCursor: connection.pageInfo.startCursor,
-            hasNextPage: connection.pageInfo.hasPreviousPage
-        )
-        if let newStartCursor = edges.first?.cursor {
-            startCursor = newStartCursor
-        }
-        if endCursor == nil {
-            endCursor = connection.pageInfo.endCursor
-        }
-    }
-
-    private func prependUnique(_ incoming: [HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge]) {
-        let existingIDs = Set(edges.map(\.timelineListID))
-        edges = incoming.filter { !existingIDs.contains($0.timelineListID) } + edges
-    }
-
-    private func appendUnique(_ incoming: [HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge]) {
-        let existingIDs = Set(edges.map(\.timelineListID))
-        edges.append(contentsOf: incoming.filter { !existingIDs.contains($0.timelineListID) })
-    }
-
-    private func mergeNewerPage(
-        _ incoming: [HackersPub.PublicTimelineQuery.Data.PublicTimeline.Edge],
-        nextCursor: String?,
-        hasNextPage: Bool
-    ) {
-        guard !incoming.isEmpty else {
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            return
-        }
-
-        prependUnique(incoming)
-        pendingNewerCursor = hasNextPage ? nextCursor : nil
-        hasPreviousPage = hasNextPage && nextCursor != nil
-    }
 }
 
 struct PersonalTimelineView: View {
     @Binding var showingComposeView: Bool
-    @State private var edges: [HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge] = []
-    @State private var hasLoadedInitial = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var hasPreviousPage = false
-    @State private var hasNextPage = false
-    @State private var startCursor: String?
-    @State private var endCursor: String?
-    @State private var pendingNewerCursor: String?
-    @State private var shouldRefresh = false
+    @State private var controller = TimelineFeedController<HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge>(
+        source: .personalTimeline
+    )
+    @State private var scrollPositionID: String?
     @State private var showingSettings = false
     @State private var showingArticleEditor = false
     @State private var showingArticleDrafts = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
-        self._showingComposeView = showingComposeView
+        _showingComposeView = showingComposeView
     }
 
     var body: some View {
         NavigationStack(path: navigationCoordinator.pathBinding(for: .timeline)) {
-            Group {
-                if isLoading && edges.isEmpty {
-                    ProgressView()
-                } else if let errorMessage, edges.isEmpty {
-                    LoadFailureView(message: errorMessage) {
-                        Task {
-                            await fetchPosts()
-                        }
-                    }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            if hasPreviousPage && !edges.isEmpty {
-                                LoadNewerItemsRow(isLoading: isLoading) {
-                                    Task {
-                                        await loadNewerPosts()
-                                    }
-                                }
-                                Divider()
-                            }
-
-                            ForEach(edges, id: \.timelineListID) { edge in
-                                PostView(
-                                    post: edge.node,
-                                    timelineSharer: edge.lastSharer,
-                                    timelineAdded: edge.added,
-                                    showAuthor: true,
-                                    enableSneakPeek: true,
-                                    contentRenderMode: .lightweightText
-                                )
-                                    .padding()
-                                    .id(edge.timelineListID)
-                                    .onAppear {
-                                        if edge.cursor == edges.last?.cursor && hasNextPage && !isLoading {
-                                            Task {
-                                                await loadMore()
-                                            }
-                                        }
-                                    }
-
-                                Divider()
-                            }
-
-                            if isLoading && !edges.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    ProgressView()
-                                    Spacer()
-                                }
-                                .padding()
-                            }
-
-                            if let errorMessage, !edges.isEmpty {
-                                InlineLoadFailureView(message: errorMessage) {
-                                    Task {
-                                        await refreshPosts()
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.top, 8)
-                    }
-                    .id(edges.first?.timelineListID ?? "personal-timeline-empty")
-                    .refreshable {
-                        await refreshPosts()
-                    }
-                }
-            }
+            TimelineFeedContent(
+                timelineState: controller.timelineState,
+                scrollPositionID: $scrollPositionID,
+                edgeID: \.timelineListID,
+                edgeCursor: \.cursor,
+                post: \.node,
+                sharer: \.lastSharer,
+                added: \.added,
+                retry: { controller.retry() },
+                refresh: { await controller.refresh() },
+                loadNewer: { controller.loadNewer() },
+                loadMore: { controller.loadMore() }
+            )
             .navigationTitle(NSLocalizedString("nav.timeline", comment: "Timeline navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                guard !hasLoadedInitial else { return }
-                hasLoadedInitial = true
-                await fetchPosts()
-            }
-            .onChange(of: shouldRefresh) { _, newValue in
-                if newValue {
-                    Task {
-                        await refreshPosts()
-                        shouldRefresh = false
-                    }
-                }
+                await controller.supervise()
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshTimeline"))) { _ in
-                shouldRefresh = true
+                controller.requestRefresh()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .postContentDidChange)) { notification in
+                controller.handlePostContentNotification(notification)
+            }
+            .onDisappear {
+                controller.cancelAll()
             }
             .toolbar {
                 ToolbarItem(placement: .navigation) {
@@ -614,9 +390,7 @@ struct PersonalTimelineView: View {
             .sheet(isPresented: $showingArticleEditor) {
                 ArticleEditorView {
                     showingArticleEditor = false
-                    Task {
-                        await refreshPosts()
-                    }
+                    controller.retry()
                 }
             }
             .sheet(isPresented: $showingArticleDrafts) {
@@ -624,263 +398,66 @@ struct PersonalTimelineView: View {
             }
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {
-                case .profile(let handle):
+                case let .profile(handle):
                     ActorProfileViewWrapper(handle: handle)
-                case .post(let id):
+                case let .post(id):
                     PostDetailView(postId: id)
-                case .newsStory(let id):
+                case let .newsStory(id):
                     NewsStoryDetailView(storyId: id)
                 }
             }
         }
     }
-
-    private func fetchPosts() async {
-        // Don't show loading initially if we have cached data
-        if edges.isEmpty {
-            isLoading = true
-        }
-        defer { isLoading = false }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.PersonalTimelineQuery(after: nil, before: nil, first: 20, last: nil),
-                cachePolicy: .networkFirst
-            )
-            edges = response.data?.personalTimeline.edges ?? []
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
-            startCursor = response.data?.personalTimeline.pageInfo.startCursor
-            endCursor = response.data?.personalTimeline.pageInfo.endCursor
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func loadMore() async {
-        guard let cursor = endCursor, hasNextPage else { return }
-
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.PersonalTimelineQuery(after: .some(cursor), before: nil, first: 20, last: nil),
-                cachePolicy: .networkOnly
-            )
-            appendUnique(response.data?.personalTimeline.edges ?? [])
-            hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
-            endCursor = response.data?.personalTimeline.pageInfo.endCursor
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func refreshPosts() async {
-        let shouldShowLoading = edges.isEmpty
-        if shouldShowLoading {
-            isLoading = true
-        }
-        defer {
-            if shouldShowLoading {
-                isLoading = false
-            }
-        }
-
-        do {
-            if edges.isEmpty || startCursor == nil {
-                let response = try await apolloClient.fetch(
-                    query: HackersPub.PersonalTimelineQuery(after: nil, before: nil, first: 20, last: nil),
-                    cachePolicy: .networkOnly
-                )
-                edges = response.data?.personalTimeline.edges ?? []
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                hasNextPage = response.data?.personalTimeline.pageInfo.hasNextPage ?? false
-                startCursor = response.data?.personalTimeline.pageInfo.startCursor
-                endCursor = response.data?.personalTimeline.pageInfo.endCursor
-            } else {
-                try await fetchNewerPosts()
-            }
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func loadNewerPosts() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            try await fetchNewerPosts()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func fetchNewerPosts() async throws {
-        guard let cursor = pendingNewerCursor ?? startCursor else { return }
-
-        let response = try await apolloClient.fetch(
-            query: HackersPub.PersonalTimelineQuery(
-                after: nil,
-                before: .some(cursor),
-                first: nil,
-                last: 20
-            ),
-            cachePolicy: .networkOnly
-        )
-        guard let connection = response.data?.personalTimeline else { return }
-        mergeNewerPage(
-            connection.edges,
-            nextCursor: connection.pageInfo.startCursor,
-            hasNextPage: connection.pageInfo.hasPreviousPage
-        )
-        if let newStartCursor = edges.first?.cursor {
-            startCursor = newStartCursor
-        }
-        if endCursor == nil {
-            endCursor = connection.pageInfo.endCursor
-        }
-    }
-
-    private func prependUnique(_ incoming: [HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge]) {
-        let existingIDs = Set(edges.map(\.timelineListID))
-        edges = incoming.filter { !existingIDs.contains($0.timelineListID) } + edges
-    }
-
-    private func appendUnique(_ incoming: [HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge]) {
-        let existingIDs = Set(edges.map(\.timelineListID))
-        edges.append(contentsOf: incoming.filter { !existingIDs.contains($0.timelineListID) })
-    }
-
-    private func mergeNewerPage(
-        _ incoming: [HackersPub.PersonalTimelineQuery.Data.PersonalTimeline.Edge],
-        nextCursor: String?,
-        hasNextPage: Bool
-    ) {
-        guard !incoming.isEmpty else {
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            return
-        }
-
-        prependUnique(incoming)
-        pendingNewerCursor = hasNextPage ? nextCursor : nil
-        hasPreviousPage = hasNextPage && nextCursor != nil
-    }
 }
 
 struct LocalTimelineView: View {
     @Binding var showingComposeView: Bool
-    @State private var edges: [HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge] = []
-    @State private var hasLoadedInitial = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var hasPreviousPage = false
-    @State private var hasNextPage = false
-    @State private var startCursor: String?
-    @State private var endCursor: String?
-    @State private var pendingNewerCursor: String?
-    @State private var shouldRefresh = false
+    @State private var controller = TimelineFeedController<HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge>(
+        source: .localTimeline
+    )
+    @State private var scrollPositionID: String?
     @State private var showingSettings = false
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
 
     init(showingComposeView: Binding<Bool> = .constant(false)) {
-        self._showingComposeView = showingComposeView
+        _showingComposeView = showingComposeView
     }
 
     var body: some View {
         NavigationStack(path: navigationCoordinator.pathBinding(for: .local)) {
-            Group {
-                if isLoading && edges.isEmpty {
-                    ProgressView()
-                } else if let errorMessage, edges.isEmpty {
-                    LoadFailureView(message: errorMessage) {
-                        Task {
-                            await fetchPosts()
-                        }
-                    }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            if hasPreviousPage && !edges.isEmpty {
-                                LoadNewerItemsRow(isLoading: isLoading) {
-                                    Task {
-                                        await loadNewerPosts()
-                                    }
-                                }
-                                Divider()
-                            }
-
-                            ForEach(edges, id: \.timelineListID) { edge in
-                                PostView(
-                                    post: edge.node,
-                                    timelineSharer: edge.lastSharer,
-                                    timelineAdded: edge.added,
-                                    showAuthor: true,
-                                    enableSneakPeek: true,
-                                    contentRenderMode: .lightweightText
-                                )
-                                    .padding()
-                                    .id(edge.timelineListID)
-                                    .onAppear {
-                                        if edge.cursor == edges.last?.cursor && hasNextPage && !isLoading {
-                                            Task {
-                                                await loadMore()
-                                            }
-                                        }
-                                    }
-
-                                Divider()
-                            }
-
-                            if isLoading && !edges.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    ProgressView()
-                                    Spacer()
-                                }
-                                .padding()
-                            }
-
-                            if let errorMessage, !edges.isEmpty {
-                                InlineLoadFailureView(message: errorMessage) {
-                                    Task {
-                                        await refreshPosts()
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.top, 8)
-                    }
-                    .id(edges.first?.timelineListID ?? "local-timeline-empty")
-                    .refreshable {
-                        await refreshPosts()
-                    }
-                }
-            }
+            TimelineFeedContent(
+                timelineState: controller.timelineState,
+                scrollPositionID: $scrollPositionID,
+                edgeID: \.timelineListID,
+                edgeCursor: \.cursor,
+                post: \.node,
+                sharer: \.lastSharer,
+                added: \.added,
+                retry: { controller.retry() },
+                refresh: { await controller.refresh() },
+                loadNewer: { controller.loadNewer() },
+                loadMore: { controller.loadMore() }
+            )
             .navigationTitle(NSLocalizedString("timeline.hackersPub", comment: "Hackers' Pub navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                guard !hasLoadedInitial else { return }
-                hasLoadedInitial = true
-                await fetchPosts()
-            }
-            .onChange(of: shouldRefresh) { _, newValue in
-                if newValue {
-                    Task {
-                        await refreshPosts()
-                        shouldRefresh = false
-                    }
-                }
+                #if DEBUG
+                    await controller.supervise(
+                        initialLoadEnabled: !UITestLaunchConfiguration.disablesRootTimelineNetwork
+                    )
+                #else
+                    await controller.supervise()
+                #endif
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshTimeline"))) { _ in
-                shouldRefresh = true
+                controller.requestRefresh()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .postContentDidChange)) { notification in
+                controller.handlePostContentNotification(notification)
+            }
+            .onDisappear {
+                controller.cancelAll()
             }
             .toolbar {
                 ToolbarItem(placement: .navigation) {
@@ -910,199 +487,14 @@ struct LocalTimelineView: View {
             }
             .navigationDestination(for: NavigationDestination.self) { destination in
                 switch destination {
-                case .profile(let handle):
+                case let .profile(handle):
                     ActorProfileViewWrapper(handle: handle)
-                case .post(let id):
+                case let .post(id):
                     PostDetailView(postId: id)
-                case .newsStory(let id):
+                case let .newsStory(id):
                     NewsStoryDetailView(storyId: id)
                 }
             }
-        }
-    }
-
-    private func fetchPosts() async {
-        // Don't show loading initially if we have cached data
-        if edges.isEmpty {
-            isLoading = true
-        }
-        defer { isLoading = false }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.LocalTimelineQuery(after: nil, before: nil, first: 20, last: nil),
-                cachePolicy: .networkFirst
-            )
-            edges = response.data?.publicTimeline.edges ?? []
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
-            startCursor = response.data?.publicTimeline.pageInfo.startCursor
-            endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func loadMore() async {
-        guard let cursor = endCursor, hasNextPage else { return }
-
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            let response = try await apolloClient.fetch(
-                query: HackersPub.LocalTimelineQuery(after: .some(cursor), before: nil, first: 20, last: nil),
-                cachePolicy: .networkOnly
-            )
-            appendUnique(response.data?.publicTimeline.edges ?? [])
-            hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
-            endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func refreshPosts() async {
-        let shouldShowLoading = edges.isEmpty
-        if shouldShowLoading {
-            isLoading = true
-        }
-        defer {
-            if shouldShowLoading {
-                isLoading = false
-            }
-        }
-
-        do {
-            if edges.isEmpty || startCursor == nil {
-                let response = try await apolloClient.fetch(
-                    query: HackersPub.LocalTimelineQuery(after: nil, before: nil, first: 20, last: nil),
-                    cachePolicy: .networkOnly
-                )
-                edges = response.data?.publicTimeline.edges ?? []
-                hasPreviousPage = false
-                pendingNewerCursor = nil
-                hasNextPage = response.data?.publicTimeline.pageInfo.hasNextPage ?? false
-                startCursor = response.data?.publicTimeline.pageInfo.startCursor
-                endCursor = response.data?.publicTimeline.pageInfo.endCursor
-            } else {
-                try await fetchNewerPosts()
-            }
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func loadNewerPosts() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            try await fetchNewerPosts()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func fetchNewerPosts() async throws {
-        guard let cursor = pendingNewerCursor ?? startCursor else { return }
-
-        let response = try await apolloClient.fetch(
-            query: HackersPub.LocalTimelineQuery(
-                after: nil,
-                before: .some(cursor),
-                first: nil,
-                last: 20
-            ),
-            cachePolicy: .networkOnly
-        )
-        guard let connection = response.data?.publicTimeline else { return }
-        mergeNewerPage(
-            connection.edges,
-            nextCursor: connection.pageInfo.startCursor,
-            hasNextPage: connection.pageInfo.hasPreviousPage
-        )
-        if let newStartCursor = edges.first?.cursor {
-            startCursor = newStartCursor
-        }
-        if endCursor == nil {
-            endCursor = connection.pageInfo.endCursor
-        }
-    }
-
-    private func prependUnique(_ incoming: [HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge]) {
-        let existingIDs = Set(edges.map(\.timelineListID))
-        edges = incoming.filter { !existingIDs.contains($0.timelineListID) } + edges
-    }
-
-    private func appendUnique(_ incoming: [HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge]) {
-        let existingIDs = Set(edges.map(\.timelineListID))
-        edges.append(contentsOf: incoming.filter { !existingIDs.contains($0.timelineListID) })
-    }
-
-    private func mergeNewerPage(
-        _ incoming: [HackersPub.LocalTimelineQuery.Data.PublicTimeline.Edge],
-        nextCursor: String?,
-        hasNextPage: Bool
-    ) {
-        guard !incoming.isEmpty else {
-            hasPreviousPage = false
-            pendingNewerCursor = nil
-            return
-        }
-
-        prependUnique(incoming)
-        pendingNewerCursor = hasNextPage ? nextCursor : nil
-        hasPreviousPage = hasNextPage && nextCursor != nil
-    }
-}
-
-struct ActorProfileViewWrapper: View {
-    let handle: String
-    @State private var actor: HackersPub.ActorByHandleQuery.Data.ActorByHandle?
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-
-    var body: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-            } else if let error = errorMessage {
-                ContentUnavailableView(
-                    NSLocalizedString("common.error", comment: "Error title"),
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(error)
-                )
-            } else if let actor = actor {
-                ActorProfileView(actor: actor)
-            }
-        }
-        .task {
-            await fetchProfile()
-        }
-        .toolbar(.hidden, for: .tabBar)
-    }
-
-    private func fetchProfile() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            // Always fetch from network to get fresh data
-            let response = try await apolloClient.fetch(
-                query: HackersPub.ActorByHandleQuery(handle: handle, after: nil, before: nil, first: 20, last: nil),
-                cachePolicy: .networkOnly
-            )
-            if let actorData = response.data?.actorByHandle {
-                actor = actorData
-            } else {
-                errorMessage = "Profile not found"
-            }
-        } catch {
-            errorMessage = "Failed to load profile: \(error.localizedDescription)"
         }
     }
 }
