@@ -30,19 +30,50 @@
 "signIn.useDifferentUsername" = "Use Different Username";
 "signIn.passkey" = "Sign in with Passkey";
 "signIn.unexpectedError" = "An unexpected error occurred. Please try again.";
+"signIn.error.loginFailed" = "Login failed. Please try again.";
+"signIn.error.accountNotFound" = "Account not found. Please check your username.";
+"signIn.error.verificationFailed" = "Verification failed. Please check your code.";
+"signIn.verificationFailed.title" = "Sign-in failed";
+"signIn.verificationFailed.message" = "This sign-in link could not be verified. Request a new link and try again.";
+"signIn.verificationAlreadySignedIn.title" = "Already signed in";
+"signIn.verificationAlreadySignedIn.message" = "This sign-in link was not used because another account is already signed in.";
+"signIn.verificationSessionChanged.title" = "Sign-in changed";
+"signIn.verificationSessionChanged.message" = "This sign-in link was not used because your active session changed.";
+"signIn.error.missingVerificationSession" = "Your sign-in session expired. Enter your username to request a new code.";
 
 /* Common */
 "common.retry" = "Retry";
 "error.loadFailed.title" = "Unable to load";
 "timeline.loadNewer" = "Load more";
 
+/* Engagement sheets */
+"engagement.shares.title" = "Shares";
+"engagement.shares.empty" = "No shares yet";
+"engagement.shares.loadMore" = "Load more shares";
+"engagement.quotes.title" = "Quotes";
+"engagement.quotes.empty" = "No quotes yet";
+"engagement.quotes.loadMore" = "Load more quotes";
+"engagement.pagination.failure" = "Unable to load more";
+"engagement.error.invalidResponse" = "The server returned an incomplete response.";
+
 /* Settings */
 "settings.version" = "Version";
 "settings.appIcon" = "App Icon";
+"settings.appIcon.default" = "Default";
+"settings.appIcon.cry" = "Cry";
+"settings.appIcon.curious" = "Curious";
+"settings.appIcon.frown" = "Frown";
+"settings.appIcon.wink" = "Wink";
 "settings.cache" = "Cache";
 "settings.cacheSize" = "Cache Size";
+"settings.cacheSize.unavailable" = "Unavailable";
 "settings.clearCache" = "Clear Cache";
 "settings.calculating" = "Calculating...";
+"settings.clearCache.clearing" = "Clearing cache…";
+"settings.clearCache.bestEffort" = "Best-effort cache clear completed";
+"settings.clearCache.error.title" = "Unable to clear cache";
+"settings.clearCache.error.message" = "Apollo cache clearing or cache size measurement failed. Other cache clears were still attempted.";
+"settings.clearCache.error.dismiss" = "OK";
 "settings.signOut" = "Sign Out";
 "settings.clearCacheAlert.title" = "Clear Cache";
 "settings.clearCacheAlert.message" = "This will clear all cached data. Your timelines will be refreshed.";
@@ -53,6 +84,7 @@
 "settings.profile.edit" = "Edit Profile";
 "settings.passkeys" = "Passkeys";
 "settings.passkeys.loading" = "Loading passkeys...";
+"settings.passkeys.loadFailed" = "Unable to load passkeys. Please try again.";
 "settings.passkeys.empty" = "No passkeys registered";
 "settings.passkeys.add" = "Add Passkey";
 "settings.passkeys.name" = "Passkey name";
@@ -70,8 +102,11 @@
 "compose.visibility.public" = "Public";
 "compose.visibility.unlisted" = "Unlisted";
 "compose.visibility.followers" = "Followers";
+"compose.visibility.direct" = "Direct";
 "compose.language" = "Language";
 "compose.replyingTo" = "Replying to %@";
+"compose.reply.loadingContext" = "Loading reply privacy settings…";
+"compose.reply.contextUnavailable" = "Unable to load reply privacy settings.";
 "compose.quoting" = "Quoting";
 "compose.quotingLoading" = "Loading quoted note...";
 "compose.quotingUnavailable" = "Unable to load quoted note.";
@@ -79,11 +114,17 @@
 "compose.mode.preview" = "Preview";
 "compose.post" = "Publish Note";
 "compose.cancel" = "Cancel";
+"compose.discard.title" = "Discard draft?";
+"compose.discard.message" = "Your changes will be lost.";
+"compose.discard.action" = "Discard";
 "compose.error.title" = "Error";
-"compose.error.invalidInput" = "Invalid input: %@";
+"compose.error.invalidInput" = "Some fields are invalid.";
+"compose.error.invalidContent" = "The note content is invalid.";
+"compose.error.invalidLanguage" = "The selected language is invalid.";
+"compose.error.invalidVisibility" = "The selected visibility is invalid.";
+"compose.error.invalidMedia" = "One or more attached photos are invalid.";
 "compose.error.notAuthenticated" = "You must be signed in to publish notes";
 "compose.error.failed" = "Failed to create note";
-"compose.error.failedWithDetails" = "Failed to create note: %@";
 "compose.error.ok" = "OK";
 "compose.preview.empty" = "Content is empty.";
 "compose.preview.rendering" = "Loading Preview...";
@@ -96,31 +137,59 @@
 "compose.photos.alt.footer" = "Describe the important visual details for people using screen readers. Leave blank only when the image is decorative.";
 "compose.photos.details" = "Photo Details";
 "compose.photos.error.loadFailed" = "Failed to load photo: %@";
+"compose.photos.error.loadFailedCount" = "Failed to load %ld photo(s).";
+"compose.photos.error.limitOmittedCount" = "%ld photo(s) were not added because a note supports up to 10 photos.";
 "mediaUpload.error.invalidImage" = "The selected image could not be read.";
 "mediaUpload.error.invalidInput" = "The server rejected the image: %@";
 "mediaUpload.error.notAuthenticated" = "You must be signed in to upload images.";
 "mediaUpload.error.uploadTargetFailed" = "Image upload failed with status %d.";
+"mediaUpload.error.uploadTargetInvalid" = "The upload target is no longer valid (status %d). Retry to start a new upload.";
+"mediaUpload.error.fileTooLarge" = "This image is too large to upload.";
 "mediaUpload.error.failed" = "Image upload failed.";
 "mediaUpload.error.unexpectedResponse" = "Image upload returned an unexpected response during %@.";
+"mediaUpload.error.checkpointExpired" = "The saved upload expired. Retry to start a new upload.";
+"mediaUpload.error.checkpointCorrupt" = "The saved upload could not be resumed safely.";
+"mediaUpload.error.checkpointPersistenceFailed" = "The upload stopped because its recovery checkpoint could not be saved.";
 
 /* Timeline */
 "timeline.fediverse" = "Fediverse";
 "timeline.hackersPub" = "Hackers' Pub";
 "timeline.loading" = "Loading...";
+"timeline.empty.title" = "No posts yet";
+"timeline.empty.description" = "New posts will appear here.";
+"timeline.error.unavailable" = "Timeline data is unavailable.";
+"timeline.refresh.partialWarning" = "Some posts could not be refreshed. Retry to load the complete timeline.";
 
 /* Notifications */
 "notifications.empty.title" = "No Notifications";
 "notifications.empty.description" = "When you receive notifications, they'll appear here";
-"notifications.followedYou" = " followed you";
-"notifications.mentionedYou" = " mentioned you";
-"notifications.repliedToPost" = " replied to your note";
-"notifications.quotedPost" = " quoted your note";
-"notifications.reactedToPost" = " reacted to your note";
-"notifications.sharedPost" = " shared your note";
+"notifications.actor.unknown" = "Someone";
+"notifications.message.followed.one" = "%1$@ followed you";
+"notifications.message.followed.two" = "%1$@ and %2$@ followed you";
+"notifications.message.followed.many" = "%1$@ and %2$d others followed you";
+"notifications.message.mentioned.one" = "%1$@ mentioned you";
+"notifications.message.mentioned.two" = "%1$@ and %2$@ mentioned you";
+"notifications.message.mentioned.many" = "%1$@ and %2$d others mentioned you";
+"notifications.message.replied.one" = "%1$@ replied to your note";
+"notifications.message.replied.two" = "%1$@ and %2$@ replied to your note";
+"notifications.message.replied.many" = "%1$@ and %2$d others replied to your note";
+"notifications.message.quoted.one" = "%1$@ quoted your note";
+"notifications.message.quoted.two" = "%1$@ and %2$@ quoted your note";
+"notifications.message.quoted.many" = "%1$@ and %2$d others quoted your note";
+"notifications.message.reacted.one" = "%1$@ reacted to your note";
+"notifications.message.reacted.two" = "%1$@ and %2$@ reacted to your note";
+"notifications.message.reacted.many" = "%1$@ and %2$d others reacted to your note";
+"notifications.message.shared.one" = "%1$@ shared your note";
+"notifications.message.shared.two" = "%1$@ and %2$@ shared your note";
+"notifications.message.shared.many" = "%1$@ and %2$d others shared your note";
 "notifications.postUnavailable" = "(Note unavailable)";
+"notifications.post.previewUnavailable" = "Post preview unavailable";
+"notifications.post.open" = "Open post";
 "notifications.unknownType" = "Unknown notification type";
-"notifications.and" = " and ";
-"notifications.andOthers" = " and %d others";
+"notifications.loadGap" = "Load missing notifications";
+"notifications.load.error" = "Unable to load notifications.";
+"notifications.read.error" = "Unable to sync notification read status.";
+"notifications.read.retry" = "Retry marking as read";
 
 /* Reactions */
 "reaction.title" = "Reactions";
@@ -130,6 +199,11 @@
 "reaction.error.signInRequired" = "Sign in is required to react.";
 "reaction.error.unableToAdd" = "Unable to add reaction. Please try again.";
 "reaction.error.unableToRemove" = "Unable to remove reaction. Please try again.";
+"reaction.error.invalidInput" = "Invalid input: %@";
+"reaction.info.error.failed" = "Unable to load reaction details.";
+"reaction.info.error.failedWithDetails" = "Unable to load reaction details: %@";
+"reaction.info.error.postNotFound" = "This note is no longer available.";
+"reaction.info.error.retry" = "Retry loading reaction details";
 "reaction.reactors.titleFormat" = "Reacted with %@";
 "reaction.empty" = "No reactions yet.";
 "reaction.reactors.notLoaded" = "No reactor details available.";
@@ -142,6 +216,10 @@
 "explore.scope.local" = "Hackers' Pub";
 "explore.scope.global" = "Fediverse";
 "explore.scope" = "Scope";
+"explore.empty.title" = "Nothing to explore yet";
+"explore.empty.description" = "New public posts will appear here.";
+"explore.error.noData" = "The timeline could not be loaded.";
+"feed.restorePosition" = "Restore reading position";
 
 /* News */
 "news.sort" = "News sort";
@@ -168,6 +246,10 @@
 "news.moderation.bury" = "Bury";
 "news.moderation.clear" = "Clear penalty";
 "news.moderation.failed" = "Failed to update news moderation.";
+"news.moderation.error.title" = "News moderation error";
+"news.moderation.missingResult" = "The moderation request did not return a result.";
+"news.moderation.notAuthenticated" = "Sign in to manage News.";
+"news.moderation.notAuthorized" = "You are no longer authorized to manage News.";
 "news.admin.title" = "News Admin";
 "news.admin.scores" = "Scores";
 "news.admin.scoredLinks" = "Links in feed";
@@ -191,6 +273,7 @@
 "news.admin.noPenalizedStories" = "No penalized links.";
 "news.admin.clearPenalty" = "Clear penalty";
 "news.admin.clearPenalty.failed" = "Failed to clear penalty.";
+"news.admin.actionError.title" = "News administration error";
 "news.penalty.bury" = "Buried";
 "news.penalty.demote" = "Demoted";
 "news.penalty.none" = "No penalty";
@@ -199,7 +282,10 @@
 "search.title" = "Search";
 "search.noResults.title" = "No results";
 "search.noResults.description" = "Try a different search term";
+"search.initial.description" = "Search accounts, notes, or URLs.";
 "search.recentSearches" = "Recent Searches";
+"search.recent.clear" = "Clear";
+"search.recent.delete" = "Delete recent search";
 "search.accounts" = "Accounts";
 "search.relatedAccounts" = "Related Accounts";
 "search.posts" = "Notes";
@@ -210,6 +296,7 @@
 "common.newPost" = "New Note";
 "common.error" = "Error";
 "common.cancel" = "Cancel";
+"common.close" = "Close";
 "common.done" = "Done";
 "common.delete" = "Delete";
 
@@ -221,6 +308,9 @@
 "passkey.error.unsupportedCredential" = "This passkey response is not supported.";
 "passkey.error.authorizationUnavailable" = "Passkeys are unavailable in this build. Check app signing and Associated Domains.";
 "passkey.error.authorizationFailed" = "Passkey authorization failed.";
+"passkey.error.timedOut" = "Passkey authorization timed out. Please try again.";
+"passkey.error.requestInProgress" = "A passkey request is already in progress.";
+"passkey.error.presentationAnchorUnavailable" = "Open the app in an active window before using a passkey.";
 
 /* Date formatting */
 "date.lessThanMinute" = "less than a minute ago";
@@ -236,6 +326,7 @@
 "date.monthsAgo" = "%d months ago";
 "date.yearAgo" = "1 year ago";
 "date.yearsAgo" = "%d years ago";
+"date.unavailable" = "Date unavailable";
 
 /* Font Settings */
 "fontPicker.title" = "Select Font";
@@ -312,11 +403,19 @@
 "profile.edit.avatar" = "Avatar";
 "profile.edit.avatar.choose" = "Choose Photo";
 "profile.edit.avatar.discard" = "Discard Selected Photo";
+"profile.edit.avatar.remove" = "Remove Avatar";
+"profile.edit.avatar.restore" = "Restore Avatar";
+"profile.edit.avatar.removed" = "Avatar removed";
 "profile.edit.details" = "Profile Details";
 "profile.edit.name" = "Display Name";
 "profile.edit.bio" = "Bio";
 "profile.edit.save" = "Save";
 "profile.edit.error.title" = "Profile Update Failed";
+"profile.edit.error.missingPayload" = "The profile update was not confirmed. Try again.";
+"profile.edit.error.changedDuringSave" = "Your profile changed while it was saving. Review the latest edits and try again.";
+"profile.edit.discard.title" = "Discard changes?";
+"profile.edit.discard.message" = "You have unsaved profile changes.";
+"profile.edit.discard.action" = "Discard Changes";
 "profile.edit.links" = "Links";
 "profile.edit.link.name" = "Link name";
 "profile.edit.link.url" = "URL";
@@ -326,6 +425,7 @@
 "article.photos.title" = "Photos";
 "article.photos.add" = "Add photos";
 "article.photos.insert" = "Upload and Insert";
+"article.photos.titleRequired" = "Add a title before attaching photos.";
 "profile.tag.followsViewer" = "Follows you";
 "profile.tag.viewerBlocks" = "Blocked";
 "profile.action.follow" = "Follow";
@@ -334,9 +434,16 @@
 "profile.action.unblock" = "Unblock";
 "profile.action.removeFollower" = "Remove follower";
 
+/* Profile Destination */
+"profile.destination.loading" = "Loading profile…";
+"profile.destination.error.notFound" = "Profile not found.";
+"profile.destination.error.unavailable" = "Unable to load this profile. Please try again.";
+
 /* Actor Relationship Errors */
 "actorRelation.error.title" = "Action failed";
 "actorRelation.error.actorNotFound" = "Could not find this account.";
+"actorRelation.error.queryFailed" = "Could not load this account's relationship information. Please try again.";
+"actorRelation.error.graphQLFailed" = "The server could not complete this request. Please try again.";
 "actorRelation.error.invalidInput" = "Invalid input: %@";
 "actorRelation.error.notAuthenticated" = "You must be signed in.";
 "actorRelation.error.operationFailed" = "Request failed. Please try again.";
@@ -361,6 +468,8 @@
 "image.download.success" = "Image saved to your photo library.";
 "image.download.error.invalidURL" = "Invalid image URL.";
 "image.download.error.invalidData" = "Failed to read image data.";
+"image.download.error.invalidResponse" = "Image download returned an invalid response.";
+"image.download.error.httpStatus" = "Image download failed (HTTP %d).";
 "image.download.error.permissionDenied" = "Photo library permission is required to save images.";
 
 /* Share Confirmation */
@@ -368,9 +477,46 @@
 "share.confirm.shareAction" = "Share";
 "share.confirm.unshareTitle" = "Undo share for this note?";
 "share.confirm.unshareAction" = "Undo Share";
+"share.error.queueFull" = "Too many sharing requests are pending. Please try again.";
+"share.error.unavailable" = "Sharing is unavailable right now. Please try again.";
+"share.error.title" = "Share failed";
+"share.error.invalidInput" = "Invalid input: %@";
+"share.error.notAuthenticated" = "You must be signed in to share notes.";
+"share.error.failed" = "Unable to update this share. Please try again.";
+"share.error.failedWithDetails" = "Unable to update this share: %@";
 
 /* Delete */
 "post.action.delete" = "Delete note";
+"post.title" = "Post";
+"post.reposted" = "reposted";
+"post.replyingTo" = "Replying to";
+"post.replies.title" = "Replies";
+"post.replies.viewAction" = "View replies";
+"post.replies.loadMore" = "Load more replies";
+"post.share.action" = "Share";
+"post.shares.title" = "Shares";
+"post.shares.showAction" = "Show shares";
+"post.shares.empty" = "No shares yet";
+"post.shares.loadMore" = "Load more shares";
+"post.shares.error.loadFailed" = "Failed to load shares: %@";
+"post.shares.error.loadMoreFailed" = "Failed to load more shares: %@";
+"post.quotes.title" = "Quotes";
+"post.quotes.createAction" = "Quote post";
+"post.quotes.showAction" = "Show quotes";
+"post.quotes.empty" = "No quotes yet";
+"post.quotes.loadMore" = "Load more quotes";
+"post.quotes.error.loadFailed" = "Failed to load quotes: %@";
+"post.quotes.error.loadMoreFailed" = "Failed to load more quotes: %@";
+"post.engagement.loadMore" = "Load more";
+"post.error.notFound" = "Post not found";
+"post.error.loadFailed" = "Failed to load post: %@";
+"common.error.unknown" = "Unknown error";
+"post.refresh.error.title" = "Couldn't refresh note";
+"post.refresh.error.failed" = "The note couldn't be refreshed. Your current content is still available.";
+"post.refresh.error.failedWithDetails" = "The note couldn't be refreshed: %@";
+"post.translation.error.title" = "Couldn't load translation";
+"post.translation.error.failed" = "The translation couldn't be loaded. The current article is still available.";
+"post.translation.error.failedWithDetails" = "The translation couldn't be loaded: %@";
 "delete.confirm.title" = "Delete this note?";
 "delete.confirm.action" = "Delete";
 "delete.error.title" = "Delete failed";
@@ -389,14 +535,19 @@
 "article.editDraft" = "Edit Draft";
 "article.read" = "Read article";
 "article.readOnWeb" = "Read on Web";
+"article.detail.title" = "Article";
 "article.translate" = "Translate";
 "article.showOriginal" = "Show Original";
 "article.toc" = "Contents";
 "article.drafts" = "Drafts";
 "article.drafts.empty" = "No article drafts";
+"article.drafts.loadFailed" = "Unable to load article drafts.";
 "article.untitled" = "Untitled";
 "article.draft.delete.title" = "Delete draft?";
 "article.draft.delete.message" = "This draft will be permanently deleted.";
+"article.draft.deleteFailed" = "Unable to delete this draft.";
+"article.draft.notFound" = "This draft is no longer available.";
+"article.draft.loadFailed" = "Unable to load this draft.";
 "article.title" = "Title";
 "article.tags" = "Tags, separated by commas or spaces";
 "article.tag.remove" = "Remove %@";
@@ -421,7 +572,21 @@
 "article.saving" = "Saving...";
 "article.saveFailed" = "Failed to save article draft.";
 "article.publishFailed" = "Failed to publish article.";
+"article.error.invalidInput" = "Some article information is invalid.";
+"article.error.invalidTitle" = "Enter a valid article title.";
+"article.error.invalidContent" = "The article content is invalid.";
+"article.error.invalidTags" = "One or more article tags are invalid.";
+"article.error.invalidSlug" = "Enter a valid article URL slug.";
+"article.error.invalidLanguage" = "Choose a valid article language.";
+"article.discard.title" = "Discard changes?";
+"article.discard.message" = "You have unsaved article changes.";
+"article.discard.saveAndClose" = "Save Draft & Close";
+"article.discard.action" = "Discard Changes";
+"article.discard.pendingPhotosAction" = "Keep Editing to Upload Photos";
+"article.discard.pendingPhotosMessage" = "Pending photos are not stored in the draft yet. Upload them before saving and closing, or explicitly discard all changes.";
+"article.error.changedDuringOperation" = "The article changed while the request was running. Review it and try again.";
 "common.compose" = "Compose";
+"profile.viewer.accessibilityLabel" = "Open your profile";
 
 /* Bookmarks */
 "bookmarks.title" = "Bookmarks";

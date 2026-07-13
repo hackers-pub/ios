@@ -60,6 +60,26 @@ query PublicTimelineQuery($after: String, $before: String, $first: Int, $last: I
             height
             width
           }
+          quotedPost {
+            __typename
+            id
+            name
+            published
+            content
+            actor {
+              id
+              name
+              handle
+              avatarUrl
+            }
+            media {
+              url
+              thumbnailUrl
+              alt
+              height
+              width
+            }
+          }
           engagementStats {
             replies
             reactions
@@ -204,6 +224,26 @@ query LocalTimelineQuery($after: String, $before: String, $first: Int, $last: In
             alt
             height
             width
+          }
+          quotedPost {
+            __typename
+            id
+            name
+            published
+            content
+            actor {
+              id
+              name
+              handle
+              avatarUrl
+            }
+            media {
+              url
+              thumbnailUrl
+              alt
+              height
+              width
+            }
           }
           mentions(first: 20) {
             edges {
@@ -350,6 +390,26 @@ query PersonalTimelineQuery($after: String, $before: String, $first: Int, $last:
             height
             width
           }
+          quotedPost {
+            __typename
+            id
+            name
+            published
+            content
+            actor {
+              id
+              name
+              handle
+              avatarUrl
+            }
+            media {
+              url
+              thumbnailUrl
+              alt
+              height
+              width
+            }
+          }
           mentions(first: 20) {
             edges {
               node {
@@ -485,6 +545,26 @@ query SearchPostQuery($query: String!) {
             alt
             height
             width
+          }
+          quotedPost {
+            __typename
+            id
+            name
+            published
+            content
+            actor {
+              id
+              name
+              handle
+              avatarUrl
+            }
+            media {
+              url
+              thumbnailUrl
+              alt
+              height
+              width
+            }
           }
           engagementStats {
             replies
@@ -629,6 +709,26 @@ fragment ProfilePostFields on Post {
       alt
       height
       width
+    }
+    quotedPost {
+      __typename
+      id
+      name
+      published
+      content
+      actor {
+        id
+        name
+        handle
+        avatarUrl
+      }
+      media {
+        url
+        thumbnailUrl
+        alt
+        height
+        width
+      }
     }
     engagementStats {
       replies
@@ -809,6 +909,26 @@ query ActorByHandleQuery($handle: String!, $after: String, $before: String, $fir
               height
               width
             }
+            quotedPost {
+              __typename
+              id
+              name
+              published
+              content
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+            }
             engagementStats {
               replies
               reactions
@@ -979,17 +1099,22 @@ mutation VerifyPasskeyRegistrationMutation($accountId: ID!, $name: String!, $reg
   }
 }
 
-query ViewerPasskeysQuery {
+query ViewerPasskeysQuery($after: String, $first: Int!) {
   viewer {
     id
-    passkeys(first: 50) {
+    passkeys(first: $first, after: $after) {
       edges {
+        cursor
         node {
           id
           name
           created
           lastUsed
         }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
       }
     }
   }
@@ -1125,6 +1250,23 @@ mutation AttachArticleDraftMediumMutation($draftId: UUID!, $mediumId: UUID!, $ke
   }
 }
 
+mutation AttachArticleSourceMediumMutation($articleSourceId: UUID!, $mediumId: UUID!, $key: String) {
+  attachArticleSourceMedium(input: { articleSourceId: $articleSourceId, mediumId: $mediumId, key: $key }) {
+    ... on AttachArticleSourceMediumPayload {
+      key
+    }
+    ... on InvalidInputError {
+      inputPath
+    }
+    ... on NotAuthenticatedError {
+      notAuthenticated
+    }
+    ... on NotAuthorizedError {
+      notAuthorized
+    }
+  }
+}
+
 query SearchActorsByHandleQuery($prefix: String!, $limit: Int = 10) {
   searchActorsByHandle(prefix: $prefix, limit: $limit) {
     id
@@ -1238,6 +1380,7 @@ mutation RemoveFollowerMutation($actorId: ID!) {
 query NotificationsQuery($after: String, $before: String, $first: Int, $last: Int) {
   viewer {
     id
+    unreadNotificationsCount
     notifications(first: $first, after: $after, before: $before, last: $last) {
       edges {
         cursor
@@ -1472,6 +1615,17 @@ query NotificationsQuery($after: String, $before: String, $first: Int, $last: In
   }
 }
 
+query NotificationUnreadCountQuery {
+  viewer {
+    id
+    unreadNotificationsCount
+  }
+}
+
+mutation MarkNotificationsAsReadMutation($upTo: UUID) {
+  markNotificationsAsRead(upTo: $upTo)
+}
+
 query PostDetailQuery($id: ID!, $repliesAfter: String) {
   node(id: $id) {
     ... on Post {
@@ -1556,6 +1710,26 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
           alt
           height
           width
+        }
+        quotedPost {
+          __typename
+          id
+          name
+          published
+          content
+          actor {
+            id
+            name
+            handle
+            avatarUrl
+          }
+          media {
+            url
+            thumbnailUrl
+            alt
+            height
+            width
+          }
         }
         mentions(first: 20) {
           edges {
@@ -1710,6 +1884,26 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
                 height
                 width
               }
+              quotedPost {
+                __typename
+                id
+                name
+                published
+                content
+                actor {
+                  id
+                  name
+                  handle
+                  avatarUrl
+                }
+                media {
+                  url
+                  thumbnailUrl
+                  alt
+                  height
+                  width
+                }
+              }
               mentions(first: 20) {
                 edges {
                   node {
@@ -1794,6 +1988,7 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
     }
     ... on Article {
       uuid
+      sourceId
       slug
       language
       allowLlmTranslation
@@ -1807,6 +2002,29 @@ query PostDetailQuery($id: ID!, $repliesAfter: String) {
         summary
         toc
         url
+      }
+    }
+  }
+}
+
+query ReplyContextQuery($id: ID!, $after: String, $first: Int!) {
+  node(id: $id) {
+    ... on Post {
+      id
+      visibility
+      actor {
+        handle
+      }
+      mentions(after: $after, first: $first) {
+        edges {
+          node {
+            handle
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
       }
     }
   }
@@ -1912,6 +2130,26 @@ query PostQuotesQuery($id: ID!, $after: String) {
                 alt
                 height
                 width
+              }
+              quotedPost {
+                __typename
+                id
+                name
+                published
+                content
+                actor {
+                  id
+                  name
+                  handle
+                  avatarUrl
+                }
+                media {
+                  url
+                  thumbnailUrl
+                  alt
+                  height
+                  width
+                }
               }
               mentions(first: 20) {
                 edges {
@@ -2096,11 +2334,12 @@ mutation DeletePostMutation($id: ID!) {
   }
 }
 
-query ArticleDraftsQuery {
+query ArticleDraftsQuery($after: String, $first: Int!) {
   viewer {
     id
-    articleDrafts(first: 50) {
+    articleDrafts(after: $after, first: $first) {
       edges {
+        cursor
         node {
           id
           uuid
@@ -2111,6 +2350,10 @@ query ArticleDraftsQuery {
           created
           updated
         }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
       }
     }
   }
