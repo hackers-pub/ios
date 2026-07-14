@@ -134,6 +134,8 @@
 "compose.photos.delete" = "Remove photo";
 "compose.photos.altPlaceholder" = "Alt text";
 "compose.photos.alt.add" = "Add alt text";
+"compose.photos.alt.generate" = "Generate alt text";
+"compose.photos.alt.generateError.title" = "Couldn’t Generate Alt Text";
 "compose.photos.alt.footer" = "Describe the important visual details for people using screen readers. Leave blank only when the image is decorative.";
 "compose.photos.details" = "Photo Details";
 "compose.photos.error.loadFailed" = "Failed to load photo: %@";

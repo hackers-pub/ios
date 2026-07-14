@@ -586,7 +586,14 @@ struct ComposeView: View {
             .sheet(item: $editingPhotoAttachment) { target in
                 if let index = pendingPhotoAttachments.firstIndex(where: { $0.id == target.id }) {
                     ComposePhotoAttachmentDetailsSheet(
-                        attachment: $pendingPhotoAttachments[index]
+                        attachment: $pendingPhotoAttachments[index],
+                        onGenerateAltText: {
+                            _ = try await generateAltText(
+                                for: target.id,
+                                language: publishSettings.language,
+                                context: content
+                            )
+                        }
                     )
                 }
             }
@@ -881,15 +888,66 @@ struct ComposeView: View {
     }
 
     private func uploadPhotoAttachments(
-        snapshot: [PendingPhotoAttachment]
+        snapshot: [PendingPhotoAttachment],
+        language: String,
+        context: String
     ) async throws -> [HackersPub.CreateNoteMediumInput] {
+        var resolvedSnapshot = snapshot
+        for index in resolvedSnapshot.indices where resolvedSnapshot[index].alt
+            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            resolvedSnapshot[index].alt = try await generateAltText(
+                for: resolvedSnapshot[index].id,
+                language: language,
+                context: context
+            )
+        }
+
         let adapter = ComposePhotoAttachmentUploadAdapter(
             attachments: $pendingPhotoAttachments
         )
-        return try await adapter.upload(snapshot: snapshot) { attachment in
+        return try await adapter.upload(snapshot: resolvedSnapshot) { attachment in
             let uploaded = try await MediumUploadService.shared.uploadImageData(attachment.data)
             return uploaded.id
         }
+    }
+
+    private func generateAltText(
+        for attachmentID: PendingPhotoAttachment.ID,
+        language: String,
+        context: String
+    ) async throws -> String {
+        guard let initialIndex = pendingPhotoAttachments.firstIndex(where: { $0.id == attachmentID }) else {
+            throw CancellationError()
+        }
+
+        var attachment = pendingPhotoAttachments[initialIndex]
+        let mediumNodeID: String
+        if let cachedNodeID = attachment.uploadedMediumNodeID {
+            mediumNodeID = cachedNodeID
+        } else {
+            let uploaded = try await MediumUploadService.shared.uploadImageData(attachment.data)
+            guard let nodeID = uploaded.nodeID else {
+                throw MediumUploadError.missingPayload("medium.id")
+            }
+            attachment.recordUploadedMedium(id: uploaded.id, nodeID: nodeID)
+            guard let currentIndex = pendingPhotoAttachments.firstIndex(where: { $0.id == attachmentID }) else {
+                throw CancellationError()
+            }
+            pendingPhotoAttachments[currentIndex] = attachment
+            mediumNodeID = nodeID
+        }
+
+        let generated = try await MediumUploadService.shared.generateAltText(
+            mediumNodeID: mediumNodeID,
+            language: language,
+            context: context
+        )
+        guard let currentIndex = pendingPhotoAttachments.firstIndex(where: { $0.id == attachmentID }) else {
+            throw CancellationError()
+        }
+        pendingPhotoAttachments[currentIndex].alt = generated
+        return generated
     }
 
     private enum NoteSubmissionResult {
@@ -999,7 +1057,11 @@ struct ComposeView: View {
             let outcome = try await submissionCoordinator.perform(
                 prepared,
                 upload: { preparedNote in
-                    try await uploadPhotoAttachments(snapshot: preparedNote.attachments)
+                    try await uploadPhotoAttachments(
+                        snapshot: preparedNote.attachments,
+                        language: preparedNote.settings.language,
+                        context: preparedNote.settings.content
+                    )
                 },
                 submit: { preparedNote, media in
                     try await preparedNote.submit(media)

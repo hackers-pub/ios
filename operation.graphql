@@ -1205,6 +1205,7 @@ mutation FinishMediumUploadMutation($uploadId: UUID!) {
   finishMediumUpload(input: { uploadId: $uploadId }) {
     ... on FinishMediumUploadPayload {
       medium {
+        id
         uuid
         url
         type
@@ -1218,6 +1219,14 @@ mutation FinishMediumUploadMutation($uploadId: UUID!) {
     }
     ... on NotAuthenticatedError {
       notAuthenticated
+    }
+  }
+}
+
+query GeneratedAltTextQuery($id: ID!, $language: Locale!, $context: String) {
+  node(id: $id) {
+    ... on Medium {
+      generatedAltText(language: $language, context: $context)
     }
   }
 }

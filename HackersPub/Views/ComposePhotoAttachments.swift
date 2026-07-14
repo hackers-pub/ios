@@ -8,13 +8,17 @@ struct PendingPhotoAttachment: Identifiable, Equatable {
     let image: UIImage
     var alt = ""
     var uploadedMediumID: String?
+    var uploadedMediumNodeID: String?
 
     var requiresUpload: Bool {
         uploadedMediumID == nil
     }
 
-    mutating func recordUploadedMedium(id: String) {
+    mutating func recordUploadedMedium(id: String, nodeID: String? = nil) {
         uploadedMediumID = id
+        if let nodeID {
+            uploadedMediumNodeID = nodeID
+        }
     }
 }
 
@@ -193,6 +197,9 @@ private struct ComposePhotoAttachmentCard: View {
 struct ComposePhotoAttachmentDetailsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var attachment: PendingPhotoAttachment
+    let onGenerateAltText: () async throws -> Void
+    @State private var isGeneratingAltText = false
+    @State private var generationError: String?
 
     var body: some View {
         NavigationStack {
@@ -223,6 +230,35 @@ struct ComposePhotoAttachmentDetailsSheet: View {
                         axis: .vertical
                     )
                     .lineLimit(3 ... 6)
+
+                    Button {
+                        Task { @MainActor in
+                            isGeneratingAltText = true
+                            defer { isGeneratingAltText = false }
+                            do {
+                                try await onGenerateAltText()
+                            } catch is CancellationError {
+                                return
+                            } catch {
+                                generationError = error.localizedDescription
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            if isGeneratingAltText {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "wand.and.sparkles")
+                            }
+                            Text(
+                                NSLocalizedString(
+                                    "compose.photos.alt.generate",
+                                    comment: "Generate photo alt text button"
+                                )
+                            )
+                        }
+                    }
+                    .disabled(isGeneratingAltText)
                 } footer: {
                     Text(
                         NSLocalizedString(
@@ -239,6 +275,24 @@ struct ComposePhotoAttachmentDetailsSheet: View {
                 )
             )
             .navigationBarTitleDisplayMode(.inline)
+            .alert(
+                NSLocalizedString(
+                    "compose.photos.alt.generateError.title",
+                    comment: "Generate photo alt text error title"
+                ),
+                isPresented: Binding(
+                    get: { generationError != nil },
+                    set: { if !$0 { generationError = nil } }
+                )
+            ) {
+                Button(NSLocalizedString("compose.error.ok", comment: "OK button")) {
+                    generationError = nil
+                }
+            } message: {
+                if let generationError {
+                    Text(generationError)
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(

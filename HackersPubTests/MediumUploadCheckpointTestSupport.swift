@@ -297,6 +297,7 @@ final class CheckpointUploadNetworkTransport: NetworkTransport, @unchecked Senda
                 "__typename": "FinishMediumUploadPayload",
                 "medium": [
                     "__typename": "Medium",
+                    "id": "Medium:medium-\(uploadID)",
                     "uuid": "medium-\(uploadID)",
                     "url": "https://hackers.pub/media/\(uploadID)",
                     "type": "image/png",

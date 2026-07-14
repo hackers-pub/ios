@@ -68,6 +68,7 @@ private final class MediumUploadNetworkTransport: NetworkTransport, @unchecked S
     private var finishSteps: [FinishStep]
     private var startRequestCount = 0
     private var finishUploadIDs: [String] = []
+    private var generatedAltTextRequestCount = 0
 
     init(
         uploadURL: String,
@@ -82,11 +83,17 @@ private final class MediumUploadNetworkTransport: NetworkTransport, @unchecked S
     }
 
     func send<Query: GraphQLQuery>(
-        query _: Query,
+        query: Query,
         fetchBehavior _: FetchBehavior,
         requestConfiguration _: RequestConfiguration
     ) throws -> AsyncThrowingStream<GraphQLResponse<Query>, any Error> {
-        failingStream(URLError(.unsupportedURL))
+        if query is HackersPub.GeneratedAltTextQuery {
+            lock.lock()
+            generatedAltTextRequestCount += 1
+            lock.unlock()
+            return responseStream(data: generatedAltTextResponse())
+        }
+        return failingStream(URLError(.unsupportedURL))
     }
 
     func send<Mutation: GraphQLMutation>(
@@ -122,10 +129,10 @@ private final class MediumUploadNetworkTransport: NetworkTransport, @unchecked S
         return failingStream(URLError(.unsupportedURL))
     }
 
-    func snapshot() -> (startRequests: Int, finishUploadIDs: [String]) {
+    func snapshot() -> (startRequests: Int, finishUploadIDs: [String], generatedAltTextRequests: Int) {
         lock.lock()
         defer { lock.unlock() }
-        return (startRequestCount, finishUploadIDs)
+        return (startRequestCount, finishUploadIDs, generatedAltTextRequestCount)
     }
 
     private func responseStream<Operation: GraphQLOperation>(
@@ -180,6 +187,7 @@ private final class MediumUploadNetworkTransport: NetworkTransport, @unchecked S
                 "__typename": "FinishMediumUploadPayload",
                 "medium": [
                     "__typename": "Medium",
+                    "id": "Medium:medium-1",
                     "uuid": "medium-1",
                     "url": "https://hackers.pub/media/medium-1",
                     "type": "image/png",
@@ -198,6 +206,15 @@ private final class MediumUploadNetworkTransport: NetworkTransport, @unchecked S
             ]
         ]
     }
+
+    private func generatedAltTextResponse() -> [String: Any] {
+        [
+            "node": [
+                "__typename": "Medium",
+                "generatedAltText": "  A waterfall surrounded by green cliffs.  "
+            ]
+        ]
+    }
 }
 
 private struct MediumUploadFixture {
@@ -207,6 +224,22 @@ private struct MediumUploadFixture {
 }
 
 struct MediumUploadServiceIntegrationTests {
+    @Test
+    func generatesAndTrimsAltTextForAnUploadedMedium() async throws {
+        let fixture = makeFixture(finishSteps: [.success])
+        let medium = try await fixture.service.uploadImageData(imageData())
+        let nodeID = try #require(medium.nodeID)
+
+        let altText = try await fixture.service.generateAltText(
+            mediumNodeID: nodeID,
+            language: "en",
+            context: "Waterfalls"
+        )
+
+        #expect(altText == "A waterfall surrounded by green cliffs.")
+        #expect(fixture.transport.snapshot().generatedAltTextRequests == 1)
+    }
+
     @Test
     func retriesTransientFinishAfterTheUploadBodyWasPutOnce() async throws {
         let fixture = makeFixture(finishSteps: [.transientFailure, .success])

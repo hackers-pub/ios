@@ -3,6 +3,7 @@ import Foundation
 
 struct UploadedMedium: Codable, Identifiable, Equatable, Sendable {
     let id: String
+    let nodeID: String?
     let url: String
     let type: String
     let width: Int?
@@ -198,11 +199,38 @@ actor MediumUploadService {
         }
         return UploadedMedium(
             id: medium.uuid,
+            nodeID: medium.id,
             url: medium.url,
             type: medium.type,
             width: medium.width,
             height: medium.height
         )
+    }
+
+    func generateAltText(
+        mediumNodeID: String,
+        language: String,
+        context: String?
+    ) async throws -> String {
+        let trimmedContext = context?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let response = try await client.fetch(
+            query: HackersPub.GeneratedAltTextQuery(
+                id: mediumNodeID,
+                language: language,
+                context: trimmedContext.flatMap { $0.isEmpty ? nil : .some($0) } ?? .none
+            ),
+            cachePolicy: .networkOnly
+        )
+        if let error = response.errors?.first {
+            throw MediumUploadError.server(error.localizedDescription)
+        }
+        guard let generated = response.data?.node?.asMedium?.generatedAltText?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !generated.isEmpty
+        else {
+            throw MediumUploadError.missingPayload("generatedAltText")
+        }
+        return generated
     }
 
     func putUploadBody(

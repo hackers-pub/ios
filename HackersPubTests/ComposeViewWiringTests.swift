@@ -129,6 +129,8 @@ struct ComposeViewWiringTests {
         let source = try composeViewSource()
         let upload = try #require(source.block(after: "private func uploadPhotoAttachments("))
 
+        #expect(upload.contains("where resolvedSnapshot[index].alt"))
+        #expect(upload.contains("generateAltText("))
         #expect(upload.contains("ComposePhotoAttachmentUploadAdapter"))
         #expect(upload.contains("attachments: $pendingPhotoAttachments"))
         #expect(upload.contains("adapter.upload"))
@@ -177,7 +179,9 @@ struct ComposeViewWiringTests {
         #expect(snapshot.contains("guard isSupportedCreateNoteVisibility"))
 
         let post = try #require(source.block(after: "private func post("))
-        #expect(post.contains("uploadPhotoAttachments(snapshot: preparedNote.attachments)"))
+        #expect(post.contains("snapshot: preparedNote.attachments"))
+        #expect(post.contains("language: preparedNote.settings.language"))
+        #expect(post.contains("context: preparedNote.settings.content"))
     }
 
     @Test("POST-11: successful replies publish one typed event while posts refresh timelines")

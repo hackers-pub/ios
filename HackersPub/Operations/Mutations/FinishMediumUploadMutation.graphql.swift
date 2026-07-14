@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "FinishMediumUploadMutation"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"mutation FinishMediumUploadMutation($uploadId: UUID!) { finishMediumUpload(input: { uploadId: $uploadId }) { __typename ... on FinishMediumUploadPayload { medium { __typename uuid url type width height contentHash } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
+        #"mutation FinishMediumUploadMutation($uploadId: UUID!) { finishMediumUpload(input: { uploadId: $uploadId }) { __typename ... on FinishMediumUploadPayload { medium { __typename id uuid url type width height contentHash } } ... on InvalidInputError { inputPath } ... on NotAuthenticatedError { notAuthenticated } } }"#
       ))
 
     public var uploadId: UUID
@@ -85,6 +85,7 @@ public extension HackersPub {
             @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Medium }
             @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
               .field("__typename", String.self),
+              .field("id", HackersPub.ID.self),
               .field("uuid", HackersPub.UUID.self),
               .field("url", HackersPub.URL.self),
               .field("type", HackersPub.MediaType.self),
@@ -96,6 +97,7 @@ public extension HackersPub {
               FinishMediumUploadMutation.Data.FinishMediumUpload.AsFinishMediumUploadPayload.Medium.self
             ] }
 
+            public var id: HackersPub.ID { __data["id"] }
             public var uuid: HackersPub.UUID { __data["uuid"] }
             /// Public URL for the stored medium.
             public var url: HackersPub.URL { __data["url"] }
