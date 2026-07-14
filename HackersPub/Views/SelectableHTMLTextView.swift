@@ -174,22 +174,25 @@ struct SelectableHTMLTextView: UIViewRepresentable {
         }
 
         private func route(url: URL) {
-            guard let navigationCoordinator = parent.navigationCoordinator else {
-                let router = parent.externalURLRouter ?? .shared
-                if HackersPubURLRouter.isHackersPubWebURL(url) {
-                    router.openInApp(url)
-                } else {
-                    router.open(url)
-                }
+            switch RendererLinkRoutingPolicy.action(
+                for: url,
+                hasNavigationCoordinator: parent.navigationCoordinator != nil
+            ) {
+            case .consumeOwnedScheme:
                 return
+            case .inAppBrowser:
+                (parent.externalURLRouter ?? .shared).openInApp(url)
+            case .external:
+                (parent.externalURLRouter ?? .shared).open(url)
+            case .deepLink:
+                guard let navigationCoordinator = parent.navigationCoordinator else { return }
+                DeepLinkNavigator.open(
+                    url,
+                    authManager: parent.authManager ?? .shared,
+                    navigationCoordinator: navigationCoordinator,
+                    externalURLRouter: parent.externalURLRouter ?? .shared
+                )
             }
-
-            DeepLinkNavigator.open(
-                url,
-                authManager: parent.authManager ?? .shared,
-                navigationCoordinator: navigationCoordinator,
-                externalURLRouter: parent.externalURLRouter ?? .shared
-            )
         }
     }
 }

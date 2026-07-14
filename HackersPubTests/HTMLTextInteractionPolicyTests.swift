@@ -57,4 +57,17 @@ struct HTMLTextInteractionPolicyTests {
         #expect(!coordinator.textView(textView, shouldInteractWith: url, in: range, interaction: .invokeDefaultAction))
         #expect(router.destination?.url == url)
     }
+
+    @Test
+    func selectableCoordinatorUsesTheSharedRendererRoutingPolicy() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("HackersPub/Views/SelectableHTMLTextView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        #expect(source.contains("RendererLinkRoutingPolicy.action("))
+        #expect(source.contains("case .external:"))
+        #expect(source.contains("(parent.externalURLRouter ?? .shared).open(url)"))
+    }
 }

@@ -20,3 +20,7 @@ buildServer.json
 # Specific IDE Configurations for VSCode or Cursor
 .vscode/*
 !.vscode/extensions.json
+
+# .DS_Store (macOS)
+.DS_Store
+
