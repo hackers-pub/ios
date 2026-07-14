@@ -15,14 +15,6 @@ enum HTMLContentRenderingContext {
     case profileBio
 }
 
-private struct HTMLMediaContainerWidthKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 struct MediaItem: Identifiable {
     let id: String
     let url: String
@@ -242,15 +234,16 @@ struct HTMLContentView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .background {
                     GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: HTMLMediaContainerWidthKey.self,
-                            value: proxy.size.width
-                        )
+                        Color.clear
+                            .onAppear {
+                                guard proxy.size.width > 0 else { return }
+                                mediaContainerWidth = proxy.size.width
+                            }
+                            .onChange(of: proxy.size.width) { _, width in
+                                guard width > 0, mediaContainerWidth != width else { return }
+                                mediaContainerWidth = width
+                            }
                     }
-                }
-                .onPreferenceChange(HTMLMediaContainerWidthKey.self) { width in
-                    guard width > 0, mediaContainerWidth != width else { return }
-                    mediaContainerWidth = width
                 }
             }
         }
