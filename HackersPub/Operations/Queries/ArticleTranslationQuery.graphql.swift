@@ -82,7 +82,7 @@ public extension HackersPub {
           ] }
 
           public var id: HackersPub.ID { __data["id"] }
-          /// All available language versions of this article's content. Pass `language` to get only the best-matching locale (BCP 47 negotiation). Pass `includeBeingTranslated: true` to also include language versions whose LLM translation is still in progress.
+          /// All available language versions of this article's content. Pass `language` to get only the best-matching locale (BCP 47 negotiation). Pass `includeBeingTranslated: true` to also include language versions whose LLM translation is still in progress.  Empty when the article is censored or its author is hidden by a moderation sanction, and the viewer is neither its author nor a moderator.
           public var contents: [Content] { __data["contents"] }
 
           /// Node.AsArticle.Content
@@ -111,12 +111,13 @@ public extension HackersPub {
             public var id: HackersPub.ID { __data["id"] }
             /// BCP 47 language tag identifying this content version.
             public var language: HackersPub.Locale { __data["language"] }
+            /// The article's title in this language.  Empty when the article is censored, or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator.
             public var title: String { __data["title"] }
-            /// Rendered HTML of this language version, with media URLs resolved and external links annotated.
+            /// Rendered HTML of this language version, with media URLs resolved and external links annotated.  Empty when the article is censored, or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator.
             public var content: HackersPub.HTML { __data["content"] }
-            /// LLM-generated summary for this language version. `null` until generation completes. Check `summaryStarted` to distinguish between "not requested" and "in progress".
+            /// `null` when the article is censored, or its author is hidden by a moderation sanction, and the viewer is neither its author nor a moderator.  Otherwise the LLM-generated summary for this language version: `null` until generation completes. Check `summaryStarted` to distinguish between "not requested" and "in progress".
             public var summary: String? { __data["summary"] }
-            /// Table of contents for the article content.
+            /// Table of contents for the article content.  Empty when the article is censored, or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator.
             public var toc: HackersPub.JSON { __data["toc"] }
             /// Whether an LLM translation into this language is currently in progress. When `true`, the content may be incomplete.
             public var beingTranslated: Bool { __data["beingTranslated"] }

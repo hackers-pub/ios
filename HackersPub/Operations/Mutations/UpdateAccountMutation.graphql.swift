@@ -103,15 +103,17 @@ public extension HackersPub {
 
           public var id: HackersPub.ID { __data["id"] }
           public var username: String { __data["username"] }
+          /// The account holder's display name.  Empty when the account is permanently suspended (banned) and the viewer is neither the account holder nor a moderator (mirrors the redacted `Actor`).
           public var name: String { __data["name"] }
+          /// The account holder's profile bio in Markdown.  Empty when the account is permanently suspended (banned) and the viewer is neither the account holder nor a moderator.
           public var bio: HackersPub.Markdown { __data["bio"] }
-          /// UUID of the medium used as this account's avatar.
+          /// UUID of the medium used as this account's avatar.  `null` when the account is permanently suspended (banned) and the viewer is neither the account holder nor a moderator, so the real avatar medium cannot be resolved through `node(id:)`.
           public var avatarMediumId: HackersPub.UUID? { __data["avatarMediumId"] }
           @available(*, deprecated, message: "Use avatarMediumId instead.")
           public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
           /// Full fediverse handle including the instance host, e.g., @alice@hackers.pub. Suitable for display and for cross-instance @-mention targeting.
           public var handle: String { __data["handle"] }
-          /// Profile links displayed on the account's public page, ordered by their display index. Links with a non-null `verified` timestamp have passed rel-me verification.
+          /// Profile links displayed on the account's public page, ordered by their display index. Links with a non-null `verified` timestamp have passed rel-me verification.  Empty when the account is permanently suspended (banned) and the viewer is neither the account holder nor a moderator, mirroring the suspended ActivityPub actor stub.
           public var links: [Link] { __data["links"] }
 
           /// UpdateAccount.Account.Link

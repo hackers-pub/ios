@@ -32,6 +32,7 @@ public extension HackersPub {
       case "Account": return HackersPub.Objects.Account
       case "AccountArticleDraftsConnection": return HackersPub.Objects.AccountArticleDraftsConnection
       case "AccountArticleDraftsConnectionEdge": return HackersPub.Objects.AccountArticleDraftsConnectionEdge
+      case "AccountBannedError": return HackersPub.Objects.AccountBannedError
       case "AccountLink": return HackersPub.Objects.AccountLink
       case "AccountNotFoundError": return HackersPub.Objects.AccountNotFoundError
       case "AccountNotificationsConnection": return HackersPub.Objects.AccountNotificationsConnection
@@ -45,6 +46,7 @@ public extension HackersPub {
       case "ActorNotesConnectionEdge": return HackersPub.Objects.ActorNotesConnectionEdge
       case "ActorPostsConnection": return HackersPub.Objects.ActorPostsConnection
       case "ActorPostsConnectionEdge": return HackersPub.Objects.ActorPostsConnectionEdge
+      case "ActorSuspendedError": return HackersPub.Objects.ActorSuspendedError
       case "AddReactionToPostPayload": return HackersPub.Objects.AddReactionToPostPayload
       case "Article": return HackersPub.Objects.Article
       case "ArticleContent": return HackersPub.Objects.ArticleContent
@@ -53,6 +55,7 @@ public extension HackersPub {
       case "AttachArticleSourceMediumPayload": return HackersPub.Objects.AttachArticleSourceMediumPayload
       case "BlockActorPayload": return HackersPub.Objects.BlockActorPayload
       case "BookmarkPostPayload": return HackersPub.Objects.BookmarkPostPayload
+      case "ContentSnapshot": return HackersPub.Objects.ContentSnapshot
       case "CreateNotePayload": return HackersPub.Objects.CreateNotePayload
       case "CustomEmoji": return HackersPub.Objects.CustomEmoji
       case "CustomEmojiReactionGroup": return HackersPub.Objects.CustomEmojiReactionGroup
@@ -61,6 +64,10 @@ public extension HackersPub {
       case "EmojiReactionGroup": return HackersPub.Objects.EmojiReactionGroup
       case "EmptySearchQueryError": return HackersPub.Objects.EmptySearchQueryError
       case "FinishMediumUploadPayload": return HackersPub.Objects.FinishMediumUploadPayload
+      case "Flag": return HackersPub.Objects.Flag
+      case "FlagAction": return HackersPub.Objects.FlagAction
+      case "FlagAppeal": return HackersPub.Objects.FlagAppeal
+      case "FlagCase": return HackersPub.Objects.FlagCase
       case "FollowActorPayload": return HackersPub.Objects.FollowActorPayload
       case "FollowNotification": return HackersPub.Objects.FollowNotification
       case "Instance": return HackersPub.Objects.Instance
@@ -70,6 +77,7 @@ public extension HackersPub {
       case "Medium": return HackersPub.Objects.Medium
       case "MediumUploadHeader": return HackersPub.Objects.MediumUploadHeader
       case "MentionNotification": return HackersPub.Objects.MentionNotification
+      case "ModerationNotification": return HackersPub.Objects.ModerationNotification
       case "Mutation": return HackersPub.Objects.Mutation
       case "NewsExcludedPattern": return HackersPub.Objects.NewsExcludedPattern
       case "NewsScoreStatus": return HackersPub.Objects.NewsScoreStatus
@@ -79,10 +87,14 @@ public extension HackersPub {
       case "Note": return HackersPub.Objects.Note
       case "NotificationActorsConnection": return HackersPub.Objects.NotificationActorsConnection
       case "NotificationActorsConnectionEdge": return HackersPub.Objects.NotificationActorsConnectionEdge
+      case "OrganizationConversionRequestNotification": return HackersPub.Objects.OrganizationConversionRequestNotification
+      case "OrganizationInvitationNotification": return HackersPub.Objects.OrganizationInvitationNotification
+      case "OrganizationPermissionError": return HackersPub.Objects.OrganizationPermissionError
       case "PageInfo": return HackersPub.Objects.PageInfo
       case "Passkey": return HackersPub.Objects.Passkey
       case "PasskeyRegistrationResult": return HackersPub.Objects.PasskeyRegistrationResult
       case "Poll": return HackersPub.Objects.Poll
+      case "PollEndedNotification": return HackersPub.Objects.PollEndedNotification
       case "PostEngagementStats": return HackersPub.Objects.PostEngagementStats
       case "PostLink": return HackersPub.Objects.PostLink
       case "PostLinkImage": return HackersPub.Objects.PostLinkImage
@@ -117,6 +129,7 @@ public extension HackersPub {
       case "ReactionGroupReactorsConnection": return HackersPub.Objects.ReactionGroupReactorsConnection
       case "ReactionGroupReactorsConnectionEdge": return HackersPub.Objects.ReactionGroupReactorsConnectionEdge
       case "RecomputeNewsScoresPayload": return HackersPub.Objects.RecomputeNewsScoresPayload
+      case "RelaySubscription": return HackersPub.Objects.RelaySubscription
       case "RemoveFollowerPayload": return HackersPub.Objects.RemoveFollowerPayload
       case "RemoveNewsExcludedPatternPayload": return HackersPub.Objects.RemoveNewsExcludedPatternPayload
       case "RemoveReactionFromPostPayload": return HackersPub.Objects.RemoveReactionFromPostPayload

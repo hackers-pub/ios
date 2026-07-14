@@ -125,7 +125,7 @@ public extension HackersPub {
             ] }
 
             public var id: HackersPub.ID { __data["id"] }
-            /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
+            /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers copy the boosted post's content; prefer `sharedPost.content`.  Empty when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post), and the viewer is neither the content's author nor a moderator.
             public var content: HackersPub.HTML { __data["content"] }
             public var published: HackersPub.DateTime { __data["published"] }
           }

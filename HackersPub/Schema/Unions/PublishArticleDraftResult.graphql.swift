@@ -7,8 +7,10 @@ public extension HackersPub.Unions {
   static let PublishArticleDraftResult = Union(
     name: "PublishArticleDraftResult",
     possibleTypes: [
+      HackersPub.Objects.ActorSuspendedError.self,
       HackersPub.Objects.InvalidInputError.self,
       HackersPub.Objects.NotAuthenticatedError.self,
+      HackersPub.Objects.OrganizationPermissionError.self,
       HackersPub.Objects.PublishArticleDraftPayload.self
     ]
   )

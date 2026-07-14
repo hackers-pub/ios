@@ -72,7 +72,7 @@ public extension HackersPub {
         ] }
 
         public var id: HackersPub.ID { __data["id"] }
-        /// Whether this account has moderator privileges. Moderators can view all accounts, see moderation-only fields such as `postCount` and `lastPostPublished`, and perform administrative mutations such as `deleteOrphanMedia` and `regenerateInvitations`.
+        /// Whether this account has moderator privileges. Moderators can view `postCount` and `lastPostPublished` for any account, and perform administrative mutations such as `deleteOrphanMedia` and `regenerateInvitations`.
         public var moderator: Bool { __data["moderator"] }
       }
 
@@ -148,9 +148,10 @@ public extension HackersPub {
             public var title: String? { __data["title"] }
             public var siteName: String? { __data["siteName"] }
             public var description: String? { __data["description"] }
-            /// Size of this link's federated discussion: its non-bot public sharing posts plus their direct public (`public`/`unlisted`) replies and quotes.  Use this as the count of posts to read in the discussion (the `/news/{uuid}` page); unlike `postCount` it includes the replies and quotes, not just the shares.  Counts direct children only (deeper nesting is not traversed) and is viewer-independent (public posts only).
+            /// Size of this link's federated discussion: its qualifying public direct linked sharing posts (non-bot accounts, or curated preferred sharers) plus their direct public (`public`/`unlisted`) replies and quotes.  Use this as the count of posts to read in the discussion (the `/news/{uuid}` page); unlike `postCount` it includes replies and quotes, but it does not include `Article` boosts that count only toward the score.  Counts direct children only (deeper nesting is not traversed) and is viewer-independent (public posts only).  Censored posts and posts by sanction-hidden actors are excluded, both as shares and as replies/quotes.
             public var discussionCount: Int { __data["discussionCount"] }
-            /// Timestamp of the freshest activity on this link's qualifying shares (the share itself, a reply, a quote, or a reaction); shares are public and authored by non-bot accounts.  A rapid repeat share by the same account does not refresh this (only a first share, a sufficiently-gapped re-share, or genuine replies/quotes/reactions do), so re-posting cannot keep a link pinned at the top.  `null` means the link is not a news story (no qualifying public share); such links are excluded from the feed.
+            /// Deprecated compatibility alias for `latestActivity`. Use `latestActivity` for the freshest qualifying activity timestamp.
+            @available(*, deprecated, message: "Use `latestActivity` instead.")
             public var latestActivityAt: HackersPub.DateTime? { __data["latestActivityAt"] }
             /// The moderator score penalty on this link (demoting it in the `POPULAR` feed).  `null` for non-moderators; moderators see `NONE` when the link is unpenalized.  Set it with `setNewsScorePenalty`.
             public var penalty: GraphQLEnum<HackersPub.NewsPenalty>? { __data["penalty"] }

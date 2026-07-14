@@ -10,7 +10,8 @@ public extension HackersPub.Unions {
       HackersPub.Objects.AttachArticleSourceMediumPayload.self,
       HackersPub.Objects.InvalidInputError.self,
       HackersPub.Objects.NotAuthenticatedError.self,
-      HackersPub.Objects.NotAuthorizedError.self
+      HackersPub.Objects.NotAuthorizedError.self,
+      HackersPub.Objects.OrganizationPermissionError.self
     ]
   )
 }

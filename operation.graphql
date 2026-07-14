@@ -1055,13 +1055,15 @@ mutation LoginByUsernameMutation($username: String!, $locale: Locale!, $verifyUr
 
 mutation CompleteLoginChallengeMutation($token: UUID!, $code: String!) {
   completeLoginChallenge(token: $token, code: $code) {
-    id
-    account {
+    ... on Session {
       id
-      username
-      name
-      avatarUrl
-      handle
+      account {
+        id
+        username
+        name
+        avatarUrl
+        handle
+      }
     }
   }
 }
@@ -1072,13 +1074,15 @@ mutation GetPasskeyAuthenticationOptionsMutation($sessionId: UUID!) {
 
 mutation LoginByPasskeyMutation($sessionId: UUID!, $authenticationResponse: JSON!) {
   loginByPasskey(sessionId: $sessionId, authenticationResponse: $authenticationResponse) {
-    id
-    account {
+    ... on Session {
       id
-      username
-      name
-      avatarUrl
-      handle
+      account {
+        id
+        username
+        name
+        avatarUrl
+        handle
+      }
     }
   }
 }
@@ -2558,7 +2562,7 @@ query NewsAdminQuery {
   }
   newsScoreStatus {
     scoredLinkCount
-    lastRecomputedAt
+    lastRecomputedAt: lastRecomputed
   }
   newsExcludedPatterns {
     id
@@ -2582,7 +2586,7 @@ mutation RecomputeNewsScoresMutation {
       linksUpdated
       status {
         scoredLinkCount
-        lastRecomputedAt
+        lastRecomputedAt: lastRecomputed
       }
     }
     ... on NotAuthenticatedError {

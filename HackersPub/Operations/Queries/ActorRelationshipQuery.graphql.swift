@@ -62,13 +62,13 @@ public extension HackersPub {
         public var id: HackersPub.ID { __data["id"] }
         /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
         public var handle: String { __data["handle"] }
-        /// True if this actor belongs to the currently authenticated viewer. Always false for unauthenticated requests.
+        /// True if this actor belongs to the selected viewer account. Always false for unauthenticated requests. Pass `actingAccountId` to compare against an organization account managed by the authenticated viewer.
         public var isViewer: Bool { __data["isViewer"] }
-        /// True if the authenticated viewer follows this actor. Always false for unauthenticated requests or when the actor is the viewer themselves.
+        /// True if the selected viewer account has an accepted follow for this actor. Pending follow requests return `false`; use `viewerFollowState` to distinguish `PENDING` from `NONE`. Always false for unauthenticated requests or when the actor is the selected viewer actor themselves. Pass `actingAccountId` for an organization perspective.
         public var viewerFollows: Bool { __data["viewerFollows"] }
-        /// True if this actor follows the authenticated viewer. Always false for unauthenticated requests.
+        /// True if this actor follows the selected viewer account. Always false for unauthenticated requests. Pass `actingAccountId` for an organization perspective.
         public var followsViewer: Bool { __data["followsViewer"] }
-        /// True if the authenticated viewer has blocked this actor. Always false for unauthenticated requests.
+        /// True if the selected viewer account has blocked this actor. Always false for unauthenticated requests. Pass `actingAccountId` for an organization perspective.
         public var viewerBlocks: Bool { __data["viewerBlocks"] }
       }
     }

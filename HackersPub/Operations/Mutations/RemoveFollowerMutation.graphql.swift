@@ -32,6 +32,7 @@ public extension HackersPub {
         RemoveFollowerMutation.Data.self
       ] }
 
+      /// Remove an `Actor` from the selected viewer account's followers. This deletes the follower relationship without blocking the actor; remote followers receive an ActivityPub `Reject` for the original `Follow`.
       public var removeFollower: RemoveFollower { __data["removeFollower"] }
 
       /// RemoveFollower
@@ -74,7 +75,9 @@ public extension HackersPub {
             RemoveFollowerMutation.Data.RemoveFollower.AsRemoveFollowerPayload.self
           ] }
 
+          /// The selected viewer account's `Actor` whose follower list changed.
           public var followee: Followee { __data["followee"] }
+          /// The removed follower `Actor`. The actor may follow the viewer again later unless separately blocked.
           public var follower: Follower { __data["follower"] }
 
           /// RemoveFollower.AsRemoveFollowerPayload.Followee

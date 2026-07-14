@@ -7,9 +7,11 @@ public extension HackersPub.Unions {
   static let FollowActorResult = Union(
     name: "FollowActorResult",
     possibleTypes: [
+      HackersPub.Objects.ActorSuspendedError.self,
       HackersPub.Objects.FollowActorPayload.self,
       HackersPub.Objects.InvalidInputError.self,
-      HackersPub.Objects.NotAuthenticatedError.self
+      HackersPub.Objects.NotAuthenticatedError.self,
+      HackersPub.Objects.OrganizationPermissionError.self
     ]
   )
 }

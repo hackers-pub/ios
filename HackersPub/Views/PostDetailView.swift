@@ -1458,7 +1458,7 @@ struct PostDetailView: View {
                 if let payload = response.data?.unbookmarkPost.asUnbookmarkPostPayload {
                     engagementState?.hasBookmarked = PostBookmarkChangePropagation.resolve(
                         postID: engagementTargetID,
-                        authoritativeState: payload.post.viewerHasBookmarked,
+                        authoritativeState: payload.post?.viewerHasBookmarked,
                         fallbackState: previousState,
                         onChange: onBookmarkChanged
                     )

@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "NewsAdminQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query NewsAdminQuery { viewer { __typename id moderator } newsScoreStatus { __typename scoredLinkCount lastRecomputedAt } newsExcludedPatterns { __typename id pattern note created } newsPenalizedStories { __typename id uuid url title penalty } }"#
+        #"query NewsAdminQuery { viewer { __typename id moderator } newsScoreStatus { __typename scoredLinkCount lastRecomputedAt: lastRecomputed } newsExcludedPatterns { __typename id pattern note created } newsPenalizedStories { __typename id uuid url title penalty } }"#
       ))
 
     public init() {}
@@ -56,7 +56,7 @@ public extension HackersPub {
         ] }
 
         public var id: HackersPub.ID { __data["id"] }
-        /// Whether this account has moderator privileges. Moderators can view all accounts, see moderation-only fields such as `postCount` and `lastPostPublished`, and perform administrative mutations such as `deleteOrphanMedia` and `regenerateInvitations`.
+        /// Whether this account has moderator privileges. Moderators can view `postCount` and `lastPostPublished` for any account, and perform administrative mutations such as `deleteOrphanMedia` and `regenerateInvitations`.
         public var moderator: Bool { __data["moderator"] }
       }
 
@@ -71,7 +71,7 @@ public extension HackersPub {
         @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
           .field("__typename", String.self),
           .field("scoredLinkCount", Int.self),
-          .field("lastRecomputedAt", HackersPub.DateTime?.self),
+          .field("lastRecomputed", alias: "lastRecomputedAt", HackersPub.DateTime?.self),
         ] }
         @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
           NewsAdminQuery.Data.NewsScoreStatus.self

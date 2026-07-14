@@ -91,7 +91,7 @@ public extension HackersPub {
           public var visibility: GraphQLEnum<HackersPub.PostVisibility> { __data["visibility"] }
           /// The actor who authored or boosted this post.
           public var actor: Actor { __data["actor"] }
-          /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
+          /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to). Empty when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator, since the mention targets are part of the censored content.
           public var mentions: Mentions { __data["mentions"] }
 
           /// Node.AsPost.Actor

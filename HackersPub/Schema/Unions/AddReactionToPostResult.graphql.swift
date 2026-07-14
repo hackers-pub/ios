@@ -7,9 +7,11 @@ public extension HackersPub.Unions {
   static let AddReactionToPostResult = Union(
     name: "AddReactionToPostResult",
     possibleTypes: [
+      HackersPub.Objects.ActorSuspendedError.self,
       HackersPub.Objects.AddReactionToPostPayload.self,
       HackersPub.Objects.InvalidInputError.self,
-      HackersPub.Objects.NotAuthenticatedError.self
+      HackersPub.Objects.NotAuthenticatedError.self,
+      HackersPub.Objects.OrganizationPermissionError.self
     ]
   )
 }

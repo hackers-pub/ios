@@ -68,9 +68,9 @@ public extension HackersPub {
         public var id: HackersPub.ID { __data["id"] }
         /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
         public var handle: String { __data["handle"] }
-        /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set.
+        /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set, or is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
         public var name: HackersPub.HTML? { __data["name"] }
-        /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.
+        /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.  Replaced with the anonymous placeholder avatar when the actor is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
         public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
       }
     }

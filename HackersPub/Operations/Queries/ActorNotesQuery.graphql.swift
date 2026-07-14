@@ -82,7 +82,7 @@ public extension HackersPub {
         ] }
 
         public var id: HackersPub.ID { __data["id"] }
-        /// This actor's `Note`-type posts, newest first, filtered to those visible to the viewer. Includes both original notes and boost wrappers of remote notes. Use `sharedPosts` to see only boosts.
+        /// This actor's `Note`-type posts, newest first, filtered to those visible to the viewer. Includes both original notes and boost wrappers of remote notes. Use `sharedPosts` to see only boosts. Pass `actingAccountId` for an organization perspective.
         public var notes: Notes { __data["notes"] }
 
         /// ActorByHandle.Notes
@@ -143,34 +143,34 @@ public extension HackersPub {
               ] }
 
               public var id: HackersPub.ID { __data["id"] }
-              /// The post's title. Non-null for `Article`s; `null` for `Note`s, boost wrappers, and `Question`s.
+              /// The post's title. Non-null for `Article`s and local poll `Question`s; `null` for `Note`s and boost wrappers.  `null` when the post is censored or its author is hidden by a moderation sanction (or it is a boost wrapper of such a post, whose title it copies) and the viewer is neither the content's author nor a moderator.
               public var name: String? { __data["name"] }
               public var published: HackersPub.DateTime { __data["published"] }
-              /// Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.
+              /// Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.  `null` when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post), and the viewer is neither the content's author nor a moderator.
               public var summary: String? { __data["summary"] }
-              /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers have empty content; use `sharedPost.content` instead.
+              /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers copy the boosted post's content; prefer `sharedPost.content`.  Empty when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post), and the viewer is neither the content's author nor a moderator.
               public var content: HackersPub.HTML { __data["content"] }
-              /// Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.
+              /// Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.  Empty when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post) and the viewer is neither the content's author nor a moderator.
               public var excerpt: String { __data["excerpt"] }
-              /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier — `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles — **not** `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised — copied from the shared post in the boost case — and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.
+              /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier: `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles, and `Question.sourceId` for questions. It does not encode `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised (copied from the shared post in the boost case) and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.  `null` when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the content's author nor a moderator, EXCEPT for a local post (whose own permalink renders the notice): a boost wrapper's URL mirrors the boosted post's, and a remote post's URL points at the uncensored copy on its origin instance, so both are hidden.
               public var url: HackersPub.URL? { __data["url"] }
-              /// The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.
+              /// The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.  When the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator, a remote IRI (or a boost wrapper's, whose `url` is also nulled) is replaced with the local permalink that renders the notice, so a `url ?? iri` fallback never leaks the uncensored origin. A local non-wrapper post keeps its own `/ap/…` IRI (it does not point outside this instance).
               public var iri: HackersPub.URL { __data["iri"] }
-              /// Whether the authenticated viewer has boosted this post. Always `false` for unauthenticated requests.
+              /// Whether the selected viewer account has boosted this post. Always `false` for unauthenticated requests. Pass `actingAccountId` for an organization perspective.
               public var viewerHasShared: Bool { __data["viewerHasShared"] }
               /// Whether the authenticated viewer has bookmarked this post. Always `false` for unauthenticated requests.
               public var viewerHasBookmarked: Bool { __data["viewerHasBookmarked"] }
               /// The actor who authored or boosted this post.
               public var actor: Actor { __data["actor"] }
-              /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.
+              /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.  Empty when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator: attachments are part of the hidden content.
               public var media: [Medium] { __data["media"] }
-              /// The post being boosted. Non-null only for boost wrapper rows. When this is non-null, `content` is empty and `url` mirrors the shared post's URL.
+              /// The post being boosted. Non-null only for boost wrapper rows. When this is non-null, `content` is empty and `url` mirrors the shared post's URL.  `null` when the boost wrapper itself is censored, or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator (what was boosted is the censored content), and also when the boosted post is not visible to the viewer (e.g., a followers-only post the viewer does not follow), so a boost cannot leak its private target.
               public var sharedPost: SharedPost? { __data["sharedPost"] }
-              /// The post being quoted inline. `null` for posts that are not quotes.
+              /// The post being quoted inline. `null` for posts that are not quotes, when the quoting post is censored or its author is hidden by a moderation sanction and the viewer is neither its author nor a moderator (the quoted target is part of the censored content), and also when the quoted post is not visible to the viewer (e.g., a followers-only post the viewer does not follow), so a public quote cannot leak its private target.
               public var quotedPost: QuotedPost? { __data["quotedPost"] }
               public var engagementStats: EngagementStats { __data["engagementStats"] }
               public var reactionGroups: [ReactionGroup] { __data["reactionGroups"] }
-              /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to).
+              /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to). Empty when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator, since the mention targets are part of the censored content.
               public var mentions: Mentions { __data["mentions"] }
 
               public struct Fragments: FragmentContainer {

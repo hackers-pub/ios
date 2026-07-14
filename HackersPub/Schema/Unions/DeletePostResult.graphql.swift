@@ -10,6 +10,7 @@ public extension HackersPub.Unions {
       HackersPub.Objects.DeletePostPayload.self,
       HackersPub.Objects.InvalidInputError.self,
       HackersPub.Objects.NotAuthenticatedError.self,
+      HackersPub.Objects.OrganizationPermissionError.self,
       HackersPub.Objects.SharedPostDeletionNotAllowedError.self
     ]
   )

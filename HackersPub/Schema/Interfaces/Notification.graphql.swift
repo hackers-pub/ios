@@ -11,6 +11,9 @@ public extension HackersPub.Interfaces {
     implementingObjects: [
       "FollowNotification",
       "MentionNotification",
+      "OrganizationConversionRequestNotification",
+      "OrganizationInvitationNotification",
+      "PollEndedNotification",
       "QuoteNotification",
       "QuotedPostUpdatedNotification",
       "ReactNotification",

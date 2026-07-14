@@ -80,7 +80,7 @@ public extension HackersPub {
             PostSharesQuery.Data.Node.AsPost.self
           ] }
 
-          /// Boost wrapper posts that reshare this post. Each edge represents a single boost by a specific actor.
+          /// Boost wrapper posts that reshare this post, newest first. Each edge represents a single boost by a specific actor. Censored boosts (including boosts of a censored post), boosts by actors whose content is hidden by a moderation sanction, and boosts not visible to the selected viewer account (e.g., followers-only boosts by actors the viewer does not follow) are excluded. Pass `actingAccountId` for an organization perspective.
           public var shares: Shares { __data["shares"] }
 
           /// Node.AsPost.Shares
@@ -164,11 +164,11 @@ public extension HackersPub {
                   ] }
 
                   public var id: HackersPub.ID { __data["id"] }
-                  /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set.
+                  /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set, or is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
                   public var name: HackersPub.HTML? { __data["name"] }
                   /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
                   public var handle: String { __data["handle"] }
-                  /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.
+                  /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.  Replaced with the anonymous placeholder avatar when the actor is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
                   public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
                 }
               }

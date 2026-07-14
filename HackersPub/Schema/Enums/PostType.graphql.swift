@@ -10,7 +10,7 @@ public extension HackersPub {
     case article = "ARTICLE"
     /// Short microblog post (equivalent to a Mastodon Status or ActivityPub Note).
     case note = "NOTE"
-    /// ActivityPub Question (poll) originating from a federated instance. Creating new Questions locally is not supported.
+    /// ActivityPub `Question` poll. Questions may originate locally via `createQuestion` or remotely through federation.
     case question = "QUESTION"
   }
 

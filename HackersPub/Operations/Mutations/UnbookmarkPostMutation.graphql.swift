@@ -66,7 +66,7 @@ public extension HackersPub {
           public typealias RootEntityType = UnbookmarkPostMutation.Data.UnbookmarkPost
           @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.UnbookmarkPostPayload }
           @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
-            .field("post", Post.self),
+            .field("post", Post?.self),
             .field("unbookmarkedPostId", HackersPub.ID.self),
           ] }
           @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
@@ -74,7 +74,7 @@ public extension HackersPub {
             UnbookmarkPostMutation.Data.UnbookmarkPost.AsUnbookmarkPostPayload.self
           ] }
 
-          public var post: Post { __data["post"] }
+          public var post: Post? { __data["post"] }
           public var unbookmarkedPostId: HackersPub.ID { __data["unbookmarkedPostId"] }
 
           /// UnbookmarkPost.AsUnbookmarkPostPayload.Post

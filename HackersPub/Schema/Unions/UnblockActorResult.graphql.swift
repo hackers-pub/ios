@@ -9,6 +9,7 @@ public extension HackersPub.Unions {
     possibleTypes: [
       HackersPub.Objects.InvalidInputError.self,
       HackersPub.Objects.NotAuthenticatedError.self,
+      HackersPub.Objects.OrganizationPermissionError.self,
       HackersPub.Objects.UnblockActorPayload.self
     ]
   )

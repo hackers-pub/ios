@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "RecomputeNewsScoresMutation"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"mutation RecomputeNewsScoresMutation { recomputeNewsScores { __typename ... on RecomputeNewsScoresPayload { linksUpdated status { __typename scoredLinkCount lastRecomputedAt } } ... on NotAuthenticatedError { notAuthenticated } ... on NotAuthorizedError { notAuthorized } } }"#
+        #"mutation RecomputeNewsScoresMutation { recomputeNewsScores { __typename ... on RecomputeNewsScoresPayload { linksUpdated status { __typename scoredLinkCount lastRecomputedAt: lastRecomputed } } ... on NotAuthenticatedError { notAuthenticated } ... on NotAuthorizedError { notAuthorized } } }"#
       ))
 
     public init() {}
@@ -85,7 +85,7 @@ public extension HackersPub {
             @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
               .field("__typename", String.self),
               .field("scoredLinkCount", Int.self),
-              .field("lastRecomputedAt", HackersPub.DateTime?.self),
+              .field("lastRecomputed", alias: "lastRecomputedAt", HackersPub.DateTime?.self),
             ] }
             @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
               RecomputeNewsScoresMutation.Data.RecomputeNewsScores.AsRecomputeNewsScoresPayload.Status.self

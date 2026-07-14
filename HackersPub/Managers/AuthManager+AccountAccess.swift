@@ -49,7 +49,7 @@ extension AuthManager {
             }
         #endif
 
-        guard let session = response.data?.completeLoginChallenge else {
+        guard let session = response.data?.completeLoginChallenge?.asSession else {
             #if DEBUG
                 NSLog("CompleteLoginChallenge returned no session data")
             #endif
@@ -75,7 +75,7 @@ extension AuthManager {
                 authenticationResponse: authenticationResponse
             )
         )
-        guard let session = loginResponse.data?.loginByPasskey else {
+        guard let session = loginResponse.data?.loginByPasskey?.asSession else {
             throw AuthError.passkeyFailed
         }
         try await persistAndInstallSession(session.id)
