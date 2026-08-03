@@ -49,13 +49,29 @@ extension AuthManager {
             }
         #endif
 
-        guard let session = response.data?.completeLoginChallenge?.asSession else {
+        let sessionID = try loginChallengeSessionID(from: response.data?.completeLoginChallenge)
+        try await persistAndInstallSession(sessionID)
+    }
+
+    func loginChallengeSessionID(
+        from result: HackersPub.CompleteLoginChallengeMutation.Data.CompleteLoginChallenge?
+    ) throws -> String {
+        guard let result else {
             #if DEBUG
-                NSLog("CompleteLoginChallenge returned no session data")
+                NSLog("CompleteLoginChallenge returned no result data")
             #endif
             throw AuthError.verificationFailed
         }
-        try await persistAndInstallSession(session.id)
+        if result.asAccountBannedError != nil {
+            throw AuthError.accountBanned
+        }
+        guard let session = result.asSession else {
+            #if DEBUG
+                NSLog("CompleteLoginChallenge returned an unsupported result type")
+            #endif
+            throw AuthError.verificationFailed
+        }
+        return session.id
     }
 
     func signInWithPasskey() async throws {
@@ -183,6 +199,7 @@ enum AuthError: LocalizedError {
     case loginFailed
     case accountNotFound
     case verificationFailed
+    case accountBanned
     case passkeyFailed
     case sessionChanged
 
@@ -194,6 +211,8 @@ enum AuthError: LocalizedError {
             "signIn.error.accountNotFound"
         case .verificationFailed:
             "signIn.error.verificationFailed"
+        case .accountBanned:
+            "signIn.error.accountBanned"
         case .passkeyFailed:
             "passkey.error.failed"
         case .sessionChanged:

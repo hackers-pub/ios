@@ -33,6 +33,7 @@
 "signIn.error.loginFailed" = "Login failed. Please try again.";
 "signIn.error.accountNotFound" = "Account not found. Please check your username.";
 "signIn.error.verificationFailed" = "Verification failed. Please check your code.";
+"signIn.error.accountBanned" = "This account has been permanently suspended and cannot sign in.";
 "signIn.verificationFailed.title" = "Sign-in failed";
 "signIn.verificationFailed.message" = "This sign-in link could not be verified. Request a new link and try again.";
 "signIn.verificationAlreadySignedIn.title" = "Already signed in";

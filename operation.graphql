@@ -1065,6 +1065,9 @@ mutation CompleteLoginChallengeMutation($token: UUID!, $code: String!) {
         handle
       }
     }
+    ... on AccountBannedError {
+      since
+    }
   }
 }
 

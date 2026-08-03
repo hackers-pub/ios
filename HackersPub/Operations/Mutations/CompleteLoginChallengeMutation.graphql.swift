@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "CompleteLoginChallengeMutation"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"mutation CompleteLoginChallengeMutation($token: UUID!, $code: String!) { completeLoginChallenge(token: $token, code: $code) { __typename ... on Session { id account { __typename id username name avatarUrl handle } } } }"#
+        #"mutation CompleteLoginChallengeMutation($token: UUID!, $code: String!) { completeLoginChallenge(token: $token, code: $code) { __typename ... on Session { id account { __typename id username name avatarUrl handle } } ... on AccountBannedError { since } } }"#
       ))
 
     public var token: UUID
@@ -57,12 +57,14 @@ public extension HackersPub {
         @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
           .field("__typename", String.self),
           .inlineFragment(AsSession.self),
+          .inlineFragment(AsAccountBannedError.self),
         ] }
         @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
           CompleteLoginChallengeMutation.Data.CompleteLoginChallenge.self
         ] }
 
         public var asSession: AsSession? { _asInlineFragment() }
+        public var asAccountBannedError: AsAccountBannedError? { _asInlineFragment() }
 
         /// CompleteLoginChallenge.AsSession
         ///
@@ -115,6 +117,27 @@ public extension HackersPub {
             /// Full fediverse handle including the instance host, e.g., @alice@hackers.pub. Suitable for display and for cross-instance @-mention targeting.
             public var handle: String { __data["handle"] }
           }
+        }
+
+        /// CompleteLoginChallenge.AsAccountBannedError
+        ///
+        /// Parent Type: `AccountBannedError`
+        public struct AsAccountBannedError: HackersPub.InlineFragment {
+          @_spi(Unsafe) public let __data: DataDict
+          @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+          public typealias RootEntityType = CompleteLoginChallengeMutation.Data.CompleteLoginChallenge
+          @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.AccountBannedError }
+          @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+            .field("since", HackersPub.DateTime.self),
+          ] }
+          @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+            CompleteLoginChallengeMutation.Data.CompleteLoginChallenge.self,
+            CompleteLoginChallengeMutation.Data.CompleteLoginChallenge.AsAccountBannedError.self
+          ] }
+
+          /// When the permanent suspension took effect (the banned actor's `suspended` timestamp).
+          public var since: HackersPub.DateTime { __data["since"] }
         }
       }
     }
