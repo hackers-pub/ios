@@ -52,13 +52,6 @@ extension AuthManager: DeepLinkAuthenticating {
             }
         #endif
 
-        guard let session = response.data?.completeLoginChallenge?.asSession else {
-            #if DEBUG
-                NSLog("CompleteLoginChallenge returned no session data")
-            #endif
-            throw AuthError.verificationFailed
-        }
-
-        return session.id
+        return try loginChallengeSessionID(from: response.data?.completeLoginChallenge)
     }
 }

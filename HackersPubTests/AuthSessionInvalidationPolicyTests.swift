@@ -99,6 +99,7 @@ struct AuthPresentationPolicyTests {
         #expect(AuthError.loginFailed.localizationKey == "signIn.error.loginFailed")
         #expect(AuthError.accountNotFound.localizationKey == "signIn.error.accountNotFound")
         #expect(AuthError.verificationFailed.localizationKey == "signIn.error.verificationFailed")
+        #expect(AuthError.accountBanned.localizationKey == "signIn.error.accountBanned")
         #expect(AuthError.passkeyFailed.localizationKey == "passkey.error.failed")
     }
 

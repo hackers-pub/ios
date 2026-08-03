@@ -33,6 +33,7 @@
 "signIn.error.loginFailed" = "로그인에 실패했습니다. 다시 시도해 주세요.";
 "signIn.error.accountNotFound" = "계정을 찾을 수 없습니다. 사용자 이름을 확인해 주세요.";
 "signIn.error.verificationFailed" = "인증에 실패했습니다. 코드를 확인해 주세요.";
+"signIn.error.accountBanned" = "영구 정지된 계정은 로그인할 수 없습니다.";
 "signIn.verificationFailed.title" = "로그인에 실패했습니다";
 "signIn.verificationFailed.message" = "이 로그인 링크를 확인할 수 없습니다. 새 링크를 요청한 뒤 다시 시도해 주세요.";
 "signIn.verificationAlreadySignedIn.title" = "이미 로그인되어 있습니다";
