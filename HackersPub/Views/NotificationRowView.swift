@@ -61,6 +61,16 @@ struct NotificationRowView: View {
                 actorNamesHTML: actorNamesHTML,
                 kind: .followed
             )
+        } else if let pollEndedNotification = notification.asPollEndedNotification {
+            notificationWithPost(
+                icon: "chart.bar.fill",
+                color: .teal,
+                actorNamesHTML: actorNamesHTML,
+                kind: .pollEnded,
+                preview: pollEndedNotification.post.map {
+                    updatedPostPreview(postID: $0.id, content: $0.content)
+                }
+            )
         } else if let mentionNotification = notification.asMentionNotification {
             notificationWithPost(
                 icon: "at",
@@ -85,6 +95,16 @@ struct NotificationRowView: View {
                 kind: .quoted,
                 preview: quoteNotification.post.map(NotificationPostPreview.init)
             )
+        } else if let quotedPostUpdatedNotification = notification.asQuotedPostUpdatedNotification {
+            notificationWithPost(
+                icon: "quote.bubble.fill",
+                color: .orange,
+                actorNamesHTML: actorNamesHTML,
+                kind: .quotedPostUpdated,
+                preview: quotedPostUpdatedNotification.post.map {
+                    updatedPostPreview(postID: $0.id, content: $0.content)
+                }
+            )
         } else if let reactNotification = notification.asReactNotification {
             reactionNotification(actorNamesHTML: actorNamesHTML, notification: reactNotification)
         } else if let shareNotification = notification.asShareNotification {
@@ -94,6 +114,16 @@ struct NotificationRowView: View {
                 actorNamesHTML: actorNamesHTML,
                 kind: .shared,
                 preview: shareNotification.post.map(NotificationPostPreview.init)
+            )
+        } else if let sharedPostUpdatedNotification = notification.asSharedPostUpdatedNotification {
+            notificationWithPost(
+                icon: "arrow.triangle.2.circlepath",
+                color: .blue,
+                actorNamesHTML: actorNamesHTML,
+                kind: .sharedPostUpdated,
+                preview: sharedPostUpdatedNotification.post.map {
+                    updatedPostPreview(postID: $0.id, content: $0.content)
+                }
             )
         } else {
             Text(NSLocalizedString("notifications.unknownType", comment: "Unknown notification type"))
@@ -186,6 +216,18 @@ struct NotificationRowView: View {
                 navigationCoordinator.navigateToPost(id: postID)
             }
         }
+    }
+
+    private func updatedPostPreview(postID: String, content: String) -> NotificationPostPreview {
+        NotificationPostPreview(
+            postID: postID,
+            author: nil,
+            title: nil,
+            published: nil,
+            content: content,
+            summary: nil,
+            media: []
+        )
     }
 
     private var unavailablePostText: some View {

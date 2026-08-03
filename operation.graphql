@@ -1415,6 +1415,12 @@ query NotificationsQuery($after: String, $before: String, $first: Int, $last: In
           ... on FollowNotification {
             id
           }
+          ... on PollEndedNotification {
+            post {
+              id
+              content
+            }
+          }
           ... on MentionNotification {
             post {
               __typename
@@ -1532,6 +1538,12 @@ query NotificationsQuery($after: String, $before: String, $first: Int, $last: In
               }
             }
           }
+          ... on QuotedPostUpdatedNotification {
+            post {
+              id
+              content
+            }
+          }
           ... on ReactNotification {
             emoji
             customEmoji {
@@ -1614,6 +1626,12 @@ query NotificationsQuery($after: String, $before: String, $first: Int, $last: In
                   }
                 }
               }
+            }
+          }
+          ... on SharedPostUpdatedNotification {
+            post {
+              id
+              content
             }
           }
         }

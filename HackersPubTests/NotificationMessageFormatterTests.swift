@@ -59,16 +59,22 @@ struct NotificationMessageFormatterTests {
             switch kind {
             case .followed:
                 expected = "Ada followed you"
+            case .pollEnded:
+                expected = "Ada's poll ended"
             case .mentioned:
                 expected = "Ada mentioned you"
             case .replied:
                 expected = "Ada replied to your note"
             case .quoted:
                 expected = "Ada quoted your note"
+            case .quotedPostUpdated:
+                expected = "Ada updated a note you quoted"
             case .reacted:
                 expected = "Ada reacted to your note"
             case .shared:
                 expected = "Ada shared your note"
+            case .sharedPostUpdated:
+                expected = "Ada updated a note you shared"
             }
             #expect(
                 NotificationMessageFormatter.format(
@@ -152,6 +158,9 @@ struct NotificationMessageFormatterTests {
         notifications.message.followed.one=%1$@ followed you
         notifications.message.followed.two=%1$@ and %2$@ followed you
         notifications.message.followed.many=%1$@ and %2$d others followed you
+        notifications.message.pollEnded.one=%1$@'s poll ended
+        notifications.message.pollEnded.two=%1$@'s and %2$@'s polls ended
+        notifications.message.pollEnded.many=%1$@'s and %2$d others' polls ended
         notifications.message.mentioned.one=%1$@ mentioned you
         notifications.message.mentioned.two=%1$@ and %2$@ mentioned you
         notifications.message.mentioned.many=%1$@ and %2$d others mentioned you
@@ -161,12 +170,18 @@ struct NotificationMessageFormatterTests {
         notifications.message.quoted.one=%1$@ quoted your note
         notifications.message.quoted.two=%1$@ and %2$@ quoted your note
         notifications.message.quoted.many=%1$@ and %2$d others quoted your note
+        notifications.message.quotedPostUpdated.one=%1$@ updated a note you quoted
+        notifications.message.quotedPostUpdated.two=%1$@ and %2$@ updated notes you quoted
+        notifications.message.quotedPostUpdated.many=%1$@ and %2$d others updated notes you quoted
         notifications.message.reacted.one=%1$@ reacted to your note
         notifications.message.reacted.two=%1$@ and %2$@ reacted to your note
         notifications.message.reacted.many=%1$@ and %2$d others reacted to your note
         notifications.message.shared.one=%1$@ shared your note
         notifications.message.shared.two=%1$@ and %2$@ shared your note
         notifications.message.shared.many=%1$@ and %2$d others shared your note
+        notifications.message.sharedPostUpdated.one=%1$@ updated a note you shared
+        notifications.message.sharedPostUpdated.two=%1$@ and %2$@ updated notes you shared
+        notifications.message.sharedPostUpdated.many=%1$@ and %2$d others updated notes you shared
         """
     }
 
@@ -176,6 +191,9 @@ struct NotificationMessageFormatterTests {
         notifications.message.followed.one=%1$@님이 팔로우했습니다
         notifications.message.followed.two=%1$@님과 %2$@님이 팔로우했습니다
         notifications.message.followed.many=%1$@님 외 %2$d명이 팔로우했습니다
+        notifications.message.pollEnded.one=%1$@님의 설문이 종료되었습니다
+        notifications.message.pollEnded.two=%1$@님과 %2$@님의 설문이 종료되었습니다
+        notifications.message.pollEnded.many=%1$@님 외 %2$d명의 설문이 종료되었습니다
         notifications.message.mentioned.one=%1$@님이 언급했습니다
         notifications.message.mentioned.two=%1$@님과 %2$@님이 언급했습니다
         notifications.message.mentioned.many=%1$@님 외 %2$d명이 언급했습니다
@@ -185,12 +203,18 @@ struct NotificationMessageFormatterTests {
         notifications.message.quoted.one=%1$@님이 인용했습니다
         notifications.message.quoted.two=%1$@님과 %2$@님이 인용했습니다
         notifications.message.quoted.many=%1$@님 외 %2$d명이 인용했습니다
+        notifications.message.quotedPostUpdated.one=%1$@님이 회원님이 인용한 콘텐츠를 업데이트했습니다
+        notifications.message.quotedPostUpdated.two=%1$@님과 %2$@님이 회원님이 인용한 콘텐츠를 업데이트했습니다
+        notifications.message.quotedPostUpdated.many=%1$@님 외 %2$d명이 회원님이 인용한 콘텐츠를 업데이트했습니다
         notifications.message.reacted.one=%1$@님이 반응했습니다
         notifications.message.reacted.two=%1$@님과 %2$@님이 반응했습니다
         notifications.message.reacted.many=%1$@님 외 %2$d명이 반응했습니다
         notifications.message.shared.one=%1$@님이 공유했습니다
         notifications.message.shared.two=%1$@님과 %2$@님이 공유했습니다
         notifications.message.shared.many=%1$@님 외 %2$d명이 공유했습니다
+        notifications.message.sharedPostUpdated.one=%1$@님이 회원님이 공유한 콘텐츠를 업데이트했습니다
+        notifications.message.sharedPostUpdated.two=%1$@님과 %2$@님이 회원님이 공유한 콘텐츠를 업데이트했습니다
+        notifications.message.sharedPostUpdated.many=%1$@님 외 %2$d명이 회원님이 공유한 콘텐츠를 업데이트했습니다
         """
     }
 }

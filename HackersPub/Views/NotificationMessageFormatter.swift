@@ -2,26 +2,35 @@ import Foundation
 
 enum NotificationMessageKind: CaseIterable, Hashable {
     case followed
+    case pollEnded
     case mentioned
     case replied
     case quoted
+    case quotedPostUpdated
     case reacted
     case shared
+    case sharedPostUpdated
 
     var localizationComponent: String {
         switch self {
         case .followed:
             "followed"
+        case .pollEnded:
+            "pollEnded"
         case .mentioned:
             "mentioned"
         case .replied:
             "replied"
         case .quoted:
             "quoted"
+        case .quotedPostUpdated:
+            "quotedPostUpdated"
         case .reacted:
             "reacted"
         case .shared:
             "shared"
+        case .sharedPostUpdated:
+            "sharedPostUpdated"
         }
     }
 }
