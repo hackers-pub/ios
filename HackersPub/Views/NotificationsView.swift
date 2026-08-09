@@ -4,14 +4,12 @@ typealias NotificationEdge = HackersPub.NotificationsQuery.Data.Viewer.Notificat
 
 enum NotificationsPresentation {
     case primary
-    case companion
+    case companion(close: () -> Void, openPrimary: () -> Void)
 }
 
 struct NotificationsView: View {
     let controller: NotificationFeedController
     let presentation: NotificationsPresentation
-    var closeCompanion: () -> Void = {}
-    var openPrimaryNotifications: () -> Void = {}
 
     @State private var showingSettings = false
     @State private var scrollViewport = FeedViewportSnapshot<String>()
@@ -34,8 +32,8 @@ struct NotificationsView: View {
         switch presentation {
         case .primary:
             primaryView
-        case .companion:
-            companionView
+        case let .companion(close, openPrimary):
+            companionView(close: close, openPrimary: openPrimary)
         }
     }
 
@@ -88,7 +86,10 @@ struct NotificationsView: View {
         }
     }
 
-    private var companionView: some View {
+    private func companionView(
+        close: @escaping () -> Void,
+        openPrimary: @escaping () -> Void
+    ) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Text(NSLocalizedString("nav.notifications", comment: "Notifications companion title"))
@@ -96,7 +97,7 @@ struct NotificationsView: View {
 
                 Spacer()
 
-                Button(action: openPrimaryNotifications) {
+                Button(action: openPrimary) {
                     Label(
                         NSLocalizedString(
                             "notifications.openPrimary",
@@ -113,7 +114,7 @@ struct NotificationsView: View {
                     )
                 )
 
-                Button(action: closeCompanion) {
+                Button(action: close) {
                     Label(
                         NSLocalizedString("common.close", comment: "Close button"),
                         systemImage: "xmark"

@@ -156,8 +156,6 @@ struct ContentViewSearchRequestConsumer {
     }
 }
 
-// The root keeps authentication, tab customization, and adaptive presentation
-// transitions together so they cannot disagree about the selected destination.
 // swiftlint:disable:next type_body_length
 struct ContentView: View {
     @State private var searchText = ""
@@ -184,7 +182,6 @@ struct ContentView: View {
     @State private var notificationFeedController = NotificationFeedController()
     @State private var containerWidth: CGFloat = 0
     @State private var isNotificationsCompanionRequested = false
-    @State private var isNotificationsCompanionPresented = false
 
     var body: some View {
         Group {
@@ -399,9 +396,10 @@ struct ContentView: View {
         .inspector(isPresented: notificationsCompanionBinding) {
             NotificationsView(
                 controller: notificationFeedController,
-                presentation: .companion,
-                closeCompanion: closeNotificationsCompanion,
-                openPrimaryNotifications: openPrimaryNotifications
+                presentation: .companion(
+                    close: closeNotificationsCompanion,
+                    openPrimary: openPrimaryNotifications
+                )
             )
             .inspectorColumnWidth(min: 320, ideal: 380, max: 420)
         }
@@ -458,12 +456,6 @@ struct ContentView: View {
         .onChange(of: navigationCoordinator.requestedSearch) { _, _ in
             forwardRequestedSearch()
         }
-        .onChange(
-            of: adaptiveLayoutPolicy.shouldPresentNotificationsCompanion,
-            initial: true
-        ) { _, shouldPresent in
-            isNotificationsCompanionPresented = shouldPresent
-        }
     }
 
     private var selectedAppTab: AppTab {
@@ -485,9 +477,8 @@ struct ContentView: View {
 
     private var notificationsCompanionBinding: Binding<Bool> {
         Binding(
-            get: { isNotificationsCompanionPresented },
+            get: { adaptiveLayoutPolicy.shouldPresentNotificationsCompanion },
             set: { isPresented in
-                isNotificationsCompanionPresented = isPresented
                 if adaptiveLayoutPolicy.canOfferNotificationsCompanion,
                    selectedAppTab != .notifications {
                     isNotificationsCompanionRequested = isPresented
@@ -500,19 +491,17 @@ struct ContentView: View {
         CompanionToolbarConfiguration(
             isAvailable: adaptiveLayoutPolicy.canOfferNotificationsCompanion
                 && selectedAppTab != .notifications
-                && !isNotificationsCompanionPresented,
+                && !adaptiveLayoutPolicy.shouldPresentNotificationsCompanion,
             show: showNotificationsCompanion
         )
     }
 
     private func showNotificationsCompanion() {
         isNotificationsCompanionRequested = true
-        isNotificationsCompanionPresented = true
     }
 
     private func closeNotificationsCompanion() {
         isNotificationsCompanionRequested = false
-        isNotificationsCompanionPresented = false
     }
 
     private func openPrimaryNotifications() {
