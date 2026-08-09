@@ -181,7 +181,8 @@ struct ContentView: View {
     @State private var showingComposeView = false
     @State private var notificationFeedController = NotificationFeedController()
     @State private var containerWidth: CGFloat = 0
-    @State private var isNotificationsCompanionRequested = false
+    @AppStorage("layout.notificationsCompanionRequested")
+    private var isNotificationsCompanionRequested = false
 
     var body: some View {
         Group {
