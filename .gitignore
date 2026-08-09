@@ -24,3 +24,5 @@ buildServer.json
 # .DS_Store (macOS)
 .DS_Store
 
+# Local Git worktrees
+.worktrees/

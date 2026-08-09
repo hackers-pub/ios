@@ -15,7 +15,38 @@ enum SearchResultType: Identifiable, Hashable {
     }
 }
 
+enum SearchResultNavigationOwner: Equatable {
+    case actorRow
+    case postView
+    case resolvedPostRow
+}
+
+struct SearchResultNavigationPlan: Equatable {
+    let owner: SearchResultNavigationOwner
+    let destination: NavigationDestination
+}
+
 extension SearchResultType {
+    var navigationPlan: SearchResultNavigationPlan {
+        switch self {
+        case let .actor(actor):
+            SearchResultNavigationPlan(
+                owner: .actorRow,
+                destination: .profile(handle: actor.handle)
+            )
+        case let .post(post):
+            SearchResultNavigationPlan(
+                owner: .postView,
+                destination: .post(id: post.sharedPost?.id ?? post.id)
+            )
+        case let .resolvedPost(id, _):
+            SearchResultNavigationPlan(
+                owner: .resolvedPostRow,
+                destination: .post(id: id)
+            )
+        }
+    }
+
     var postContentListIdentity: PostListItemIdentity? {
         switch self {
         case let .post(post):
@@ -136,12 +167,8 @@ struct SearchView: View {
                                 sectionHeader(NSLocalizedString("search.accounts", comment: "Accounts section"))
 
                                 ForEach(directActors, id: \.id) { result in
-                                    if case let .actor(actor) = result {
-                                        NavigationLink(value: NavigationDestination.profile(handle: actor.handle)) {
-                                            SearchResultRow(result: result)
-                                                .padding()
-                                        }
-                                    }
+                                    SearchResultRow(result: result)
+                                        .padding()
                                     Divider()
                                 }
 
@@ -167,12 +194,8 @@ struct SearchView: View {
                                 )
 
                                 ForEach(relatedActors, id: \.id) { result in
-                                    if case let .actor(actor) = result {
-                                        NavigationLink(value: NavigationDestination.profile(handle: actor.handle)) {
-                                            SearchResultRow(result: result)
-                                                .padding()
-                                        }
-                                    }
+                                    SearchResultRow(result: result)
+                                        .padding()
                                     Divider()
                                 }
 
@@ -197,18 +220,11 @@ struct SearchView: View {
 
                                 ForEach(posts, id: \.id) { result in
                                     switch result {
-                                    case let .post(post):
-                                        if post.isArticle {
-                                            SearchResultRow(result: result)
-                                                .padding()
-                                        } else {
-                                            NavigationLink(value: NavigationDestination.post(id: post.id)) {
-                                                SearchResultRow(result: result)
-                                                    .padding()
-                                            }
-                                        }
-                                    case let .resolvedPost(id, _):
-                                        NavigationLink(value: NavigationDestination.post(id: id)) {
+                                    case .post:
+                                        SearchResultRow(result: result)
+                                            .padding()
+                                    case .resolvedPost:
+                                        NavigationLink(value: result.navigationPlan.destination) {
                                             SearchResultRow(result: result)
                                                 .padding()
                                         }
@@ -404,7 +420,6 @@ private extension SearchView {
 
 struct SearchResultRow: View {
     let result: SearchResultType
-    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
         switch result {
@@ -430,10 +445,8 @@ struct SearchResultRow: View {
             .accessibilityIdentifier("search.result.resolved.\(id)")
 
         case let .actor(actor):
-            HStack(spacing: 12) {
-                Button {
-                    navigationCoordinator.navigateToProfile(handle: actor.handle)
-                } label: {
+            NavigationLink(value: result.navigationPlan.destination) {
+                HStack(spacing: 12) {
                     KFImage(URL(string: actor.avatarURL))
                         .placeholder {
                             Color.gray.opacity(0.2)
@@ -442,12 +455,7 @@ struct SearchResultRow: View {
                         .scaledToFill()
                         .frame(width: 50, height: 50)
                         .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
 
-                Button {
-                    navigationCoordinator.navigateToProfile(handle: actor.handle)
-                } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         if let name = actor.name {
                             HTMLTextView(html: name, font: .headline)
@@ -457,8 +465,18 @@ struct SearchResultRow: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .buttonStyle(.plain)
             }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(actorAccessibilityLabel(actor))
+            .accessibilityIdentifier("search.result.actor.\(actor.id)")
         }
+    }
+
+    private func actorAccessibilityLabel(_ actor: SearchActor) -> String {
+        let name = actor.name.map(HTMLVisibleTextFallback.text(from:)) ?? ""
+        return [name, actor.handle]
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
     }
 }

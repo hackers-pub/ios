@@ -57,6 +57,31 @@ final class HackersPubUITests: XCTestCase {
         XCTAssertTrue(resolvedResult.waitForExistence(timeout: uiTimeout))
     }
 
+    @MainActor
+    func testGuestActorSearchResultIsOneSelectionAndPushesOneProfileDestination() {
+        let app = makeGuestApp()
+        app.launch()
+
+        openSearch(in: app)
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: uiTimeout))
+        searchField.tap()
+        searchField.typeText("ui test")
+        app.keyboards.buttons["Search"].tap()
+
+        let identifier = "search.result.actor.ui-test-actor"
+        let actorResult = element(identifier, in: app)
+        XCTAssertTrue(actorResult.waitForExistence(timeout: uiTimeout))
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: identifier).count, 1)
+        XCTAssertEqual(actorResult.label, "UI test actor, @ui-test@example.com")
+        actorResult.tap()
+
+        let searchBackButton = app.navigationBars.buttons["Search"]
+        XCTAssertTrue(searchBackButton.waitForExistence(timeout: uiTimeout))
+        searchBackButton.tap()
+        XCTAssertTrue(actorResult.waitForExistence(timeout: uiTimeout))
+    }
+
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
     }

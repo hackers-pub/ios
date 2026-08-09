@@ -1,6 +1,9 @@
 import Foundation
+@_spi(Unsafe) import ApolloAPI
 @testable import HackersPub
 import Testing
+
+private typealias SearchPostNode = HackersPub.SearchPostQuery.Data.SearchPost.Edge.Node
 
 struct SearchViewWiringTests {
     @Test @MainActor func automaticInputPolicySuppressesRouterEchoesAndForwardsToTheSession() async {
@@ -105,6 +108,59 @@ struct SearchViewWiringTests {
         #expect(inlineFailureBranch.contains("searchSession.retry()"))
     }
 
+    @Test func everySearchResultVariantHasOneNavigationOwnerAndVisibleDestination() {
+        let actor = SearchActor(
+            id: "actor",
+            name: "Actor Name",
+            handle: "@actor@example.com",
+            avatarURL: "https://example.com/avatar.png"
+        )
+        let normalPost = searchPost(id: "normal", typename: "Note")
+        let sharedPost = searchPost(id: "wrapper", typename: "Note", sharedPostID: "original")
+        let article = searchPost(id: "article", typename: "Article")
+
+        #expect(SearchResultType.actor(actor).navigationPlan == SearchResultNavigationPlan(
+            owner: .actorRow,
+            destination: .profile(handle: actor.handle)
+        ))
+        #expect(SearchResultType.post(normalPost).navigationPlan == SearchResultNavigationPlan(
+            owner: .postView,
+            destination: .post(id: "normal")
+        ))
+        #expect(SearchResultType.post(sharedPost).navigationPlan == SearchResultNavigationPlan(
+            owner: .postView,
+            destination: .post(id: "original")
+        ))
+        #expect(SearchResultType.post(article).navigationPlan == SearchResultNavigationPlan(
+            owner: .postView,
+            destination: .post(id: "article")
+        ))
+        #expect(SearchResultType.resolvedPost(
+            id: "resolved",
+            url: "https://example.com/resolved"
+        ).navigationPlan == SearchResultNavigationPlan(
+            owner: .resolvedPostRow,
+            destination: .post(id: "resolved")
+        ))
+    }
+
+    @Test func searchViewCompositionDoesNotWrapActorOrPostOwnedControls() throws {
+        let source = try source(named: "SearchView.swift")
+        let directActors = block(after: "ForEach(directActors", in: source)
+        let relatedActors = block(after: "ForEach(relatedActors", in: source)
+        let posts = block(after: "ForEach(posts", in: source)
+        let resultRow = block(after: "struct SearchResultRow: View", in: source)
+
+        #expect(!directActors.contains("NavigationLink"))
+        #expect(!relatedActors.contains("NavigationLink"))
+        #expect(posts.occurrenceCount(of: "NavigationLink") == 1)
+        #expect(posts.contains("case .post:"))
+        #expect(resultRow.occurrenceCount(of: "NavigationLink(value:") == 1)
+        #expect(resultRow.contains(".accessibilityElement(children: .ignore)"))
+        #expect(resultRow.contains(".accessibilityLabel(actorAccessibilityLabel(actor))"))
+        #expect(resultRow.contains(#".accessibilityIdentifier("search.result.actor.\(actor.id)")"#))
+    }
+
     @Test func searchViewUsesTheRecentStoreForExplicitSuccessfulSearchesAndManagement() throws {
         let source = try source(named: "SearchView.swift")
 
@@ -148,6 +204,27 @@ struct SearchViewWiringTests {
         )
     }
 
+    private func searchPost(
+        id: String,
+        typename: String,
+        sharedPostID: String? = nil
+    ) -> SearchPostNode {
+        let sharedPost = sharedPostID.map { id in
+            DataDict(
+                data: ["__typename": "Note", "id": id],
+                fulfilledFragments: []
+            )
+        }
+        return SearchPostNode(_dataDict: DataDict(
+            data: [
+                "__typename": typename,
+                "id": id,
+                "sharedPost": sharedPost
+            ],
+            fulfilledFragments: [ObjectIdentifier(SearchPostNode.self)]
+        ))
+    }
+
     @MainActor
     private func waitUntil(_ condition: () -> Bool) async {
         for _ in 0 ..< 100 {
@@ -182,5 +259,11 @@ struct SearchViewWiringTests {
             index = source.index(after: index)
         }
         return ""
+    }
+}
+
+private extension String {
+    func occurrenceCount(of needle: String) -> Int {
+        components(separatedBy: needle).count - 1
     }
 }
