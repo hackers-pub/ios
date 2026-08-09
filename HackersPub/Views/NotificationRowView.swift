@@ -8,16 +8,21 @@ func notificationActorAccessibilityLabel(name: String?, handle: String) -> Strin
     name.flatMap(previewPlainText) ?? handle
 }
 
+enum NotificationNavigationAction {
+    case profile(handle: String)
+    case post(id: String)
+}
+
 struct NotificationRowView: View {
     let notification: NotificationItem
-    @Environment(NavigationCoordinator.self) private var navigationCoordinator
+    let navigate: (NotificationNavigationAction) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 if let firstActor = notification.actors.edges.first?.node {
                     Button {
-                        navigationCoordinator.navigateToProfile(handle: firstActor.handle)
+                        navigate(.profile(handle: firstActor.handle))
                     } label: {
                         KFImage(URL(string: firstActor.avatarUrl))
                             .placeholder {
@@ -221,7 +226,7 @@ struct NotificationRowView: View {
         NotificationPostPreviewView(preview: preview) { action in
             switch action {
             case let .openDetail(postID):
-                navigationCoordinator.navigateToPost(id: postID)
+                navigate(.post(id: postID))
             }
         }
     }

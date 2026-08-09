@@ -14,8 +14,10 @@ struct NotificationFeedContent: View {
     let retryLoad: () async -> Void
     let queueVisibleNotificationForRead: (String) -> Void
     let retryMarkingVisibleNotificationsAsRead: () -> Void
+    let navigate: (NotificationNavigationAction) -> Void
     @Binding var scrollViewport: FeedViewportSnapshot<String>
     @Binding var scrollRestoreRequest: FeedScrollAnchorPolicy<String>.Restoration?
+    @Environment(\.feedMaximumWidth) private var feedMaximumWidth
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,7 +45,7 @@ struct NotificationFeedContent: View {
                     }
 
                     ForEach(Array(notifications.enumerated()), id: \.element.node.id) { index, notification in
-                        NotificationRowView(notification: notification.node)
+                        NotificationRowView(notification: notification.node, navigate: navigate)
                             .padding()
                             .feedScrollAnchor(id: notification.node.id)
                             .id(notification.node.id)
@@ -88,6 +90,8 @@ struct NotificationFeedContent: View {
                         }
                     }
                 }
+                .frame(maxWidth: feedMaximumWidth ?? .infinity)
+                .frame(maxWidth: .infinity)
             }
         }
     }

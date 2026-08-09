@@ -320,6 +320,8 @@
 "common.error" = "Error";
 "common.cancel" = "Cancel";
 "common.close" = "Close";
+"notifications.openPrimary" = "Open Notifications";
+"notifications.showCompanion" = "Show Notifications";
 "common.done" = "Done";
 "common.delete" = "Delete";
 

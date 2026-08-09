@@ -44,6 +44,7 @@ struct TimelineFeedContent<Edge, Post: PostProtocol & ReactionCapablePostProtoco
     let refresh: () async -> Void
     let loadNewer: () -> Void
     let loadMore: () -> Void
+    @Environment(\.feedMaximumWidth) private var feedMaximumWidth
 
     private var presentation: TimelineFeedPresentationState {
         TimelineFeedPresentationState(timelineState: timelineState)
@@ -106,6 +107,8 @@ struct TimelineFeedContent<Edge, Post: PostProtocol & ReactionCapablePostProtoco
             }
             .padding(.top, 8)
             .scrollTargetLayout()
+            .frame(maxWidth: feedMaximumWidth ?? .infinity)
+            .frame(maxWidth: .infinity)
         }
         .scrollPosition(id: $scrollPositionID)
         .refreshable {

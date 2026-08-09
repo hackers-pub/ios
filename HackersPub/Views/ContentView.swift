@@ -156,6 +156,9 @@ struct ContentViewSearchRequestConsumer {
     }
 }
 
+// The root keeps authentication, tab customization, and adaptive presentation
+// transitions together so they cannot disagree about the selected destination.
+// swiftlint:disable:next type_body_length
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchSubmitRequest: SearchSubmitRequest?
@@ -165,6 +168,7 @@ struct ContentView: View {
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(NotificationReadState.self) private var notificationReadState
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var tabCustomizationPersistence = TabCustomizationPersistenceAdapter(
         scope: .guest,
         value: TabCustomizationStorage.load(for: .guest),
@@ -177,6 +181,10 @@ struct ContentView: View {
     )
     @State private var selectedTab: String = "timeline"
     @State private var showingComposeView = false
+    @State private var notificationFeedController = NotificationFeedController()
+    @State private var containerWidth: CGFloat = 0
+    @State private var isNotificationsCompanionRequested = false
+    @State private var isNotificationsCompanionPresented = false
 
     var body: some View {
         Group {
@@ -199,21 +207,39 @@ struct ContentView: View {
         } message: {
             Text(rootNoticePresentation.message)
         }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            containerWidth = width
+        }
     }
 
     private var mainContent: some View {
         TabView(selection: $selectedTab) {
             if authManager.isAuthenticated {
                 TabSection(NSLocalizedString("tab.section.home", comment: "Home tabs section")) {
-                    Tab(NSLocalizedString("tab.timeline", comment: "Timeline tab"), systemImage: "house", value: "timeline", role: nil) {
+                    Tab(
+                        NSLocalizedString("tab.timeline", comment: "Timeline tab"),
+                        systemImage: "house",
+                        value: "timeline",
+                        role: nil
+                    ) {
                         PersonalTimelineView(showingComposeView: $showingComposeView)
                     }
                     .customizationID("timeline")
                     .customizationBehavior(.disabled, for: .tabBar)
                     .tabPlacement(.pinned)
 
-                    Tab(NSLocalizedString("tab.notifications", comment: "Notifications tab"), systemImage: "bell", value: "notifications", role: nil) {
-                        NotificationsView()
+                    Tab(
+                        NSLocalizedString("tab.notifications", comment: "Notifications tab"),
+                        systemImage: "bell",
+                        value: "notifications",
+                        role: nil
+                    ) {
+                        NotificationsView(
+                            controller: notificationFeedController,
+                            presentation: .primary
+                        )
                     }
                     .customizationID("notifications")
                     .tabPlacement(.pinned)
@@ -223,13 +249,23 @@ struct ContentView: View {
                 .tabPlacement(.sidebarOnly)
 
                 TabSection(NSLocalizedString("tab.section.discover", comment: "Discover tabs section")) {
-                    Tab(NSLocalizedString("tab.news", comment: "News tab"), systemImage: "newspaper", value: "news", role: nil) {
+                    Tab(
+                        NSLocalizedString("tab.news", comment: "News tab"),
+                        systemImage: "newspaper",
+                        value: "news",
+                        role: nil
+                    ) {
                         NewsView()
                     }
                     .customizationID("news")
                     .tabPlacement(.pinned)
 
-                    Tab(NSLocalizedString("tab.explore", comment: "Explore tab"), systemImage: "globe", value: "explore", role: nil) {
+                    Tab(
+                        NSLocalizedString("tab.explore", comment: "Explore tab"),
+                        systemImage: "globe",
+                        value: "explore",
+                        role: nil
+                    ) {
                         ExploreView(showingComposeView: $showingComposeView)
                     }
                     .customizationID("explore")
@@ -239,7 +275,12 @@ struct ContentView: View {
                 .tabPlacement(.sidebarOnly)
 
                 TabSection(NSLocalizedString("tab.section.library", comment: "Library tabs section")) {
-                    Tab(NSLocalizedString("tab.bookmarks", comment: "Bookmarks tab"), systemImage: "bookmark", value: "bookmarks", role: nil) {
+                    Tab(
+                        NSLocalizedString("tab.bookmarks", comment: "Bookmarks tab"),
+                        systemImage: "bookmark",
+                        value: "bookmarks",
+                        role: nil
+                    ) {
                         NavigationStack(path: navigationCoordinator.pathBinding(for: .bookmarks)) {
                             BookmarksView(showingComposeView: $showingComposeView)
                         }
@@ -250,7 +291,12 @@ struct ContentView: View {
                 .customizationID("section.authenticated.library")
                 .tabPlacement(.sidebarOnly)
 
-                Tab(NSLocalizedString("tab.search", comment: "Search tab"), systemImage: "magnifyingglass", value: "search", role: .search) {
+                Tab(
+                    NSLocalizedString("tab.search", comment: "Search tab"),
+                    systemImage: "magnifyingglass",
+                    value: "search",
+                    role: .search
+                ) {
                     SearchView(
                         searchText: $searchText,
                         showingComposeView: $showingComposeView,
@@ -268,20 +314,35 @@ struct ContentView: View {
                 .customizationID("search")
             } else {
                 TabSection(NSLocalizedString("tab.section.browse", comment: "Browse tabs section")) {
-                    Tab(NSLocalizedString("tab.local", comment: "Local tab"), systemImage: "cat", value: "local", role: nil) {
+                    Tab(
+                        NSLocalizedString("tab.local", comment: "Local tab"),
+                        systemImage: "cat",
+                        value: "local",
+                        role: nil
+                    ) {
                         LocalTimelineView()
                     }
                     .customizationID("local")
                     .customizationBehavior(.disabled, for: .tabBar)
                     .tabPlacement(.pinned)
 
-                    Tab(NSLocalizedString("tab.fediverse", comment: "Fediverse tab"), systemImage: "globe", value: "global", role: nil) {
+                    Tab(
+                        NSLocalizedString("tab.fediverse", comment: "Fediverse tab"),
+                        systemImage: "globe",
+                        value: "global",
+                        role: nil
+                    ) {
                         TimelineView()
                     }
                     .customizationID("global")
                     .tabPlacement(.pinned)
 
-                    Tab(NSLocalizedString("tab.news", comment: "News tab"), systemImage: "newspaper", value: "news", role: nil) {
+                    Tab(
+                        NSLocalizedString("tab.news", comment: "News tab"),
+                        systemImage: "newspaper",
+                        value: "news",
+                        role: nil
+                    ) {
                         NewsView()
                     }
                     .customizationID("news")
@@ -290,7 +351,12 @@ struct ContentView: View {
                 .customizationID("section.guest.browse")
                 .tabPlacement(.sidebarOnly)
 
-                Tab(NSLocalizedString("tab.search", comment: "Search tab"), systemImage: "magnifyingglass", value: "search", role: .search) {
+                Tab(
+                    NSLocalizedString("tab.search", comment: "Search tab"),
+                    systemImage: "magnifyingglass",
+                    value: "search",
+                    role: .search
+                ) {
                     SearchView(
                         searchText: $searchText,
                         searchSubmitRequest: searchSubmitRequest,
@@ -307,7 +373,12 @@ struct ContentView: View {
                 .customizationID("search")
 
                 TabSection(NSLocalizedString("tab.section.account", comment: "Account tabs section")) {
-                    Tab(NSLocalizedString("tab.signIn", comment: "Sign in tab"), systemImage: "rectangle.portrait.and.arrow.right", value: "signIn", role: nil) {
+                    Tab(
+                        NSLocalizedString("tab.signIn", comment: "Sign in tab"),
+                        systemImage: "rectangle.portrait.and.arrow.right",
+                        value: "signIn",
+                        role: nil
+                    ) {
                         SignInView()
                     }
                     .accessibilityIdentifier("tab.sign-in")
@@ -320,6 +391,34 @@ struct ContentView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .tabViewCustomization(tabViewCustomizationBinding(for: tabCustomizationPersistence.activeContext))
+        .environment(\.feedMaximumWidth, adaptiveLayoutPolicy.feedMaximumWidth)
+        .toolbar {
+            if adaptiveLayoutPolicy.canOfferNotificationsCompanion,
+               selectedAppTab != .notifications,
+               !isNotificationsCompanionPresented {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: showNotificationsCompanion) {
+                        Label(
+                            NSLocalizedString(
+                                "notifications.showCompanion",
+                                comment: "Show notifications companion"
+                            ),
+                            systemImage: "sidebar.right"
+                        )
+                    }
+                    .accessibilityIdentifier("notifications.companion.show")
+                }
+            }
+        }
+        .inspector(isPresented: notificationsCompanionBinding) {
+            NotificationsView(
+                controller: notificationFeedController,
+                presentation: .companion,
+                closeCompanion: closeNotificationsCompanion,
+                openPrimaryNotifications: openPrimaryNotifications
+            )
+            .inspectorColumnWidth(min: 320, ideal: 380, max: 420)
+        }
         .task {
             synchronizeTabCustomizationScope(isAuthenticated: authManager.isAuthenticated)
             // Set default tab based on auth state
@@ -340,6 +439,11 @@ struct ContentView: View {
         }
         .onChange(of: authManager.isAuthenticated) { _, isAuth in
             synchronizeTabCustomizationScope(isAuthenticated: isAuth)
+            if !isAuth {
+                Task {
+                    await notificationFeedController.load(for: nil, readState: notificationReadState)
+                }
+            }
             // Switch to appropriate tab when auth state changes
             if applyRequestedTabIfAvailable(isAuthenticated: isAuth) {
                 return
@@ -368,6 +472,56 @@ struct ContentView: View {
         .onChange(of: navigationCoordinator.requestedSearch) { _, _ in
             forwardRequestedSearch()
         }
+        .onChange(
+            of: adaptiveLayoutPolicy.shouldPresentNotificationsCompanion,
+            initial: true
+        ) { _, shouldPresent in
+            isNotificationsCompanionPresented = shouldPresent
+        }
+    }
+
+    private var selectedAppTab: AppTab {
+        AppTabSelectionPolicy.normalized(
+            AppTab(rawValue: selectedTab),
+            isAuthenticated: authManager.isAuthenticated
+        )
+    }
+
+    private var adaptiveLayoutPolicy: AdaptiveAppLayoutPolicy {
+        AdaptiveAppLayoutPolicy(
+            horizontalSizeClass: horizontalSizeClass,
+            containerWidth: containerWidth,
+            isAuthenticated: authManager.isAuthenticated,
+            selectedTab: selectedAppTab,
+            isNotificationsCompanionRequested: isNotificationsCompanionRequested
+        )
+    }
+
+    private var notificationsCompanionBinding: Binding<Bool> {
+        Binding(
+            get: { isNotificationsCompanionPresented },
+            set: { isPresented in
+                isNotificationsCompanionPresented = isPresented
+                if adaptiveLayoutPolicy.canOfferNotificationsCompanion,
+                   selectedAppTab != .notifications {
+                    isNotificationsCompanionRequested = isPresented
+                }
+            }
+        )
+    }
+
+    private func showNotificationsCompanion() {
+        isNotificationsCompanionRequested = true
+        isNotificationsCompanionPresented = true
+    }
+
+    private func closeNotificationsCompanion() {
+        isNotificationsCompanionRequested = false
+        isNotificationsCompanionPresented = false
+    }
+
+    private func openPrimaryNotifications() {
+        navigationCoordinator.setCurrentTab(.notifications)
     }
 
     private func updateCurrentTab() {

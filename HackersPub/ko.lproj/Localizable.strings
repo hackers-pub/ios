@@ -320,6 +320,8 @@
 "common.error" = "오류";
 "common.cancel" = "취소";
 "common.close" = "닫기";
+"notifications.openPrimary" = "알림 전체 화면 열기";
+"notifications.showCompanion" = "알림 패널 열기";
 "common.done" = "완료";
 "common.delete" = "삭제";
 
