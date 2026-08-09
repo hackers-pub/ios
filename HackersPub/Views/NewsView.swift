@@ -78,6 +78,8 @@ struct NewsView: View {
                 .navigationTitle(NSLocalizedString("nav.news", comment: "News navigation title"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    NotificationsCompanionToolbarItem()
+
                     if NewsToolbarPolicy.showsProfile(isAuthenticated: authManager.isAuthenticated) {
                         ToolbarItem(placement: .topBarLeading) {
                             ViewerProfileButton()

@@ -350,6 +350,8 @@ struct PersonalTimelineView: View {
                 controller.cancelAll()
             }
             .toolbar {
+                NotificationsCompanionToolbarItem()
+
                 ToolbarItem(placement: .navigation) {
                     ViewerProfileButton()
                 }

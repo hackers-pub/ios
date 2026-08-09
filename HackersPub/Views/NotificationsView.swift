@@ -128,7 +128,9 @@ struct NotificationsView: View {
 
             Divider()
             managedFeed
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var managedFeed: some View {

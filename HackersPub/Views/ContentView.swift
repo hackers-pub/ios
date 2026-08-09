@@ -392,24 +392,10 @@ struct ContentView: View {
         .tabViewStyle(.sidebarAdaptable)
         .tabViewCustomization(tabViewCustomizationBinding(for: tabCustomizationPersistence.activeContext))
         .environment(\.feedMaximumWidth, adaptiveLayoutPolicy.feedMaximumWidth)
-        .toolbar {
-            if adaptiveLayoutPolicy.canOfferNotificationsCompanion,
-               selectedAppTab != .notifications,
-               !isNotificationsCompanionPresented {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: showNotificationsCompanion) {
-                        Label(
-                            NSLocalizedString(
-                                "notifications.showCompanion",
-                                comment: "Show notifications companion"
-                            ),
-                            systemImage: "sidebar.right"
-                        )
-                    }
-                    .accessibilityIdentifier("notifications.companion.show")
-                }
-            }
-        }
+        .environment(
+            \.companionToolbarConfiguration,
+            companionToolbarConfiguration
+        )
         .inspector(isPresented: notificationsCompanionBinding) {
             NotificationsView(
                 controller: notificationFeedController,
@@ -507,6 +493,15 @@ struct ContentView: View {
                     isNotificationsCompanionRequested = isPresented
                 }
             }
+        )
+    }
+
+    private var companionToolbarConfiguration: CompanionToolbarConfiguration {
+        CompanionToolbarConfiguration(
+            isAvailable: adaptiveLayoutPolicy.canOfferNotificationsCompanion
+                && selectedAppTab != .notifications
+                && !isNotificationsCompanionPresented,
+            show: showNotificationsCompanion
         )
     }
 

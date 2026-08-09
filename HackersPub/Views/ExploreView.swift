@@ -58,6 +58,8 @@ struct ExploreView: View {
             .navigationTitle(NSLocalizedString("nav.explore", comment: "Explore navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                NotificationsCompanionToolbarItem()
+
                 ToolbarItemGroup(placement: .topBarLeading) {
                     ViewerProfileButton()
 

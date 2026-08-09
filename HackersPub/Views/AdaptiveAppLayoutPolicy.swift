@@ -38,9 +38,49 @@ private struct FeedMaximumWidthKey: EnvironmentKey {
     static let defaultValue: CGFloat? = nil
 }
 
+struct CompanionToolbarConfiguration {
+    let isAvailable: Bool
+    let show: () -> Void
+
+    static let unavailable = CompanionToolbarConfiguration(
+        isAvailable: false,
+        show: {}
+    )
+}
+
+private struct CompanionToolbarConfigurationKey: EnvironmentKey {
+    static let defaultValue = CompanionToolbarConfiguration.unavailable
+}
+
 extension EnvironmentValues {
     var feedMaximumWidth: CGFloat? {
         get { self[FeedMaximumWidthKey.self] }
         set { self[FeedMaximumWidthKey.self] = newValue }
+    }
+
+    var companionToolbarConfiguration: CompanionToolbarConfiguration {
+        get { self[CompanionToolbarConfigurationKey.self] }
+        set { self[CompanionToolbarConfigurationKey.self] = newValue }
+    }
+}
+
+struct NotificationsCompanionToolbarItem: ToolbarContent {
+    @Environment(\.companionToolbarConfiguration) private var configuration
+
+    var body: some ToolbarContent {
+        if configuration.isAvailable {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: configuration.show) {
+                    Label(
+                        NSLocalizedString(
+                            "notifications.showCompanion",
+                            comment: "Show notifications companion"
+                        ),
+                        systemImage: "sidebar.right"
+                    )
+                }
+                .accessibilityIdentifier("notifications.companion.show")
+            }
+        }
     }
 }

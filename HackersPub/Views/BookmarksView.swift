@@ -74,6 +74,8 @@ struct BookmarksView: View {
         .navigationTitle(NSLocalizedString("bookmarks.title", comment: "Bookmarks navigation title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            NotificationsCompanionToolbarItem()
+
             BookmarkNavigationToolbar(
                 showingComposeView: $showingComposeView,
                 selectedFilter: $selectedFilter,

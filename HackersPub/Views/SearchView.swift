@@ -265,6 +265,8 @@ struct SearchView: View {
                 }
             }
             .toolbar {
+                NotificationsCompanionToolbarItem()
+
                 if authManager.isAuthenticated {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
