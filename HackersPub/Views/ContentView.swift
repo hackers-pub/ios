@@ -204,35 +204,51 @@ struct ContentView: View {
     private var mainContent: some View {
         TabView(selection: $selectedTab) {
             if authManager.isAuthenticated {
-                Tab(NSLocalizedString("tab.timeline", comment: "Timeline tab"), systemImage: "house", value: "timeline", role: nil) {
-                    PersonalTimelineView(showingComposeView: $showingComposeView)
-                }
-                .customizationID("timeline")
-                .customizationBehavior(.disabled, for: .tabBar)
-
-                Tab(NSLocalizedString("tab.notifications", comment: "Notifications tab"), systemImage: "bell", value: "notifications", role: nil) {
-                    NotificationsView()
-                }
-                .customizationID("notifications")
-                .badge(notificationReadState.presentation.badgeCount)
-
-                Tab(NSLocalizedString("tab.news", comment: "News tab"), systemImage: "newspaper", value: "news", role: nil) {
-                    NewsView()
-                }
-                .customizationID("news")
-
-                Tab(NSLocalizedString("tab.explore", comment: "Explore tab"), systemImage: "globe", value: "explore", role: nil) {
-                    ExploreView(showingComposeView: $showingComposeView)
-                }
-                .customizationID("explore")
-
-                Tab(NSLocalizedString("tab.bookmarks", comment: "Bookmarks tab"), systemImage: "bookmark", value: "bookmarks", role: nil) {
-                    NavigationStack(path: navigationCoordinator.pathBinding(for: .bookmarks)) {
-                        BookmarksView(showingComposeView: $showingComposeView)
+                TabSection(NSLocalizedString("tab.section.home", comment: "Home tabs section")) {
+                    Tab(NSLocalizedString("tab.timeline", comment: "Timeline tab"), systemImage: "house", value: "timeline", role: nil) {
+                        PersonalTimelineView(showingComposeView: $showingComposeView)
                     }
+                    .customizationID("timeline")
+                    .customizationBehavior(.disabled, for: .tabBar)
+                    .tabPlacement(.pinned)
+
+                    Tab(NSLocalizedString("tab.notifications", comment: "Notifications tab"), systemImage: "bell", value: "notifications", role: nil) {
+                        NotificationsView()
+                    }
+                    .customizationID("notifications")
+                    .tabPlacement(.pinned)
+                    .badge(notificationReadState.presentation.badgeCount)
                 }
-                .customizationID("bookmarks")
-                .defaultVisibility(.hidden, for: .tabBar)
+                .customizationID("section.authenticated.home")
+                .tabPlacement(.sidebarOnly)
+
+                TabSection(NSLocalizedString("tab.section.discover", comment: "Discover tabs section")) {
+                    Tab(NSLocalizedString("tab.news", comment: "News tab"), systemImage: "newspaper", value: "news", role: nil) {
+                        NewsView()
+                    }
+                    .customizationID("news")
+                    .tabPlacement(.pinned)
+
+                    Tab(NSLocalizedString("tab.explore", comment: "Explore tab"), systemImage: "globe", value: "explore", role: nil) {
+                        ExploreView(showingComposeView: $showingComposeView)
+                    }
+                    .customizationID("explore")
+                    .tabPlacement(.pinned)
+                }
+                .customizationID("section.authenticated.discover")
+                .tabPlacement(.sidebarOnly)
+
+                TabSection(NSLocalizedString("tab.section.library", comment: "Library tabs section")) {
+                    Tab(NSLocalizedString("tab.bookmarks", comment: "Bookmarks tab"), systemImage: "bookmark", value: "bookmarks", role: nil) {
+                        NavigationStack(path: navigationCoordinator.pathBinding(for: .bookmarks)) {
+                            BookmarksView(showingComposeView: $showingComposeView)
+                        }
+                    }
+                    .customizationID("bookmarks")
+                    .defaultVisibility(.hidden, for: .tabBar)
+                }
+                .customizationID("section.authenticated.library")
+                .tabPlacement(.sidebarOnly)
 
                 Tab(NSLocalizedString("tab.search", comment: "Search tab"), systemImage: "magnifyingglass", value: "search", role: .search) {
                     SearchView(
@@ -251,21 +267,28 @@ struct ContentView: View {
                 .accessibilityIdentifier("tab.search")
                 .customizationID("search")
             } else {
-                Tab(NSLocalizedString("tab.local", comment: "Local tab"), systemImage: "cat", value: "local", role: nil) {
-                    LocalTimelineView()
-                }
-                .customizationID("local")
-                .customizationBehavior(.disabled, for: .tabBar)
+                TabSection(NSLocalizedString("tab.section.browse", comment: "Browse tabs section")) {
+                    Tab(NSLocalizedString("tab.local", comment: "Local tab"), systemImage: "cat", value: "local", role: nil) {
+                        LocalTimelineView()
+                    }
+                    .customizationID("local")
+                    .customizationBehavior(.disabled, for: .tabBar)
+                    .tabPlacement(.pinned)
 
-                Tab(NSLocalizedString("tab.fediverse", comment: "Fediverse tab"), systemImage: "globe", value: "global", role: nil) {
-                    TimelineView()
-                }
-                .customizationID("global")
+                    Tab(NSLocalizedString("tab.fediverse", comment: "Fediverse tab"), systemImage: "globe", value: "global", role: nil) {
+                        TimelineView()
+                    }
+                    .customizationID("global")
+                    .tabPlacement(.pinned)
 
-                Tab(NSLocalizedString("tab.news", comment: "News tab"), systemImage: "newspaper", value: "news", role: nil) {
-                    NewsView()
+                    Tab(NSLocalizedString("tab.news", comment: "News tab"), systemImage: "newspaper", value: "news", role: nil) {
+                        NewsView()
+                    }
+                    .customizationID("news")
+                    .tabPlacement(.pinned)
                 }
-                .customizationID("news")
+                .customizationID("section.guest.browse")
+                .tabPlacement(.sidebarOnly)
 
                 Tab(NSLocalizedString("tab.search", comment: "Search tab"), systemImage: "magnifyingglass", value: "search", role: .search) {
                     SearchView(
@@ -283,11 +306,16 @@ struct ContentView: View {
                 .accessibilityIdentifier("tab.search")
                 .customizationID("search")
 
-                Tab(NSLocalizedString("tab.signIn", comment: "Sign in tab"), systemImage: "rectangle.portrait.and.arrow.right", value: "signIn", role: nil) {
-                    SignInView()
+                TabSection(NSLocalizedString("tab.section.account", comment: "Account tabs section")) {
+                    Tab(NSLocalizedString("tab.signIn", comment: "Sign in tab"), systemImage: "rectangle.portrait.and.arrow.right", value: "signIn", role: nil) {
+                        SignInView()
+                    }
+                    .accessibilityIdentifier("tab.sign-in")
+                    .customizationID("signIn")
+                    .tabPlacement(.pinned)
                 }
-                .accessibilityIdentifier("tab.sign-in")
-                .customizationID("signIn")
+                .customizationID("section.guest.account")
+                .tabPlacement(.sidebarOnly)
             }
         }
         .tabViewStyle(.sidebarAdaptable)

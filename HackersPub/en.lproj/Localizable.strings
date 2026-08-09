@@ -8,6 +8,11 @@
 "tab.local" = "Hackers' Pub";
 "tab.fediverse" = "Fediverse";
 "tab.signIn" = "Sign In";
+"tab.section.home" = "Home";
+"tab.section.discover" = "Discover";
+"tab.section.library" = "Library";
+"tab.section.browse" = "Browse";
+"tab.section.account" = "Account";
 
 /* Navigation titles */
 "nav.signIn" = "Sign In";

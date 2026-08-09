@@ -8,6 +8,11 @@
 "tab.local" = "해커스펍";
 "tab.fediverse" = "페디버스";
 "tab.signIn" = "로그인";
+"tab.section.home" = "홈";
+"tab.section.discover" = "둘러보기";
+"tab.section.library" = "보관함";
+"tab.section.browse" = "둘러보기";
+"tab.section.account" = "계정";
 
 /* Navigation titles */
 "nav.signIn" = "로그인";
