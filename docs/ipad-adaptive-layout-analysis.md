@@ -160,6 +160,8 @@ compact 탭 순서를 바꾸지 않기 위해 compact와 regular의 선언 구�
 | Browse | Timeline, News, Explore, Search | 현재 iPhone에서 보이는 핵심 항목을 유지 |
 | Personal | Notifications, Bookmarks | Notifications는 노출, Bookmarks는 현재처럼 기본 숨김 |
 
+구현 단계에서 iOS 26.5의 `TabView` API는 compact 탭 순서와 regular sidebar 그룹을 서로 독립적으로 선언하지 못한다는 제약을 확인했다. compact와 regular에 별도 tab tree를 사용하면 폭 전환 때 leaf view의 identity가 바뀌어 피드와 스크롤 상태가 초기화될 수 있다. 따라서 실제 구현은 하나의 안정적인 tree에서 iPhone 순서를 유지하고, 인증 사용자를 `Home`(Timeline, Notifications), `Discover`(News, Explore), `Library`(Bookmarks)로 묶으며 Search는 최상위에 둔다. 이는 위 표의 명칭보다 iPhone 순서 보존과 폭 전환 상태 보존을 우선한 결정이다.
+
 게스트 regular sidebar:
 
 | 섹션 | 목적지 | tab bar 기본 노출 |
