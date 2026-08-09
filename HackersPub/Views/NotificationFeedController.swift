@@ -77,6 +77,7 @@ final class NotificationFeedController {
         readState: NotificationReadState
     ) async {
         guard let session,
+              loadedSession == session,
               let feedRequest = feedState.beginOlderRequest(),
               let cursor = feedRequest.cursor,
               let request = beginListRequest(for: session, readState: readState)
@@ -118,6 +119,7 @@ final class NotificationFeedController {
         readState: NotificationReadState
     ) async {
         guard let session,
+              loadedSession == session,
               let feedRequest = feedState.beginGapRequest(),
               let cursor = feedRequest.cursor,
               let request = beginListRequest(for: session, readState: readState)
