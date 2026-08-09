@@ -9,7 +9,7 @@ public extension HackersPub {
     public static let operationName: String = "NotificationsQuery"
     public static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query NotificationsQuery($after: String, $before: String, $first: Int, $last: Int) { viewer { __typename id unreadNotificationsCount notifications(first: $first, after: $after, before: $before, last: $last) { __typename edges { __typename cursor node { __typename id uuid created actors(first: 5) { __typename edges { __typename node { __typename id name handle avatarUrl } } } ... on FollowNotification { id } ... on MentionNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ReplyNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on QuoteNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ReactNotification { emoji customEmoji { __typename id name imageUrl } post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ShareNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } } } }"#
+        #"query NotificationsQuery($after: String, $before: String, $first: Int, $last: Int) { viewer { __typename id unreadNotificationsCount notifications(first: $first, after: $after, before: $before, last: $last) { __typename edges { __typename cursor node { __typename id uuid created actors(first: 5) { __typename edges { __typename node { __typename id name handle avatarUrl } } } ... on FollowNotification { id } ... on MentionNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ReplyNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on QuoteNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ReactNotification { emoji customEmoji { __typename id name imageUrl } post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on ShareNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on PollEndedNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on SharedPostUpdatedNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on QuotedPostUpdatedNotification { post { __typename id name published summary content excerpt url iri media { __typename url thumbnailUrl alt height width } actor { __typename id name handle avatarUrl } engagementStats { __typename replies reactions shares quotes } mentions(first: 20) { __typename edges { __typename node { __typename handle } } } } } ... on OrganizationInvitationNotification { id } ... on OrganizationConversionRequestNotification { id } } } pageInfo { __typename hasPreviousPage hasNextPage startCursor endCursor } } } }"#
       ))
 
     public var after: GraphQLNullable<String>
@@ -140,6 +140,11 @@ public extension HackersPub {
                 .inlineFragment(AsQuoteNotification.self),
                 .inlineFragment(AsReactNotification.self),
                 .inlineFragment(AsShareNotification.self),
+                .inlineFragment(AsPollEndedNotification.self),
+                .inlineFragment(AsSharedPostUpdatedNotification.self),
+                .inlineFragment(AsQuotedPostUpdatedNotification.self),
+                .inlineFragment(AsOrganizationInvitationNotification.self),
+                .inlineFragment(AsOrganizationConversionRequestNotification.self),
               ] }
               @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
                 NotificationsQuery.Data.Viewer.Notifications.Edge.Node.self
@@ -156,6 +161,11 @@ public extension HackersPub {
               public var asQuoteNotification: AsQuoteNotification? { _asInlineFragment() }
               public var asReactNotification: AsReactNotification? { _asInlineFragment() }
               public var asShareNotification: AsShareNotification? { _asInlineFragment() }
+              public var asPollEndedNotification: AsPollEndedNotification? { _asInlineFragment() }
+              public var asSharedPostUpdatedNotification: AsSharedPostUpdatedNotification? { _asInlineFragment() }
+              public var asQuotedPostUpdatedNotification: AsQuotedPostUpdatedNotification? { _asInlineFragment() }
+              public var asOrganizationInvitationNotification: AsOrganizationInvitationNotification? { _asInlineFragment() }
+              public var asOrganizationConversionRequestNotification: AsOrganizationConversionRequestNotification? { _asInlineFragment() }
 
               /// Viewer.Notifications.Edge.Node.Actors
               ///
@@ -1331,6 +1341,691 @@ public extension HackersPub {
                     }
                   }
                 }
+              }
+
+              /// Viewer.Notifications.Edge.Node.AsPollEndedNotification
+              ///
+              /// Parent Type: `PollEndedNotification`
+              public struct AsPollEndedNotification: HackersPub.InlineFragment {
+                @_spi(Unsafe) public let __data: DataDict
+                @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                public typealias RootEntityType = NotificationsQuery.Data.Viewer.Notifications.Edge.Node
+                @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PollEndedNotification }
+                @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                  .field("post", Post?.self),
+                ] }
+                @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.self,
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsPollEndedNotification.self
+                ] }
+
+                /// The ended `Question` post. This may be `null` if the post was deleted after the notification was created.
+                public var post: Post? { __data["post"] }
+                public var id: HackersPub.ID { __data["id"] }
+                public var uuid: HackersPub.UUID { __data["uuid"] }
+                public var created: HackersPub.DateTime { __data["created"] }
+                public var actors: Actors { __data["actors"] }
+
+                /// Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post
+                ///
+                /// Parent Type: `Post`
+                public struct Post: HackersPub.SelectionSet {
+                  @_spi(Unsafe) public let __data: DataDict
+                  @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                  @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Interfaces.Post }
+                  @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                    .field("__typename", String.self),
+                    .field("id", HackersPub.ID.self),
+                    .field("name", String?.self),
+                    .field("published", HackersPub.DateTime.self),
+                    .field("summary", String?.self),
+                    .field("content", HackersPub.HTML.self),
+                    .field("excerpt", String.self),
+                    .field("url", HackersPub.URL?.self),
+                    .field("iri", HackersPub.URL.self),
+                    .field("media", [Medium].self),
+                    .field("actor", Actor.self),
+                    .field("engagementStats", EngagementStats.self),
+                    .field("mentions", Mentions.self, arguments: ["first": 20]),
+                  ] }
+                  @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                    NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.self
+                  ] }
+
+                  public var id: HackersPub.ID { __data["id"] }
+                  /// The post's title. Non-null for `Article`s and local poll `Question`s; `null` for `Note`s and boost wrappers.  `null` when the post is censored or its author is hidden by a moderation sanction (or it is a boost wrapper of such a post, whose title it copies) and the viewer is neither the content's author nor a moderator.
+                  public var name: String? { __data["name"] }
+                  public var published: HackersPub.DateTime { __data["published"] }
+                  /// Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.  `null` when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post), and the viewer is neither the content's author nor a moderator.
+                  public var summary: String? { __data["summary"] }
+                  /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers copy the boosted post's content; prefer `sharedPost.content`.  Empty when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post), and the viewer is neither the content's author nor a moderator.
+                  public var content: HackersPub.HTML { __data["content"] }
+                  /// Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.  Empty when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post) and the viewer is neither the content's author nor a moderator.
+                  public var excerpt: String { __data["excerpt"] }
+                  /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier: `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles, and `Question.sourceId` for questions. It does not encode `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised (copied from the shared post in the boost case) and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.  `null` when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the content's author nor a moderator, EXCEPT for a local post (whose own permalink renders the notice): a boost wrapper's URL mirrors the boosted post's, and a remote post's URL points at the uncensored copy on its origin instance, so both are hidden.
+                  public var url: HackersPub.URL? { __data["url"] }
+                  /// The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.  When the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator, a remote IRI (or a boost wrapper's, whose `url` is also nulled) is replaced with the local permalink that renders the notice, so a `url ?? iri` fallback never leaks the uncensored origin. A local non-wrapper post keeps its own `/ap/…` IRI (it does not point outside this instance).
+                  public var iri: HackersPub.URL { __data["iri"] }
+                  /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.  Empty when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator: attachments are part of the hidden content.
+                  public var media: [Medium] { __data["media"] }
+                  /// The actor who authored or boosted this post.
+                  public var actor: Actor { __data["actor"] }
+                  public var engagementStats: EngagementStats { __data["engagementStats"] }
+                  /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to). Empty when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator, since the mention targets are part of the censored content.
+                  public var mentions: Mentions { __data["mentions"] }
+
+                  /// Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Medium
+                  ///
+                  /// Parent Type: `PostMedium`
+                  public struct Medium: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMedium }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("url", HackersPub.URL.self),
+                      .field("thumbnailUrl", String?.self),
+                      .field("alt", String?.self),
+                      .field("height", Int?.self),
+                      .field("width", Int?.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Medium.self
+                    ] }
+
+                    public var url: HackersPub.URL { __data["url"] }
+                    public var thumbnailUrl: String? { __data["thumbnailUrl"] }
+                    public var alt: String? { __data["alt"] }
+                    public var height: Int? { __data["height"] }
+                    public var width: Int? { __data["width"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Actor
+                  ///
+                  /// Parent Type: `Actor`
+                  public struct Actor: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("id", HackersPub.ID.self),
+                      .field("name", HackersPub.HTML?.self),
+                      .field("handle", String.self),
+                      .field("avatarUrl", HackersPub.URL.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Actor.self
+                    ] }
+
+                    public var id: HackersPub.ID { __data["id"] }
+                    /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set, or is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
+                    public var name: HackersPub.HTML? { __data["name"] }
+                    /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
+                    public var handle: String { __data["handle"] }
+                    /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.  Replaced with the anonymous placeholder avatar when the actor is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
+                    public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.EngagementStats
+                  ///
+                  /// Parent Type: `PostEngagementStats`
+                  public struct EngagementStats: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("replies", Int.self),
+                      .field("reactions", Int.self),
+                      .field("shares", Int.self),
+                      .field("quotes", Int.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.EngagementStats.self
+                    ] }
+
+                    public var replies: Int { __data["replies"] }
+                    public var reactions: Int { __data["reactions"] }
+                    public var shares: Int { __data["shares"] }
+                    public var quotes: Int { __data["quotes"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Mentions
+                  ///
+                  /// Parent Type: `PostMentionsConnection`
+                  public struct Mentions: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnection }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("edges", [Edge].self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Mentions.self
+                    ] }
+
+                    public var edges: [Edge] { __data["edges"] }
+
+                    /// Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Mentions.Edge
+                    ///
+                    /// Parent Type: `PostMentionsConnectionEdge`
+                    public struct Edge: HackersPub.SelectionSet {
+                      @_spi(Unsafe) public let __data: DataDict
+                      @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                      @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnectionEdge }
+                      @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                        .field("__typename", String.self),
+                        .field("node", Node.self),
+                      ] }
+                      @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                        NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Mentions.Edge.self
+                      ] }
+
+                      public var node: Node { __data["node"] }
+
+                      /// Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Mentions.Edge.Node
+                      ///
+                      /// Parent Type: `Actor`
+                      public struct Node: HackersPub.SelectionSet {
+                        @_spi(Unsafe) public let __data: DataDict
+                        @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                        @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                        @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                          .field("__typename", String.self),
+                          .field("handle", String.self),
+                        ] }
+                        @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                          NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post.Mentions.Edge.Node.self
+                        ] }
+
+                        /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
+                        public var handle: String { __data["handle"] }
+                      }
+                    }
+                  }
+                }
+              }
+
+              /// Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification
+              ///
+              /// Parent Type: `SharedPostUpdatedNotification`
+              public struct AsSharedPostUpdatedNotification: HackersPub.InlineFragment {
+                @_spi(Unsafe) public let __data: DataDict
+                @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                public typealias RootEntityType = NotificationsQuery.Data.Viewer.Notifications.Edge.Node
+                @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.SharedPostUpdatedNotification }
+                @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                  .field("post", Post?.self),
+                ] }
+                @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.self,
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.self
+                ] }
+
+                /// The updated post. This may be `null` if the post was deleted after the notification was created.
+                public var post: Post? { __data["post"] }
+                public var id: HackersPub.ID { __data["id"] }
+                public var uuid: HackersPub.UUID { __data["uuid"] }
+                public var created: HackersPub.DateTime { __data["created"] }
+                public var actors: Actors { __data["actors"] }
+
+                /// Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post
+                ///
+                /// Parent Type: `Post`
+                public struct Post: HackersPub.SelectionSet {
+                  @_spi(Unsafe) public let __data: DataDict
+                  @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                  @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Interfaces.Post }
+                  @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                    .field("__typename", String.self),
+                    .field("id", HackersPub.ID.self),
+                    .field("name", String?.self),
+                    .field("published", HackersPub.DateTime.self),
+                    .field("summary", String?.self),
+                    .field("content", HackersPub.HTML.self),
+                    .field("excerpt", String.self),
+                    .field("url", HackersPub.URL?.self),
+                    .field("iri", HackersPub.URL.self),
+                    .field("media", [Medium].self),
+                    .field("actor", Actor.self),
+                    .field("engagementStats", EngagementStats.self),
+                    .field("mentions", Mentions.self, arguments: ["first": 20]),
+                  ] }
+                  @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                    NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.self
+                  ] }
+
+                  public var id: HackersPub.ID { __data["id"] }
+                  /// The post's title. Non-null for `Article`s and local poll `Question`s; `null` for `Note`s and boost wrappers.  `null` when the post is censored or its author is hidden by a moderation sanction (or it is a boost wrapper of such a post, whose title it copies) and the viewer is neither the content's author nor a moderator.
+                  public var name: String? { __data["name"] }
+                  public var published: HackersPub.DateTime { __data["published"] }
+                  /// Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.  `null` when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post), and the viewer is neither the content's author nor a moderator.
+                  public var summary: String? { __data["summary"] }
+                  /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers copy the boosted post's content; prefer `sharedPost.content`.  Empty when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post), and the viewer is neither the content's author nor a moderator.
+                  public var content: HackersPub.HTML { __data["content"] }
+                  /// Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.  Empty when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post) and the viewer is neither the content's author nor a moderator.
+                  public var excerpt: String { __data["excerpt"] }
+                  /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier: `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles, and `Question.sourceId` for questions. It does not encode `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised (copied from the shared post in the boost case) and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.  `null` when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the content's author nor a moderator, EXCEPT for a local post (whose own permalink renders the notice): a boost wrapper's URL mirrors the boosted post's, and a remote post's URL points at the uncensored copy on its origin instance, so both are hidden.
+                  public var url: HackersPub.URL? { __data["url"] }
+                  /// The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.  When the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator, a remote IRI (or a boost wrapper's, whose `url` is also nulled) is replaced with the local permalink that renders the notice, so a `url ?? iri` fallback never leaks the uncensored origin. A local non-wrapper post keeps its own `/ap/…` IRI (it does not point outside this instance).
+                  public var iri: HackersPub.URL { __data["iri"] }
+                  /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.  Empty when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator: attachments are part of the hidden content.
+                  public var media: [Medium] { __data["media"] }
+                  /// The actor who authored or boosted this post.
+                  public var actor: Actor { __data["actor"] }
+                  public var engagementStats: EngagementStats { __data["engagementStats"] }
+                  /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to). Empty when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator, since the mention targets are part of the censored content.
+                  public var mentions: Mentions { __data["mentions"] }
+
+                  /// Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Medium
+                  ///
+                  /// Parent Type: `PostMedium`
+                  public struct Medium: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMedium }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("url", HackersPub.URL.self),
+                      .field("thumbnailUrl", String?.self),
+                      .field("alt", String?.self),
+                      .field("height", Int?.self),
+                      .field("width", Int?.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Medium.self
+                    ] }
+
+                    public var url: HackersPub.URL { __data["url"] }
+                    public var thumbnailUrl: String? { __data["thumbnailUrl"] }
+                    public var alt: String? { __data["alt"] }
+                    public var height: Int? { __data["height"] }
+                    public var width: Int? { __data["width"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Actor
+                  ///
+                  /// Parent Type: `Actor`
+                  public struct Actor: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("id", HackersPub.ID.self),
+                      .field("name", HackersPub.HTML?.self),
+                      .field("handle", String.self),
+                      .field("avatarUrl", HackersPub.URL.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Actor.self
+                    ] }
+
+                    public var id: HackersPub.ID { __data["id"] }
+                    /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set, or is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
+                    public var name: HackersPub.HTML? { __data["name"] }
+                    /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
+                    public var handle: String { __data["handle"] }
+                    /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.  Replaced with the anonymous placeholder avatar when the actor is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
+                    public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.EngagementStats
+                  ///
+                  /// Parent Type: `PostEngagementStats`
+                  public struct EngagementStats: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("replies", Int.self),
+                      .field("reactions", Int.self),
+                      .field("shares", Int.self),
+                      .field("quotes", Int.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.EngagementStats.self
+                    ] }
+
+                    public var replies: Int { __data["replies"] }
+                    public var reactions: Int { __data["reactions"] }
+                    public var shares: Int { __data["shares"] }
+                    public var quotes: Int { __data["quotes"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Mentions
+                  ///
+                  /// Parent Type: `PostMentionsConnection`
+                  public struct Mentions: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnection }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("edges", [Edge].self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Mentions.self
+                    ] }
+
+                    public var edges: [Edge] { __data["edges"] }
+
+                    /// Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Mentions.Edge
+                    ///
+                    /// Parent Type: `PostMentionsConnectionEdge`
+                    public struct Edge: HackersPub.SelectionSet {
+                      @_spi(Unsafe) public let __data: DataDict
+                      @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                      @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnectionEdge }
+                      @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                        .field("__typename", String.self),
+                        .field("node", Node.self),
+                      ] }
+                      @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                        NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Mentions.Edge.self
+                      ] }
+
+                      public var node: Node { __data["node"] }
+
+                      /// Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Mentions.Edge.Node
+                      ///
+                      /// Parent Type: `Actor`
+                      public struct Node: HackersPub.SelectionSet {
+                        @_spi(Unsafe) public let __data: DataDict
+                        @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                        @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                        @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                          .field("__typename", String.self),
+                          .field("handle", String.self),
+                        ] }
+                        @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                          NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post.Mentions.Edge.Node.self
+                        ] }
+
+                        /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
+                        public var handle: String { __data["handle"] }
+                      }
+                    }
+                  }
+                }
+              }
+
+              /// Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification
+              ///
+              /// Parent Type: `QuotedPostUpdatedNotification`
+              public struct AsQuotedPostUpdatedNotification: HackersPub.InlineFragment {
+                @_spi(Unsafe) public let __data: DataDict
+                @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                public typealias RootEntityType = NotificationsQuery.Data.Viewer.Notifications.Edge.Node
+                @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.QuotedPostUpdatedNotification }
+                @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                  .field("post", Post?.self),
+                ] }
+                @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.self,
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.self
+                ] }
+
+                /// The updated post. This may be `null` if the post was deleted after the notification was created.
+                public var post: Post? { __data["post"] }
+                public var id: HackersPub.ID { __data["id"] }
+                public var uuid: HackersPub.UUID { __data["uuid"] }
+                public var created: HackersPub.DateTime { __data["created"] }
+                public var actors: Actors { __data["actors"] }
+
+                /// Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post
+                ///
+                /// Parent Type: `Post`
+                public struct Post: HackersPub.SelectionSet {
+                  @_spi(Unsafe) public let __data: DataDict
+                  @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                  @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Interfaces.Post }
+                  @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                    .field("__typename", String.self),
+                    .field("id", HackersPub.ID.self),
+                    .field("name", String?.self),
+                    .field("published", HackersPub.DateTime.self),
+                    .field("summary", String?.self),
+                    .field("content", HackersPub.HTML.self),
+                    .field("excerpt", String.self),
+                    .field("url", HackersPub.URL?.self),
+                    .field("iri", HackersPub.URL.self),
+                    .field("media", [Medium].self),
+                    .field("actor", Actor.self),
+                    .field("engagementStats", EngagementStats.self),
+                    .field("mentions", Mentions.self, arguments: ["first": 20]),
+                  ] }
+                  @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                    NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.self
+                  ] }
+
+                  public var id: HackersPub.ID { __data["id"] }
+                  /// The post's title. Non-null for `Article`s and local poll `Question`s; `null` for `Note`s and boost wrappers.  `null` when the post is censored or its author is hidden by a moderation sanction (or it is a boost wrapper of such a post, whose title it copies) and the viewer is neither the content's author nor a moderator.
+                  public var name: String? { __data["name"] }
+                  public var published: HackersPub.DateTime { __data["published"] }
+                  /// Author-provided or LLM-generated summary of the post. `null` when no summary has been set. For LLM summaries, check `ArticleContent.summary` and `summaryStarted` instead, as those are tracked per language on articles.  `null` when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post), and the viewer is neither the content's author nor a moderator.
+                  public var summary: String? { __data["summary"] }
+                  /// The post's full HTML content, with custom emoji shortcodes rendered as `<img>` elements and external links annotated with `target="_blank"`. Boost wrappers copy the boosted post's content; prefer `sharedPost.content`.  Empty when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post), and the viewer is neither the content's author nor a moderator.
+                  public var content: HackersPub.HTML { __data["content"] }
+                  /// Plain-text excerpt of the post. Returns `summary` when set; otherwise falls back to the HTML content stripped of tags. For a truncated HTML preview, use `excerptHtml` instead.  Empty when the post is censored or its author is hidden by a moderation sanction (or it boosts such a post) and the viewer is neither the content's author nor a moderator.
+                  public var excerpt: String { __data["excerpt"] }
+                  /// The canonical, human-readable URL of this post. For source-backed local posts the path encodes the local source identifier: `Note.sourceId` for notes, `Article.publishedYear` + `Article.slug` for articles, and `Question.sourceId` for questions. It does not encode `Post.uuid`. For federated remote posts and local share wrappers (boosts) this is whatever URL the originating instance advertised (copied from the shared post in the boost case) and is unrelated to the wrapper's own row PK. Prefer this field over hand-building a path from `Post.uuid`: `uuid` is the row PK and does not match the path here for source-backed local posts.  `null` when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the content's author nor a moderator, EXCEPT for a local post (whose own permalink renders the notice): a boost wrapper's URL mirrors the boosted post's, and a remote post's URL points at the uncensored copy on its origin instance, so both are hidden.
+                  public var url: HackersPub.URL? { __data["url"] }
+                  /// The post's ActivityPub IRI, used as its canonical identifier in federation. For local posts this is an `/ap/…` endpoint; for remote posts it is whatever IRI the originating instance assigned. Prefer `url` for human-readable links.  When the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator, a remote IRI (or a boost wrapper's, whose `url` is also nulled) is replaced with the local permalink that renders the notice, so a `url ?? iri` fallback never leaks the uncensored origin. A local non-wrapper post keeps its own `/ap/…` IRI (it does not point outside this instance).
+                  public var iri: HackersPub.URL { __data["iri"] }
+                  /// Media attachments on this post, in display order. For federated posts the URLs point to the originating instance.  Empty when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator: attachments are part of the hidden content.
+                  public var media: [Medium] { __data["media"] }
+                  /// The actor who authored or boosted this post.
+                  public var actor: Actor { __data["actor"] }
+                  public var engagementStats: EngagementStats { __data["engagementStats"] }
+                  /// Actors explicitly @-mentioned in this post. Does not include implicit mentions (e.g., the author of the post being replied to). Empty when the post is censored or its author is hidden by a moderation sanction, and the viewer is neither the author nor a moderator, since the mention targets are part of the censored content.
+                  public var mentions: Mentions { __data["mentions"] }
+
+                  /// Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Medium
+                  ///
+                  /// Parent Type: `PostMedium`
+                  public struct Medium: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMedium }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("url", HackersPub.URL.self),
+                      .field("thumbnailUrl", String?.self),
+                      .field("alt", String?.self),
+                      .field("height", Int?.self),
+                      .field("width", Int?.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Medium.self
+                    ] }
+
+                    public var url: HackersPub.URL { __data["url"] }
+                    public var thumbnailUrl: String? { __data["thumbnailUrl"] }
+                    public var alt: String? { __data["alt"] }
+                    public var height: Int? { __data["height"] }
+                    public var width: Int? { __data["width"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Actor
+                  ///
+                  /// Parent Type: `Actor`
+                  public struct Actor: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("id", HackersPub.ID.self),
+                      .field("name", HackersPub.HTML?.self),
+                      .field("handle", String.self),
+                      .field("avatarUrl", HackersPub.URL.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Actor.self
+                    ] }
+
+                    public var id: HackersPub.ID { __data["id"] }
+                    /// The actor's display name rendered as HTML, with custom emoji shortcodes replaced by inline `<img>` elements. `null` when the actor has no display name set, or is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
+                    public var name: HackersPub.HTML? { __data["name"] }
+                    /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
+                    public var handle: String { __data["handle"] }
+                    /// URL of the actor's avatar image. Falls back to a Gravatar URL derived from the account's email for local actors without an uploaded avatar.  Replaced with the anonymous placeholder avatar when the actor is permanently suspended (banned) and the viewer is neither the actor nor a moderator.
+                    public var avatarUrl: HackersPub.URL { __data["avatarUrl"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.EngagementStats
+                  ///
+                  /// Parent Type: `PostEngagementStats`
+                  public struct EngagementStats: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostEngagementStats }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("replies", Int.self),
+                      .field("reactions", Int.self),
+                      .field("shares", Int.self),
+                      .field("quotes", Int.self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.EngagementStats.self
+                    ] }
+
+                    public var replies: Int { __data["replies"] }
+                    public var reactions: Int { __data["reactions"] }
+                    public var shares: Int { __data["shares"] }
+                    public var quotes: Int { __data["quotes"] }
+                  }
+
+                  /// Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Mentions
+                  ///
+                  /// Parent Type: `PostMentionsConnection`
+                  public struct Mentions: HackersPub.SelectionSet {
+                    @_spi(Unsafe) public let __data: DataDict
+                    @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                    @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnection }
+                    @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                      .field("__typename", String.self),
+                      .field("edges", [Edge].self),
+                    ] }
+                    @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                      NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Mentions.self
+                    ] }
+
+                    public var edges: [Edge] { __data["edges"] }
+
+                    /// Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Mentions.Edge
+                    ///
+                    /// Parent Type: `PostMentionsConnectionEdge`
+                    public struct Edge: HackersPub.SelectionSet {
+                      @_spi(Unsafe) public let __data: DataDict
+                      @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                      @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.PostMentionsConnectionEdge }
+                      @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                        .field("__typename", String.self),
+                        .field("node", Node.self),
+                      ] }
+                      @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                        NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Mentions.Edge.self
+                      ] }
+
+                      public var node: Node { __data["node"] }
+
+                      /// Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Mentions.Edge.Node
+                      ///
+                      /// Parent Type: `Actor`
+                      public struct Node: HackersPub.SelectionSet {
+                        @_spi(Unsafe) public let __data: DataDict
+                        @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                        @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.Actor }
+                        @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                          .field("__typename", String.self),
+                          .field("handle", String.self),
+                        ] }
+                        @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                          NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post.Mentions.Edge.Node.self
+                        ] }
+
+                        /// Full fediverse handle in `@username@host` format, ready to use in @-mentions across the fediverse.
+                        public var handle: String { __data["handle"] }
+                      }
+                    }
+                  }
+                }
+              }
+
+              /// Viewer.Notifications.Edge.Node.AsOrganizationInvitationNotification
+              ///
+              /// Parent Type: `OrganizationInvitationNotification`
+              public struct AsOrganizationInvitationNotification: HackersPub.InlineFragment {
+                @_spi(Unsafe) public let __data: DataDict
+                @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                public typealias RootEntityType = NotificationsQuery.Data.Viewer.Notifications.Edge.Node
+                @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.OrganizationInvitationNotification }
+                @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                  .field("id", HackersPub.ID.self),
+                ] }
+                @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.self,
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsOrganizationInvitationNotification.self
+                ] }
+
+                public var id: HackersPub.ID { __data["id"] }
+                public var uuid: HackersPub.UUID { __data["uuid"] }
+                public var created: HackersPub.DateTime { __data["created"] }
+                public var actors: Actors { __data["actors"] }
+              }
+
+              /// Viewer.Notifications.Edge.Node.AsOrganizationConversionRequestNotification
+              ///
+              /// Parent Type: `OrganizationConversionRequestNotification`
+              public struct AsOrganizationConversionRequestNotification: HackersPub.InlineFragment {
+                @_spi(Unsafe) public let __data: DataDict
+                @_spi(Unsafe) public init(_dataDict: DataDict) { __data = _dataDict }
+
+                public typealias RootEntityType = NotificationsQuery.Data.Viewer.Notifications.Edge.Node
+                @_spi(Execution) public static var __parentType: any ApolloAPI.ParentType { HackersPub.Objects.OrganizationConversionRequestNotification }
+                @_spi(Execution) public static var __selections: [ApolloAPI.Selection] { [
+                  .field("id", HackersPub.ID.self),
+                ] }
+                @_spi(Execution) public static var __fulfilledFragments: [any ApolloAPI.SelectionSet.Type] { [
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.self,
+                  NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsOrganizationConversionRequestNotification.self
+                ] }
+
+                public var id: HackersPub.ID { __data["id"] }
+                public var uuid: HackersPub.UUID { __data["uuid"] }
+                public var created: HackersPub.DateTime { __data["created"] }
+                public var actors: Actors { __data["actors"] }
               }
             }
           }

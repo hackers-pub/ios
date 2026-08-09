@@ -15,7 +15,7 @@ protocol PostPreviewProtocol {
     var media: [PostPreviewMedia] { get }
 }
 
-/// The intentionally narrow projection supplied by the five notification GraphQL
+/// The intentionally narrow projection supplied by the eight notification GraphQL
 /// post selections. It has no viewer flags, reactions, bookmarks, or mutations.
 protocol NotificationPostPreviewSource {
     var notificationPostPreviewFields: NotificationPostPreviewFields { get }

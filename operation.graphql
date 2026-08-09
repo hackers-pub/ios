@@ -1616,6 +1616,129 @@ query NotificationsQuery($after: String, $before: String, $first: Int, $last: In
               }
             }
           }
+          ... on PollEndedNotification {
+            post {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              excerpt
+              url
+              iri
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
+              }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
+              }
+            }
+          }
+          ... on SharedPostUpdatedNotification {
+            post {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              excerpt
+              url
+              iri
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
+              }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
+              }
+            }
+          }
+          ... on QuotedPostUpdatedNotification {
+            post {
+              __typename
+              id
+              name
+              published
+              summary
+              content
+              excerpt
+              url
+              iri
+              media {
+                url
+                thumbnailUrl
+                alt
+                height
+                width
+              }
+              actor {
+                id
+                name
+                handle
+                avatarUrl
+              }
+              engagementStats {
+                replies
+                reactions
+                shares
+                quotes
+              }
+              mentions(first: 20) {
+                edges {
+                  node {
+                    handle
+                  }
+                }
+              }
+            }
+          }
+          ... on OrganizationInvitationNotification {
+            id
+          }
+          ... on OrganizationConversionRequestNotification {
+            id
+          }
         }
       }
       pageInfo {

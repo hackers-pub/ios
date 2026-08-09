@@ -10,6 +10,31 @@ struct NotificationPostPreviewProjectionTests {
     typealias QuotePost = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuoteNotification.Post
     typealias ReactPost = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsReactNotification.Post
     typealias SharePost = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsShareNotification.Post
+    typealias PollEndedPost = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsPollEndedNotification.Post
+    typealias SharedPostUpdatedPost = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsSharedPostUpdatedNotification.Post
+    typealias QuotedPostUpdatedPost = HackersPub.NotificationsQuery.Data.Viewer.Notifications.Edge.Node.AsQuotedPostUpdatedNotification.Post
+
+    @Test("Notifications query selects every server-defined notification type")
+    func notificationsQuerySelectsEveryNotificationType() throws {
+        let root = URL(filePath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let operation = try String(
+            contentsOf: root.appending(path: "operation.graphql"),
+            encoding: .utf8
+        )
+        let requiredTypes = [
+            "PollEndedNotification",
+            "SharedPostUpdatedNotification",
+            "QuotedPostUpdatedNotification",
+            "OrganizationInvitationNotification",
+            "OrganizationConversionRequestNotification",
+        ]
+
+        for type in requiredTypes {
+            #expect(operation.contains("... on \(type)"))
+        }
+    }
 
     @Test("[POST-20][TL-10] mention notification previews project generated values")
     func mentionProjectionUsesGeneratedPostValues() {
@@ -48,6 +73,30 @@ struct NotificationPostPreviewProjectionTests {
         assertProjection(
             makePost(SharePost.self, fixture: .share),
             expected: .share
+        )
+    }
+
+    @Test("Poll-ended notification previews project generated values")
+    func pollEndedProjectionUsesGeneratedPostValues() {
+        assertProjection(
+            makePost(PollEndedPost.self, fixture: .pollEnded),
+            expected: .pollEnded
+        )
+    }
+
+    @Test("Shared-post-updated notification previews project generated values")
+    func sharedPostUpdatedProjectionUsesGeneratedPostValues() {
+        assertProjection(
+            makePost(SharedPostUpdatedPost.self, fixture: .sharedPostUpdated),
+            expected: .sharedPostUpdated
+        )
+    }
+
+    @Test("Quoted-post-updated notification previews project generated values")
+    func quotedPostUpdatedProjectionUsesGeneratedPostValues() {
+        assertProjection(
+            makePost(QuotedPostUpdatedPost.self, fixture: .quotedPostUpdated),
+            expected: .quotedPostUpdated
         )
     }
 
@@ -180,6 +229,36 @@ private extension NotificationPostFixture {
         thumbnailURL: "https://example.com/share-thumb.jpg",
         mediaAlt: "Share image"
     )
+    static let pollEnded = NotificationPostFixture(
+        postID: "poll-ended-wrapper",
+        actorName: "<strong>Poll Ada</strong>",
+        actorHandle: "@poll@example.com",
+        title: "Favorite language?",
+        summary: "<p>Poll results</p>",
+        content: "<p>Poll content</p>",
+        thumbnailURL: nil,
+        mediaAlt: nil
+    )
+    static let sharedPostUpdated = NotificationPostFixture(
+        postID: "shared-updated-wrapper",
+        actorName: "<strong>Shared Bea</strong>",
+        actorHandle: "@shared@example.com",
+        title: nil,
+        summary: nil,
+        content: "<p>Updated shared post</p>",
+        thumbnailURL: "https://example.com/shared-updated-thumb.jpg",
+        mediaAlt: "Updated shared image"
+    )
+    static let quotedPostUpdated = NotificationPostFixture(
+        postID: "quoted-updated-wrapper",
+        actorName: "<strong>Quoted Cyd</strong>",
+        actorHandle: "@quoted@example.com",
+        title: "Updated quoted post",
+        summary: "<p>Updated quote summary</p>",
+        content: "<p>Updated quote content</p>",
+        thumbnailURL: nil,
+        mediaAlt: "Updated quote image"
+    )
 }
 
 private struct PreviewExpectation {
@@ -237,5 +316,32 @@ private extension PreviewExpectation {
         body: "Share summary",
         thumbnailURL: "https://example.com/share-thumb.jpg",
         thumbnailAlt: "Share image"
+    )
+    static let pollEnded = PreviewExpectation(
+        postID: "poll-ended-wrapper",
+        authorName: "Poll Ada",
+        authorHandle: "@poll@example.com",
+        title: "Favorite language?",
+        body: "Poll results",
+        thumbnailURL: "https://example.com/reply-full.jpg",
+        thumbnailAlt: nil
+    )
+    static let sharedPostUpdated = PreviewExpectation(
+        postID: "shared-updated-wrapper",
+        authorName: "Shared Bea",
+        authorHandle: "@shared@example.com",
+        title: nil,
+        body: "Updated shared post",
+        thumbnailURL: "https://example.com/shared-updated-thumb.jpg",
+        thumbnailAlt: "Updated shared image"
+    )
+    static let quotedPostUpdated = PreviewExpectation(
+        postID: "quoted-updated-wrapper",
+        authorName: "Quoted Cyd",
+        authorHandle: "@quoted@example.com",
+        title: "Updated quoted post",
+        body: "Updated quote summary",
+        thumbnailURL: "https://example.com/reply-full.jpg",
+        thumbnailAlt: "Updated quote image"
     )
 }

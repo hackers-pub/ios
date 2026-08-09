@@ -285,6 +285,9 @@ private typealias ReplyNotificationPost = NotificationPost.AsReplyNotification.P
 private typealias QuoteNotificationPost = NotificationPost.AsQuoteNotification.Post
 private typealias ReactNotificationPost = NotificationPost.AsReactNotification.Post
 private typealias ShareNotificationPost = NotificationPost.AsShareNotification.Post
+private typealias PollEndedNotificationPost = NotificationPost.AsPollEndedNotification.Post
+private typealias SharedPostUpdatedNotificationPost = NotificationPost.AsSharedPostUpdatedNotification.Post
+private typealias QuotedPostUpdatedNotificationPost = NotificationPost.AsQuotedPostUpdatedNotification.Post
 
 extension MentionNotificationPost: NotificationPostPreviewSource {
     var notificationPostPreviewFields: NotificationPostPreviewFields {
@@ -351,6 +354,54 @@ extension ReactNotificationPost: NotificationPostPreviewSource {
 }
 
 extension ShareNotificationPost: NotificationPostPreviewSource {
+    var notificationPostPreviewFields: NotificationPostPreviewFields {
+        NotificationPostPreviewFields(
+            postID: id,
+            author: PostPreviewAuthor(name: actor.name, handle: actor.handle, avatarURL: actor.avatarUrl),
+            title: name,
+            published: published,
+            content: content,
+            summary: summary,
+            media: media.map {
+                PostPreviewMedia(url: $0.url, thumbnailURL: $0.thumbnailUrl, alt: $0.alt)
+            }
+        )
+    }
+}
+
+extension PollEndedNotificationPost: NotificationPostPreviewSource {
+    var notificationPostPreviewFields: NotificationPostPreviewFields {
+        NotificationPostPreviewFields(
+            postID: id,
+            author: PostPreviewAuthor(name: actor.name, handle: actor.handle, avatarURL: actor.avatarUrl),
+            title: name,
+            published: published,
+            content: content,
+            summary: summary,
+            media: media.map {
+                PostPreviewMedia(url: $0.url, thumbnailURL: $0.thumbnailUrl, alt: $0.alt)
+            }
+        )
+    }
+}
+
+extension SharedPostUpdatedNotificationPost: NotificationPostPreviewSource {
+    var notificationPostPreviewFields: NotificationPostPreviewFields {
+        NotificationPostPreviewFields(
+            postID: id,
+            author: PostPreviewAuthor(name: actor.name, handle: actor.handle, avatarURL: actor.avatarUrl),
+            title: name,
+            published: published,
+            content: content,
+            summary: summary,
+            media: media.map {
+                PostPreviewMedia(url: $0.url, thumbnailURL: $0.thumbnailUrl, alt: $0.alt)
+            }
+        )
+    }
+}
+
+extension QuotedPostUpdatedNotificationPost: NotificationPostPreviewSource {
     var notificationPostPreviewFields: NotificationPostPreviewFields {
         NotificationPostPreviewFields(
             postID: id,

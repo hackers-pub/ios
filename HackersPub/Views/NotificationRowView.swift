@@ -95,6 +95,44 @@ struct NotificationRowView: View {
                 kind: .shared,
                 preview: shareNotification.post.map(NotificationPostPreview.init)
             )
+        } else if let pollEndedNotification = notification.asPollEndedNotification {
+            notificationWithPost(
+                icon: "chart.bar",
+                color: .indigo,
+                actorNamesHTML: actorNamesHTML,
+                kind: .pollEnded,
+                preview: pollEndedNotification.post.map(NotificationPostPreview.init)
+            )
+        } else if let sharedPostUpdatedNotification = notification.asSharedPostUpdatedNotification {
+            notificationWithPost(
+                icon: "arrow.2.squarepath",
+                color: .blue,
+                actorNamesHTML: actorNamesHTML,
+                kind: .sharedPostUpdated,
+                preview: sharedPostUpdatedNotification.post.map(NotificationPostPreview.init)
+            )
+        } else if let quotedPostUpdatedNotification = notification.asQuotedPostUpdatedNotification {
+            notificationWithPost(
+                icon: "quote.bubble",
+                color: .orange,
+                actorNamesHTML: actorNamesHTML,
+                kind: .quotedPostUpdated,
+                preview: quotedPostUpdatedNotification.post.map(NotificationPostPreview.init)
+            )
+        } else if notification.asOrganizationInvitationNotification != nil {
+            notificationSummary(
+                icon: "building.2",
+                color: .blue,
+                actorNamesHTML: actorNamesHTML,
+                kind: .organizationInvitation
+            )
+        } else if notification.asOrganizationConversionRequestNotification != nil {
+            notificationSummary(
+                icon: "arrow.triangle.2.circlepath",
+                color: .purple,
+                actorNamesHTML: actorNamesHTML,
+                kind: .organizationConversionRequest
+            )
         } else {
             Text(NSLocalizedString("notifications.unknownType", comment: "Unknown notification type"))
                 .font(.subheadline)

@@ -69,6 +69,16 @@ struct NotificationMessageFormatterTests {
                 expected = "Ada reacted to your note"
             case .shared:
                 expected = "Ada shared your note"
+            case .pollEnded:
+                expected = "Ada's poll ended"
+            case .sharedPostUpdated:
+                expected = "Ada updated a post you shared"
+            case .quotedPostUpdated:
+                expected = "Ada updated a post you quoted"
+            case .organizationInvitation:
+                expected = "Ada invited you to join an organization"
+            case .organizationConversionRequest:
+                expected = "Ada asked you to accept an organization conversion"
             }
             #expect(
                 NotificationMessageFormatter.format(
@@ -77,6 +87,69 @@ struct NotificationMessageFormatterTests {
                     localized: english
                 ).accessibilityText == expected
             )
+        }
+    }
+
+    @Test("Every notification kind formats one, two, and many actors in English and Korean")
+    func everyNotificationKindFormatsEveryActorCountInBothLocales() {
+        let localizers: [(String) -> String] = [english, korean]
+        let actorGroups = [
+            ["Ada"],
+            ["Ada", "Grace"],
+            ["Ada", "Grace", "Linus"],
+        ]
+
+        for localize in localizers {
+            for kind in NotificationMessageKind.allCases {
+                for actors in actorGroups {
+                    let message = NotificationMessageFormatter.format(
+                        actorNames: actors,
+                        kind: kind,
+                        localized: localize
+                    )
+
+                    #expect(!message.accessibilityText.hasPrefix("notifications.message."))
+                    #expect(!message.accessibilityText.contains("%"))
+                    #expect(message.accessibilityText.contains("Ada"))
+                }
+            }
+        }
+    }
+
+    @Test("Every server-defined notification type has its intended native presentation")
+    func notificationRowCoversNewTypesWithIntendedPresentations() throws {
+        let root = URL(filePath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: root.appending(path: "HackersPub/Views/NotificationRowView.swift"),
+            encoding: .utf8
+        )
+        let expectedPresentations = [
+            ("asPollEndedNotification", "chart.bar", ".indigo", ".pollEnded"),
+            ("asSharedPostUpdatedNotification", "arrow.2.squarepath", ".blue", ".sharedPostUpdated"),
+            ("asQuotedPostUpdatedNotification", "quote.bubble", ".orange", ".quotedPostUpdated"),
+            ("asOrganizationInvitationNotification", "building.2", ".blue", ".organizationInvitation"),
+            (
+                "asOrganizationConversionRequestNotification",
+                "arrow.triangle.2.circlepath",
+                ".purple",
+                ".organizationConversionRequest"
+            ),
+        ]
+
+        for (accessor, icon, color, kind) in expectedPresentations {
+            let accessorRange = try #require(source.range(of: accessor))
+            let nextBranchRange = source.range(
+                of: "} else",
+                range: accessorRange.upperBound..<source.endIndex
+            )
+            let branchEnd = nextBranchRange?.lowerBound ?? source.endIndex
+            let branch = source[accessorRange.lowerBound..<branchEnd]
+
+            #expect(branch.contains("icon: \"\(icon)\""))
+            #expect(branch.contains("color: \(color)"))
+            #expect(branch.contains("kind: \(kind)"))
         }
     }
 
@@ -167,6 +240,21 @@ struct NotificationMessageFormatterTests {
         notifications.message.shared.one=%1$@ shared your note
         notifications.message.shared.two=%1$@ and %2$@ shared your note
         notifications.message.shared.many=%1$@ and %2$d others shared your note
+        notifications.message.pollEnded.one=%1$@'s poll ended
+        notifications.message.pollEnded.two=%1$@ and %2$@'s polls ended
+        notifications.message.pollEnded.many=%1$@ and %2$d others' polls ended
+        notifications.message.sharedPostUpdated.one=%1$@ updated a post you shared
+        notifications.message.sharedPostUpdated.two=%1$@ and %2$@ updated a post you shared
+        notifications.message.sharedPostUpdated.many=%1$@ and %2$d others updated a post you shared
+        notifications.message.quotedPostUpdated.one=%1$@ updated a post you quoted
+        notifications.message.quotedPostUpdated.two=%1$@ and %2$@ updated a post you quoted
+        notifications.message.quotedPostUpdated.many=%1$@ and %2$d others updated a post you quoted
+        notifications.message.organizationInvitation.one=%1$@ invited you to join an organization
+        notifications.message.organizationInvitation.two=%1$@ and %2$@ invited you to join organizations
+        notifications.message.organizationInvitation.many=%1$@ and %2$d others invited you to join organizations
+        notifications.message.organizationConversionRequest.one=%1$@ asked you to accept an organization conversion
+        notifications.message.organizationConversionRequest.two=%1$@ and %2$@ asked you to accept organization conversions
+        notifications.message.organizationConversionRequest.many=%1$@ and %2$d others asked you to accept organization conversions
         """
     }
 
@@ -191,6 +279,21 @@ struct NotificationMessageFormatterTests {
         notifications.message.shared.one=%1$@님이 공유했습니다
         notifications.message.shared.two=%1$@님과 %2$@님이 공유했습니다
         notifications.message.shared.many=%1$@님 외 %2$d명이 공유했습니다
+        notifications.message.pollEnded.one=%1$@님의 설문이 종료되었습니다
+        notifications.message.pollEnded.two=%1$@님과 %2$@님의 설문이 종료되었습니다
+        notifications.message.pollEnded.many=%1$@님 외 %2$d명의 설문이 종료되었습니다
+        notifications.message.sharedPostUpdated.one=%1$@님이 내가 공유한 게시물을 수정했습니다
+        notifications.message.sharedPostUpdated.two=%1$@님과 %2$@님이 내가 공유한 게시물을 수정했습니다
+        notifications.message.sharedPostUpdated.many=%1$@님 외 %2$d명이 내가 공유한 게시물을 수정했습니다
+        notifications.message.quotedPostUpdated.one=%1$@님이 내가 인용한 게시물을 수정했습니다
+        notifications.message.quotedPostUpdated.two=%1$@님과 %2$@님이 내가 인용한 게시물을 수정했습니다
+        notifications.message.quotedPostUpdated.many=%1$@님 외 %2$d명이 내가 인용한 게시물을 수정했습니다
+        notifications.message.organizationInvitation.one=%1$@님이 조직에 초대했습니다
+        notifications.message.organizationInvitation.two=%1$@님과 %2$@님이 조직에 초대했습니다
+        notifications.message.organizationInvitation.many=%1$@님 외 %2$d명이 조직에 초대했습니다
+        notifications.message.organizationConversionRequest.one=%1$@님이 조직 전환 승인을 요청했습니다
+        notifications.message.organizationConversionRequest.two=%1$@님과 %2$@님이 조직 전환 승인을 요청했습니다
+        notifications.message.organizationConversionRequest.many=%1$@님 외 %2$d명이 조직 전환 승인을 요청했습니다
         """
     }
 }

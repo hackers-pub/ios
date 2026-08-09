@@ -7,6 +7,11 @@ enum NotificationMessageKind: CaseIterable, Hashable {
     case quoted
     case reacted
     case shared
+    case pollEnded
+    case sharedPostUpdated
+    case quotedPostUpdated
+    case organizationInvitation
+    case organizationConversionRequest
 
     var localizationComponent: String {
         switch self {
@@ -22,6 +27,16 @@ enum NotificationMessageKind: CaseIterable, Hashable {
             "reacted"
         case .shared:
             "shared"
+        case .pollEnded:
+            "pollEnded"
+        case .sharedPostUpdated:
+            "sharedPostUpdated"
+        case .quotedPostUpdated:
+            "quotedPostUpdated"
+        case .organizationInvitation:
+            "organizationInvitation"
+        case .organizationConversionRequest:
+            "organizationConversionRequest"
         }
     }
 }
