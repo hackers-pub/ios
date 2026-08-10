@@ -183,6 +183,7 @@ struct ContentView: View {
     @State private var containerWidth: CGFloat = 0
     @AppStorage("layout.notificationsCompanionRequested")
     private var isNotificationsCompanionRequested = false
+    @State private var isNotificationsCompanionPresented = false
 
     var body: some View {
         Group {
@@ -284,7 +285,8 @@ struct ContentView: View {
                         }
                     }
                     .customizationID("bookmarks")
-                    .defaultVisibility(.hidden, for: .tabBar)
+                    .defaultVisibility(.visible, for: .tabBar)
+                    .tabPlacement(.pinned)
                 }
                 .customizationID("section.authenticated.library")
                 .tabPlacement(.sidebarOnly)
@@ -457,6 +459,12 @@ struct ContentView: View {
         .onChange(of: navigationCoordinator.requestedSearch) { _, _ in
             forwardRequestedSearch()
         }
+        .onChange(
+            of: adaptiveLayoutPolicy.shouldPresentNotificationsCompanion,
+            initial: true
+        ) { _, shouldPresent in
+            isNotificationsCompanionPresented = shouldPresent
+        }
     }
 
     private var selectedAppTab: AppTab {
@@ -478,12 +486,10 @@ struct ContentView: View {
 
     private var notificationsCompanionBinding: Binding<Bool> {
         Binding(
-            get: { adaptiveLayoutPolicy.shouldPresentNotificationsCompanion },
+            get: { isNotificationsCompanionPresented },
             set: { isPresented in
-                if adaptiveLayoutPolicy.canOfferNotificationsCompanion,
-                   selectedAppTab != .notifications {
-                    isNotificationsCompanionRequested = isPresented
-                }
+                guard isPresented || !adaptiveLayoutPolicy.shouldPresentNotificationsCompanion else { return }
+                isNotificationsCompanionPresented = isPresented
             }
         )
     }
@@ -492,17 +498,19 @@ struct ContentView: View {
         CompanionToolbarConfiguration(
             isAvailable: adaptiveLayoutPolicy.canOfferNotificationsCompanion
                 && selectedAppTab != .notifications
-                && !adaptiveLayoutPolicy.shouldPresentNotificationsCompanion,
+                && !isNotificationsCompanionPresented,
             show: showNotificationsCompanion
         )
     }
 
     private func showNotificationsCompanion() {
         isNotificationsCompanionRequested = true
+        isNotificationsCompanionPresented = true
     }
 
     private func closeNotificationsCompanion() {
         isNotificationsCompanionRequested = false
+        isNotificationsCompanionPresented = false
     }
 
     private func openPrimaryNotifications() {
