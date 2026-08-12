@@ -45,6 +45,7 @@ final class MountedFeedAnchorModel {
     var rows: [Row]
     var viewport = FeedViewportSnapshot<String>()
     var restoration: FeedScrollAnchorPolicy<String>.Restoration?
+    var restorationCancellationGeneration: UInt64 = 0
     @ObservationIgnored var latestDiagnostics: FeedAnchorScrollDiagnostics<String>?
     @ObservationIgnored var observedCommandPhases = Set<String>()
     @ObservationIgnored var observedCommands = [ObservedFeedScrollCommand]()
@@ -204,6 +205,7 @@ struct MountedFeedAnchorHarness: View {
         FeedAnchorScrollView(
             viewport: $model.viewport,
             restoration: $model.restoration,
+            restorationCancellationGeneration: model.restorationCancellationGeneration,
             onDiagnostic: recordDiagnostic,
             measurementFrameScheduler: measurementFrameScheduler,
             commandFrameScheduler: commandFrameScheduler,

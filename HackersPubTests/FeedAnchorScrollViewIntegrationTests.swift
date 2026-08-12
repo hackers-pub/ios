@@ -4,6 +4,43 @@ import Testing
 import UIKit
 
 struct FeedAnchorScrollViewIntegrationTests {
+    @Test("reselection cancellation discards a scheduled anchor restoration")
+    @MainActor
+    func reselectionCancellationDiscardsScheduledRestoration() async throws {
+        let commandFrameScheduler = ManualFeedScrollCommandFrameScheduler()
+        let restoration = FeedScrollAnchorPolicy<String>.Restoration(
+            id: "post-2",
+            offset: -23,
+            sequence: 1
+        )
+        let fixture = MountedFeedAnchorFixture(
+            commandFrameScheduler: commandFrameScheduler,
+            initialRestoration: restoration
+        )
+        defer { fixture.dismantle() }
+
+        _ = try await fixture.waitForScrollView()
+        let didScheduleRestoration = await waitForDisplayFrames(
+            until: { commandFrameScheduler.hasPendingOperation }
+        )
+        #expect(didScheduleRestoration)
+
+        fixture.model.restorationCancellationGeneration &+= 1
+        let didCancelRestoration = await waitForDisplayFrames(
+            until: {
+                fixture.model.restoration == nil
+                    && fixture.model.latestDiagnostics?.pendingSequence == nil
+                    && !commandFrameScheduler.hasPendingOperation
+            }
+        )
+        #expect(didCancelRestoration)
+
+        let commandCount = fixture.model.observedCommands.count
+        commandFrameScheduler.advanceFrame()
+        commandFrameScheduler.advanceFrame()
+        #expect(fixture.model.observedCommands.count == commandCount)
+    }
+
     @Test("SOC-13: mounted nested rows use global-frame measurement with a nonzero content inset")
     @MainActor
     func mountedNestedRowsUseGlobalFrameOffsetWithInset() async throws {

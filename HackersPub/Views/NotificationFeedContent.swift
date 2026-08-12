@@ -17,6 +17,7 @@ struct NotificationFeedContent: View {
     let navigate: (NotificationNavigationAction) -> Void
     @Binding var scrollViewport: FeedViewportSnapshot<String>
     @Binding var scrollRestoreRequest: FeedScrollAnchorPolicy<String>.Restoration?
+    let restorationCancellationGeneration: UInt64
     @Environment(\.feedMaximumWidth) private var feedMaximumWidth
 
     var body: some View {
@@ -32,7 +33,8 @@ struct NotificationFeedContent: View {
 
             FeedAnchorScrollView(
                 viewport: $scrollViewport,
-                restoration: $scrollRestoreRequest
+                restoration: $scrollRestoreRequest,
+                restorationCancellationGeneration: restorationCancellationGeneration
             ) {
                 LazyVStack(spacing: 0) {
                     if pendingGapInsertionIndex == 0 {

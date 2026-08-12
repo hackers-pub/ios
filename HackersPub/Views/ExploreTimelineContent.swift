@@ -4,12 +4,14 @@ import SwiftUI
 struct ExploreTimelineContent<Edge: ExploreTimelineEdge, Row: View>: View {
     @Bindable var store: ExploreTimelineScopeStore<Edge>
     let dataSource: ExploreTimelineDataSource<Edge>
+    let reselectionGeneration: UInt64
     let row: (Edge) -> Row
     @State private var shouldRefresh = false
     @State private var requestTask: Task<Void, Never>?
     @State private var requestTaskGeneration: Int?
     @State private var scrollAnchorPolicy = FeedScrollAnchorPolicy<String>()
     @State private var scrollRestoreRequest: FeedScrollAnchorPolicy<String>.Restoration?
+    @State private var suppressesAnchorRestoration = false
 
     var body: some View {
         Group {
@@ -32,7 +34,8 @@ struct ExploreTimelineContent<Edge: ExploreTimelineEdge, Row: View>: View {
             } else {
                 FeedAnchorScrollView(
                     viewport: $store.scrollViewport,
-                    restoration: $scrollRestoreRequest
+                    restoration: $scrollRestoreRequest,
+                    restorationCancellationGeneration: reselectionGeneration
                 ) {
                     LazyVStack(spacing: 0) {
                         if store.hasPreviousPage, !store.edges.isEmpty {
@@ -98,6 +101,15 @@ struct ExploreTimelineContent<Edge: ExploreTimelineEdge, Row: View>: View {
                 shouldRefresh = false
             }
         }
+        .onChange(of: store.scrollViewport.isAtTop) { _, isAtTop in
+            if isAtTop {
+                suppressesAnchorRestoration = false
+            }
+        }
+        .onChange(of: reselectionGeneration) { _, _ in
+            suppressesAnchorRestoration = !store.scrollViewport.isAtTop
+            cancelScrollRestoration()
+        }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshTimeline"))) { _ in
             shouldRefresh = true
         }
@@ -112,9 +124,10 @@ struct ExploreTimelineContent<Edge: ExploreTimelineEdge, Row: View>: View {
 
     private func launch(_ request: ExploreTimelineRequest?) async {
         guard let request, store.isCurrent(request) else { return }
+        let launchReselectionGeneration = reselectionGeneration
 
         let task = Task {
-            await perform(request)
+            await perform(request, launchReselectionGeneration: launchReselectionGeneration)
         }
         requestTask = task
         requestTaskGeneration = request.generation
@@ -126,11 +139,18 @@ struct ExploreTimelineContent<Edge: ExploreTimelineEdge, Row: View>: View {
         }
     }
 
-    private func perform(_ request: ExploreTimelineRequest?) async {
+    private func perform(
+        _ request: ExploreTimelineRequest?,
+        launchReselectionGeneration: UInt64
+    ) async {
         guard let request, store.isCurrent(request) else { return }
 
         guard !Task.isCancelled else {
-            await resolve(request, with: .failure(CancellationError()))
+            await resolve(
+                request,
+                with: .failure(CancellationError()),
+                launchReselectionGeneration: launchReselectionGeneration
+            )
             return
         }
 
@@ -139,9 +159,17 @@ struct ExploreTimelineContent<Edge: ExploreTimelineEdge, Row: View>: View {
             let result: Result<ExploreTimelineFetchResult<Edge>, Error> = Task.isCancelled
                 ? .failure(CancellationError())
                 : .success(response)
-            await resolve(request, with: result)
+            await resolve(
+                request,
+                with: result,
+                launchReselectionGeneration: launchReselectionGeneration
+            )
         } catch {
-            await resolve(request, with: .failure(error))
+            await resolve(
+                request,
+                with: .failure(error),
+                launchReselectionGeneration: launchReselectionGeneration
+            )
         }
     }
 
@@ -160,11 +188,18 @@ struct ExploreTimelineContent<Edge: ExploreTimelineEdge, Row: View>: View {
 
     private func resolve(
         _ request: ExploreTimelineRequest,
-        with result: Result<ExploreTimelineFetchResult<Edge>, Error>
+        with result: Result<ExploreTimelineFetchResult<Edge>, Error>,
+        launchReselectionGeneration: UInt64
     ) async {
         let previousCount = store.edges.count
         let isCurrent = store.isCurrent(request)
-        if case .newer = request.operation, case .success = result, isCurrent {
+        let permitsAnchorRestoration = launchReselectionGeneration == reselectionGeneration
+            && !suppressesAnchorRestoration
+        if case .newer = request.operation,
+           case .success = result,
+           isCurrent,
+           permitsAnchorRestoration
+        {
             scrollAnchorPolicy.captureBeforePrepending(
                 viewport: store.scrollViewport,
                 existingIDs: store.edges.map(\.timelineListID)
@@ -172,20 +207,30 @@ struct ExploreTimelineContent<Edge: ExploreTimelineEdge, Row: View>: View {
         }
 
         let replay = store.resolve(request, with: result)
-        if isCurrent, case .newer = request.operation {
+        if isCurrent, case .newer = request.operation, permitsAnchorRestoration {
             if store.edges.count > previousCount {
                 scheduleScrollAnchorRestoration()
             } else {
                 scrollAnchorPolicy.reset()
             }
+        } else if isCurrent, case .newer = request.operation {
+            cancelScrollRestoration()
         }
-        await perform(replay)
+        await perform(
+            replay,
+            launchReselectionGeneration: launchReselectionGeneration
+        )
     }
 
     private func scheduleScrollAnchorRestoration() {
         scrollRestoreRequest = scrollAnchorPolicy.takeRestoration(
             availableIDs: store.edges.map(\.timelineListID)
         )
+    }
+
+    private func cancelScrollRestoration() {
+        scrollRestoreRequest = nil
+        scrollAnchorPolicy.reset()
     }
 
     @MainActor
