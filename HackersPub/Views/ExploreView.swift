@@ -16,6 +16,7 @@ enum ExploreScope: CaseIterable, Hashable {
 
 struct ExploreView: View {
     @Binding var showingComposeView: Bool
+    let reselectionGeneration: UInt64
     @State private var selectedScope: ExploreScope = .local
     @State private var localTimelineStore = ExploreTimelineScopeStore<LocalExploreTimelineEdge>()
     @State private var globalTimelineStore = ExploreTimelineScopeStore<GlobalExploreTimelineEdge>()
@@ -25,8 +26,12 @@ struct ExploreView: View {
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(AuthManager.self) private var authManager
 
-    init(showingComposeView: Binding<Bool> = .constant(false)) {
+    init(
+        showingComposeView: Binding<Bool> = .constant(false),
+        reselectionGeneration: UInt64 = 0
+    ) {
         _showingComposeView = showingComposeView
+        self.reselectionGeneration = reselectionGeneration
     }
 
     var body: some View {
@@ -34,7 +39,11 @@ struct ExploreView: View {
             Group {
                 switch selectedScope {
                 case .local:
-                    ExploreTimelineContent(store: localTimelineStore, dataSource: .local) { edge in
+                    ExploreTimelineContent(
+                        store: localTimelineStore,
+                        dataSource: .local,
+                        reselectionGeneration: reselectionGeneration
+                    ) { edge in
                         PostView(
                             post: edge.node,
                             timelineSharer: edge.lastSharer,
@@ -44,7 +53,11 @@ struct ExploreView: View {
                         )
                     }
                 case .global:
-                    ExploreTimelineContent(store: globalTimelineStore, dataSource: .global) { edge in
+                    ExploreTimelineContent(
+                        store: globalTimelineStore,
+                        dataSource: .global,
+                        reselectionGeneration: reselectionGeneration
+                    ) { edge in
                         PostView(
                             post: edge.node,
                             timelineSharer: edge.lastSharer,

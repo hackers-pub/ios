@@ -122,6 +122,7 @@ extension View {
 struct FeedAnchorScrollView<ID: Hashable & Sendable, Content: View>: View {
     @Binding var viewport: FeedViewportSnapshot<ID>
     @Binding var restoration: FeedScrollAnchorPolicy<ID>.Restoration?
+    let restorationCancellationGeneration: UInt64
     @State var scrollPosition: ScrollPosition
     @State var initialAnchor: FeedViewportAnchor<ID>?
     @State var pendingRestoration: FeedScrollAnchorPolicy<ID>.Restoration?
@@ -146,6 +147,7 @@ struct FeedAnchorScrollView<ID: Hashable & Sendable, Content: View>: View {
     init(
         viewport: Binding<FeedViewportSnapshot<ID>>,
         restoration: Binding<FeedScrollAnchorPolicy<ID>.Restoration?>,
+        restorationCancellationGeneration: UInt64 = 0,
         onDiagnostic: ((FeedAnchorScrollDiagnostics<ID>) -> Void)? = nil,
         watchdogTimeout: Duration = .seconds(1),
         measurementFrameScheduler: (any FeedScrollCommandFrameScheduling)? = nil,
@@ -155,6 +157,7 @@ struct FeedAnchorScrollView<ID: Hashable & Sendable, Content: View>: View {
     ) {
         _viewport = viewport
         _restoration = restoration
+        self.restorationCancellationGeneration = restorationCancellationGeneration
         self.onDiagnostic = onDiagnostic
         self.measurementMetricsAdmission = measurementMetricsAdmission
         self.watchdogTimeout = watchdogTimeout
@@ -216,6 +219,9 @@ struct FeedAnchorScrollView<ID: Hashable & Sendable, Content: View>: View {
         }
         .onChange(of: restoration?.sequence) { _, _ in
             handleRestorationChange()
+        }
+        .onChange(of: restorationCancellationGeneration) { _, _ in
+            cancelRestoration()
         }
         .onDisappear(perform: handleDisappear)
         .onAppear(perform: handleAppear)
@@ -314,15 +320,7 @@ extension FeedAnchorScrollView {
 
     func handleRestorationChange() {
         guard let restoration else {
-            if pendingRestoration != nil {
-                pendingRestoration = nil
-                attemptTracker.reset()
-            }
-            pendingMaterializationSequence = nil
-            measurementBuffer.prepareForLayoutRevision(0)
-            measurementBuffer.resetMetricFence()
-            cancelScheduledWork()
-            cancelWatchdog()
+            cancelRestoration()
             return
         }
         guard pendingRestoration?.sequence != restoration.sequence else { return }
@@ -338,6 +336,19 @@ extension FeedAnchorScrollView {
         initialAnchor = nil
         reportDiagnostics()
         scheduleMeasurementReconciliation()
+    }
+
+    func cancelRestoration() {
+        restoration = nil
+        pendingRestoration = nil
+        pendingMaterializationSequence = nil
+        initialAnchor = nil
+        attemptTracker.reset()
+        measurementBuffer.prepareForLayoutRevision(0)
+        measurementBuffer.resetMetricFence()
+        cancelScheduledWork()
+        cancelWatchdog()
+        reportDiagnostics()
     }
 
     func handleDisappear() {
