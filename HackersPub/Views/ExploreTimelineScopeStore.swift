@@ -65,8 +65,8 @@ final class ExploreTimelineScopeStore<Edge: ExploreTimelineEdge> {
         return false
     }
 
-    /// Measured semantic rows and offsets survive Local/Global scope changes.
-    var scrollViewport = FeedViewportSnapshot<String>()
+    /// The native semantic scroll target survives Local/Global scope changes.
+    var scrollPositionID: String?
 
     func startInitialLoadIfNeeded() -> ExploreTimelineRequest? {
         guard !hasLoadedInitial, activeRequest == nil else { return nil }

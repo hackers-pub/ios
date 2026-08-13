@@ -178,8 +178,6 @@ struct ContentView: View {
         }
     )
     @State private var selectedTab: String = "timeline"
-    @State private var notificationsReselectionGeneration: UInt64 = 0
-    @State private var exploreReselectionGeneration: UInt64 = 0
     @State private var showingComposeView = false
     @State private var notificationFeedController = NotificationFeedController()
     @State private var containerWidth: CGFloat = 0
@@ -216,7 +214,7 @@ struct ContentView: View {
     }
 
     private var mainContent: some View {
-        TabView(selection: userTabSelection) {
+        TabView(selection: $selectedTab) {
             if authManager.isAuthenticated {
                 TabSection(NSLocalizedString("tab.section.home", comment: "Home tabs section")) {
                     Tab(
@@ -239,8 +237,7 @@ struct ContentView: View {
                     ) {
                         NotificationsView(
                             controller: notificationFeedController,
-                            presentation: .primary,
-                            reselectionGeneration: notificationsReselectionGeneration
+                            presentation: .primary
                         )
                     }
                     .customizationID("notifications")
@@ -268,10 +265,7 @@ struct ContentView: View {
                         value: "explore",
                         role: nil
                     ) {
-                        ExploreView(
-                            showingComposeView: $showingComposeView,
-                            reselectionGeneration: exploreReselectionGeneration
-                        )
+                        ExploreView(showingComposeView: $showingComposeView)
                     }
                     .customizationID("explore")
                     .tabPlacement(.pinned)
@@ -478,36 +472,6 @@ struct ContentView: View {
             AppTab(rawValue: selectedTab),
             isAuthenticated: authManager.isAuthenticated
         )
-    }
-
-    private var userTabSelection: Binding<String> {
-        ActiveTabSelectionBindingAdapter(
-            read: { selectedTab },
-            writeBackingValue: { selectedTab = $0 },
-            shouldHandleUserReselection: shouldHandleUserReselection,
-            userReselected: handleUserReselection
-        ).binding
-    }
-
-    private func shouldHandleUserReselection(_ rawValue: String) -> Bool {
-        guard let tab = AppTab(rawValue: rawValue) else { return false }
-        switch tab {
-        case .notifications, .explore:
-            return !navigationCoordinator.hasPath(for: tab)
-        default:
-            return false
-        }
-    }
-
-    private func handleUserReselection(_ rawValue: String) {
-        switch AppTab(rawValue: rawValue) {
-        case .notifications:
-            notificationsReselectionGeneration &+= 1
-        case .explore:
-            exploreReselectionGeneration &+= 1
-        default:
-            break
-        }
     }
 
     private var adaptiveLayoutPolicy: AdaptiveAppLayoutPolicy {

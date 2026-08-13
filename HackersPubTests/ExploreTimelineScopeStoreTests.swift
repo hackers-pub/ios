@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 @testable import HackersPub
 import Testing
@@ -31,7 +30,7 @@ struct ExploreTimelineScopeStoreTests {
         }
     }
 
-    @Test("SOC-14: each Explore scope retains its rows, cursors, and scroll anchor")
+    @Test("SOC-14: each Explore scope retains its rows, cursors, and scroll position")
     @MainActor
     func scopeStoresKeepIndependentPresentationState() throws {
         let local = ExploreTimelineScopeStore<Edge>()
@@ -57,26 +56,18 @@ struct ExploreTimelineScopeStoreTests {
 
         let localRequest = try #require(local.startInitialLoadIfNeeded())
         _ = local.resolve(localRequest, with: .success(success(localPage)))
-        local.scrollViewport = FeedViewportSnapshot(
-            visibleAnchors: [FeedViewportAnchor(id: "local-post", offset: -12)],
-            isAtTop: false
-        )
+        local.scrollPositionID = "local-post"
         let globalRequest = try #require(global.startInitialLoadIfNeeded())
         _ = global.resolve(globalRequest, with: .success(success(globalPage)))
-        global.scrollViewport = FeedViewportSnapshot(
-            visibleAnchors: [FeedViewportAnchor(id: "global-post", offset: -7)],
-            isAtTop: false
-        )
+        global.scrollPositionID = "global-post"
 
         #expect(local.startInitialLoadIfNeeded() == nil)
         #expect(local.edges == localPage.edges)
         #expect(local.endCursor == "local-end")
-        #expect(local.scrollViewport.primaryAnchor?.id == "local-post")
-        #expect(local.scrollViewport.primaryAnchor?.offset == -12)
+        #expect(local.scrollPositionID == "local-post")
         #expect(global.edges == globalPage.edges)
         #expect(global.endCursor == "global-end")
-        #expect(global.scrollViewport.primaryAnchor?.id == "global-post")
-        #expect(global.scrollViewport.primaryAnchor?.offset == -7)
+        #expect(global.scrollPositionID == "global-post")
     }
 
     @Test("SOC-14: newer pages prepend without duplicating a timeline identity")
