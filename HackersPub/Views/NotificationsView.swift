@@ -10,33 +10,15 @@ enum NotificationsPresentation {
 struct NotificationsView: View {
     let controller: NotificationFeedController
     let presentation: NotificationsPresentation
-    let reselectionGeneration: UInt64
 
     @State private var showingSettings = false
-    @State private var scrollViewport = FeedViewportSnapshot<String>()
-    @State private var scrollAnchorPolicy = FeedScrollAnchorPolicy<String>()
-    @State private var scrollRestoreRequest: FeedScrollAnchorPolicy<String>.Restoration?
-    @State private var suppressesAnchorRestoration = false
+    @State private var scrollPositionID: String?
     @Environment(AuthManager.self) private var authManager
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(NotificationReadState.self) private var notificationReadState
 
     private var notificationReadSession: NotificationReadSession? {
         currentNotificationReadSession(for: authManager)
-    }
-
-    private var notificationIDs: [String] {
-        controller.notifications.map(\.node.id)
-    }
-
-    init(
-        controller: NotificationFeedController,
-        presentation: NotificationsPresentation,
-        reselectionGeneration: UInt64 = 0
-    ) {
-        self.controller = controller
-        self.presentation = presentation
-        self.reselectionGeneration = reselectionGeneration
     }
 
     @ViewBuilder
@@ -155,33 +137,11 @@ struct NotificationsView: View {
                 )
             }
             .task(id: notificationReadSession) {
-                resetScrollState()
+                scrollPositionID = nil
                 await controller.load(
                     for: notificationReadSession,
                     readState: notificationReadState
                 )
-            }
-            .onChange(of: notificationIDs) { previousIDs, availableIDs in
-                guard !suppressesAnchorRestoration else {
-                    cancelScrollRestoration()
-                    return
-                }
-                scrollAnchorPolicy.captureBeforePrepending(
-                    viewport: scrollViewport,
-                    existingIDs: previousIDs
-                )
-                scrollRestoreRequest = scrollAnchorPolicy.takeRestoration(
-                    availableIDs: availableIDs
-                )
-            }
-            .onChange(of: scrollViewport.isAtTop) { _, isAtTop in
-                if isAtTop {
-                    suppressesAnchorRestoration = false
-                }
-            }
-            .onChange(of: reselectionGeneration) { _, _ in
-                suppressesAnchorRestoration = !scrollViewport.isAtTop
-                cancelScrollRestoration()
             }
     }
 
@@ -250,9 +210,7 @@ struct NotificationsView: View {
                     )
                 },
                 navigate: navigate,
-                scrollViewport: $scrollViewport,
-                scrollRestoreRequest: $scrollRestoreRequest,
-                restorationCancellationGeneration: reselectionGeneration
+                scrollPositionID: $scrollPositionID
             )
         }
     }
@@ -264,16 +222,5 @@ struct NotificationsView: View {
         case let .post(id):
             navigationCoordinator.navigateToPost(id: id)
         }
-    }
-
-    private func resetScrollState() {
-        scrollViewport = FeedViewportSnapshot()
-        suppressesAnchorRestoration = false
-        cancelScrollRestoration()
-    }
-
-    private func cancelScrollRestoration() {
-        scrollRestoreRequest = nil
-        scrollAnchorPolicy.reset()
     }
 }
